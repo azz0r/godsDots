@@ -103,19 +103,57 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
   }, [terrainSystem, godBoundary, pathSystem])
 
   const updateWandering = (villager, gameTime) => {
-    if (!villager.pathfinding.targetNode || gameTime - villager.pathfinding.lastPathUpdate > 300 + Math.random() * 600) {
-      // Find a path to follow - prefer main paths or circular routes
-      const pathDestination = pathSystem.findRandomDestinationOnPath(Math.random() < 0.7 ? 'main' : 'circular')
+    if (!villager.pathfinding.currentPath || villager.pathfinding.currentPath.complete || 
+        gameTime - villager.pathfinding.lastPathUpdate > 300 + Math.random() * 600) {
       
-      if (pathDestination) {
-        villager.pathfinding.targetNode = pathDestination
-        villager.pathfinding.lastPathUpdate = gameTime
+      // Clear old path if exists
+      if (villager.pathfinding.currentPath) {
+        pathSystem.clearPath(villager.id)
+        villager.pathfinding.currentPath = null
+      }
+
+      // Decide between following existing roads or finding a new destination
+      if (Math.random() < 0.7) {
+        // Follow existing paths
+        const pathDestination = pathSystem.findRandomDestinationOnPath(Math.random() < 0.7 ? 'main' : 'circular')
+        
+        if (pathDestination) {
+          // Use A* to find path to the road node
+          const path = pathSystem.requestPath(
+            villager.id,
+            villager.x,
+            villager.y,
+            pathDestination.x,
+            pathDestination.y
+          )
+          
+          if (path) {
+            villager.pathfinding.currentPath = path
+            villager.pathfinding.lastPathUpdate = gameTime
+          }
+        }
       } else {
-        // Fallback to old behavior if no paths available
-        const targetX = villager.x + (Math.random() - 0.5) * 100
-        const targetY = villager.y + (Math.random() - 0.5) * 100
-        const walkableTarget = findNearestWalkableTile(targetX, targetY)
-        villager.target = walkableTarget
+        // Find random walkable destination
+        const targetX = villager.x + (Math.random() - 0.5) * 200
+        const targetY = villager.y + (Math.random() - 0.5) * 200
+        
+        // Use A* pathfinding to reach the destination
+        const path = pathSystem.requestPath(
+          villager.id,
+          villager.x,
+          villager.y,
+          targetX,
+          targetY
+        )
+        
+        if (path) {
+          villager.pathfinding.currentPath = path
+          villager.pathfinding.lastPathUpdate = gameTime
+        } else {
+          // Fallback to simple movement if no path found
+          const walkableTarget = findNearestWalkableTile(targetX, targetY)
+          villager.target = walkableTarget
+        }
       }
       
       villager.lastMove = gameTime
@@ -142,12 +180,40 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
       const distance = Math.sqrt(dx * dx + dy * dy)
       
       if (distance > 20) {
-        villager.target = {
-          x: villager.x + (dx / distance) * 100,
-          y: villager.y + (dy / distance) * 100
+        // Clear existing path
+        if (villager.pathfinding.currentPath) {
+          pathSystem.clearPath(villager.id)
+          villager.pathfinding.currentPath = null
+        }
+
+        // Request urgent path to safety
+        const safeX = godBoundary.center.x + (Math.random() - 0.5) * 50
+        const safeY = godBoundary.center.y + (Math.random() - 0.5) * 50
+        
+        const path = pathSystem.requestPath(
+          villager.id,
+          villager.x,
+          villager.y,
+          safeX,
+          safeY
+        )
+        
+        if (path) {
+          villager.pathfinding.currentPath = path
+          villager.pathfinding.lastPathUpdate = gameTime
+        } else {
+          // Fallback to direct movement if no path
+          villager.target = {
+            x: villager.x + (dx / distance) * 100,
+            y: villager.y + (dy / distance) * 100
+          }
         }
       } else {
         villager.state = 'wandering'
+        if (villager.pathfinding.currentPath) {
+          pathSystem.clearPath(villager.id)
+          villager.pathfinding.currentPath = null
+        }
       }
     }
   }
@@ -159,13 +225,38 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
       const distance = Math.sqrt(dx * dx + dy * dy)
       
       if (distance > 30) {
-        villager.target = {
-          x: villager.homeBuilding.x,
-          y: villager.homeBuilding.y
+        // Request path home if we don't have one
+        if (!villager.pathfinding.currentPath || villager.pathfinding.currentPath.complete) {
+          if (villager.pathfinding.currentPath) {
+            pathSystem.clearPath(villager.id)
+          }
+          
+          const path = pathSystem.requestPath(
+            villager.id,
+            villager.x,
+            villager.y,
+            villager.homeBuilding.x + villager.homeBuilding.width / 2,
+            villager.homeBuilding.y + villager.homeBuilding.height / 2
+          )
+          
+          if (path) {
+            villager.pathfinding.currentPath = path
+            villager.pathfinding.lastPathUpdate = gameTime
+          } else {
+            // Fallback to direct movement
+            villager.target = {
+              x: villager.homeBuilding.x,
+              y: villager.homeBuilding.y
+            }
+          }
         }
       } else {
         villager.state = 'idle'
         villager.target = null
+        if (villager.pathfinding.currentPath) {
+          pathSystem.clearPath(villager.id)
+          villager.pathfinding.currentPath = null
+        }
       }
     }
   }
@@ -173,60 +264,93 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
   const updateMovement = (villager, gameTime) => {
     let targetX, targetY
     
-    // Priority 1: Follow path nodes
-    if (villager.pathfinding.targetNode) {
+    // Priority 1: Follow A* path
+    if (villager.pathfinding.currentPath && !villager.pathfinding.currentPath.complete) {
+      const path = villager.pathfinding.currentPath
+      
+      // Check if we reached current waypoint
+      if (path.isNearTarget(villager.x, villager.y, 12)) {
+        path.advance()
+      }
+      
+      // Get direction to current waypoint
+      const direction = path.getDirection(villager.x, villager.y)
+      
+      if (direction.x !== 0 || direction.y !== 0) {
+        const speed = 0.8 // Base speed
+        
+        // Speed modifier based on terrain (roads are faster)
+        const speedModifier = 1.0 // Base speed for now, can be enhanced later
+        
+        villager.vx = direction.x * speed * speedModifier
+        villager.vy = direction.y * speed * speedModifier
+      } else {
+        // Path complete
+        villager.vx = 0
+        villager.vy = 0
+        villager.movement.isIdle = true
+        villager.movement.idleDuration = 60 + Math.random() * 120
+      }
+    }
+    // Priority 2: Follow legacy path nodes
+    else if (villager.pathfinding.targetNode) {
       targetX = villager.pathfinding.targetNode.x
       targetY = villager.pathfinding.targetNode.y
       
       // Update path usage
       pathSystem.updatePathUsage(villager.pathfinding.targetNode)
+      
+      const dx = targetX - villager.x
+      const dy = targetY - villager.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (distance > 8) {
+        const speed = 0.8
+        villager.vx = (dx / distance) * speed
+        villager.vy = (dy / distance) * speed
+      } else {
+        // Reached target
+        villager.pathfinding.targetNode = null
+        villager.movement.isIdle = true
+        villager.movement.idleDuration = 60 + Math.random() * 120
+        villager.vx = 0
+        villager.vy = 0
+      }
     }
-    // Priority 2: Follow legacy target system
+    // Priority 3: Follow legacy target system
     else if (villager.target) {
       targetX = villager.target.x
       targetY = villager.target.y
-    }
-    // Priority 3: Gravitate toward nearest path
-    else {
-      const nearestPath = pathSystem.findNearestPathNode(villager.x, villager.y, 150)
-      if (nearestPath) {
-        targetX = nearestPath.x
-        targetY = nearestPath.y
-        villager.pathfinding.targetNode = nearestPath
-      } else {
-        // No movement target, enter idle state
-        villager.movement.isIdle = true
-        villager.movement.idleDuration = 120 + Math.random() * 240 // 2-6 seconds of idle
-        return
-      }
-    }
-    
-    // Calculate movement
-    const dx = targetX - villager.x
-    const dy = targetY - villager.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-    
-    if (distance > 8) {
-      const speed = 0.8 // Slower, more natural movement
-      villager.vx = (dx / distance) * speed
-      villager.vy = (dy / distance) * speed
-    } else {
-      // Reached target
-      if (villager.pathfinding.targetNode) {
-        // Clear path target and enter brief idle
-        villager.pathfinding.targetNode = null
-        villager.movement.isIdle = true
-        villager.movement.idleDuration = 60 + Math.random() * 120 // 1-3 second pause
+      
+      const dx = targetX - villager.x
+      const dy = targetY - villager.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (distance > 8) {
+        const speed = 0.8
+        villager.vx = (dx / distance) * speed
+        villager.vy = (dy / distance) * speed
       } else {
         villager.target = null
+        villager.vx = 0
+        villager.vy = 0
+      }
+    }
+    // Priority 4: No target - enter idle
+    else {
+      if (!villager.movement.isIdle) {
+        villager.movement.isIdle = true
+        villager.movement.idleDuration = 120 + Math.random() * 240
       }
       villager.vx = 0
       villager.vy = 0
+      return
     }
 
+    // Apply movement
     villager.x += villager.vx
     villager.y += villager.vy
-    villager.vx *= 0.85 // More friction for smoother movement
+    villager.vx *= 0.85 // Friction
     villager.vy *= 0.85
   }
 
@@ -242,10 +366,19 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
       villager.target = null
       villager.pathfinding.stuck++
       
+      // Clear current path if stuck
+      if (villager.pathfinding.currentPath) {
+        pathSystem.clearPath(villager.id)
+        villager.pathfinding.currentPath = null
+      }
+      
       if (villager.pathfinding.stuck > 10) {
         villager.state = 'fleeing'
         villager.pathfinding.stuck = 0
       }
+    } else {
+      // Reset stuck counter when moving normally
+      villager.pathfinding.stuck = 0
     }
 
     // Constrain to world bounds
@@ -266,25 +399,29 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
       const healthColor = villager.health > 70 ? '#00ff00' : 
                          villager.health > 30 ? '#ffff00' : '#ff0000'
       
+      // Use pixel-aligned positions
+      const x = Math.floor(villager.x)
+      const y = Math.floor(villager.y)
+      
       // Draw health ring
       ctx.fillStyle = healthColor
       ctx.beginPath()
-      ctx.arc(villager.x, villager.y, 6, 0, Math.PI * 2)
+      ctx.arc(x, y, 6, 0, Math.PI * 2)
       ctx.fill()
       
       // Draw villager body
       ctx.fillStyle = '#ffffff'
       ctx.beginPath()
-      ctx.arc(villager.x, villager.y, 4, 0, Math.PI * 2)
+      ctx.arc(x, y, 4, 0, Math.PI * 2)
       ctx.fill()
       
       // Draw state indicator
       if (villager.state === 'working') {
         ctx.fillStyle = '#ffff00'
-        ctx.fillRect(villager.x - 2, villager.y - 10, 4, 2)
+        ctx.fillRect(x - 2, y - 10, 4, 2)
       } else if (villager.state === 'fleeing') {
         ctx.fillStyle = '#ff0000'
-        ctx.fillRect(villager.x - 2, villager.y - 10, 4, 2)
+        ctx.fillRect(x - 2, y - 10, 4, 2)
       }
     })
   }, [])

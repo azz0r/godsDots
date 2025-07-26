@@ -1,6 +1,10 @@
 .gameCanvas {
   background: linear-gradient(135deg, #2c5530, #4a7c59);
   border: 2px solid #8b4513;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .grab {

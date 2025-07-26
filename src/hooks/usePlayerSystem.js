@@ -109,8 +109,8 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
       const villager = {
         id: `villager_${player.id}_${i}`,
         playerId: player.id,
-        x: player.territory.center.x + (Math.random() - 0.5) * 200,
-        y: player.territory.center.y + (Math.random() - 0.5) * 200,
+        x: Math.floor(player.territory.center.x + (Math.random() - 0.5) * 200),
+        y: Math.floor(player.territory.center.y + (Math.random() - 0.5) * 200),
         vx: 0, vy: 0,
         health: 100,
         happiness: 50,
@@ -314,10 +314,10 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
       // Draw state indicator
       if (villager.state === 'working') {
         ctx.fillStyle = '#ffff00'
-        ctx.fillRect(villager.x - 2, villager.y - 10, 4, 2)
+        ctx.fillRect(x - 2, y - 10, 4, 2)
       } else if (villager.state === 'fleeing') {
         ctx.fillStyle = '#ff0000'
-        ctx.fillRect(villager.x - 2, villager.y - 10, 4, 2)
+        ctx.fillRect(x - 2, y - 10, 4, 2)
       }
     })
   }, [])

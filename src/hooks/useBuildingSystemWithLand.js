@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react'
 
-export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSystem) => {
+export const useBuildingSystemWithLand = (worldSize, terrainSystem, godBoundary, pathSystem, landManagement) => {
   const buildingsRef = useRef([])
   const buildingIdCounter = useRef(0)
 
@@ -8,20 +8,28 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
     const centerX = worldSize.width / 2
     const centerY = worldSize.height / 2
     
-    buildingsRef.current = [
-      {
-        id: buildingIdCounter.current++,
-        x: centerX - 30,
-        y: centerY - 30,
-        width: 60,
-        height: 60,
-        type: 'temple',
-        health: 100,
-        level: 1,
-        workers: 0,
-        maxWorkers: 3
-      }
-    ]
+    // Create temple
+    const temple = {
+      id: buildingIdCounter.current++,
+      x: centerX - 30,
+      y: centerY - 30,
+      width: 60,
+      height: 60,
+      type: 'temple',
+      health: 100,
+      level: 1,
+      workers: 0,
+      maxWorkers: 3
+    }
+    
+    buildingsRef.current = [temple]
+    
+    // Register temple with land management
+    if (landManagement) {
+      landManagement.registerBuilding(temple)
+      // Optionally claim the plot
+      landManagement.claimPlot(centerX, centerY, 'Temple of the Gods', 'temple-main')
+    }
 
     // Create initial houses around temple
     for (let i = 0; i < 8; i++) {
@@ -30,9 +38,9 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
       const houseX = centerX + Math.cos(angle) * distance - 15
       const houseY = centerY + Math.sin(angle) * distance - 15
       
-      // Ensure house is on walkable terrain
+      // Check both terrain and land management
       if (terrainSystem.isWalkable(houseX + 15, houseY + 15)) {
-        buildingsRef.current.push({
+        const house = {
           id: buildingIdCounter.current++,
           x: houseX,
           y: houseY,
@@ -44,7 +52,23 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
           workers: 0,
           maxWorkers: 2,
           residents: Math.floor(Math.random() * 3) + 1
-        })
+        }
+        
+        // Check if land allows building
+        let canPlace = true
+        if (landManagement) {
+          const landCheck = landManagement.canPlaceBuilding(houseX, houseY, 30, 30, 'house')
+          canPlace = landCheck.canPlace
+        }
+        
+        if (canPlace) {
+          buildingsRef.current.push(house)
+          
+          // Register with land management
+          if (landManagement) {
+            landManagement.registerBuilding(house)
+          }
+        }
       }
     }
     
@@ -52,9 +76,17 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
     if (pathSystem && pathSystem.generateInitialPaths) {
       setTimeout(() => pathSystem.generateInitialPaths(buildingsRef.current), 100)
     }
-  }, [worldSize, terrainSystem, pathSystem])
+  }, [worldSize, terrainSystem, pathSystem, landManagement])
 
   const canPlaceBuilding = useCallback((x, y, width, height, buildingType) => {
+    // First check land management system
+    if (landManagement) {
+      const landCheck = landManagement.canPlaceBuilding(x, y, width, height, buildingType)
+      if (!landCheck.canPlace) {
+        return landCheck
+      }
+    }
+    
     // Check if location is within god boundary (except for outposts)
     if (buildingType !== 'outpost' && !godBoundary.isWithinBoundary(x + width/2, y + height/2)) {
       return { canPlace: false, reason: 'Outside god boundary' }
@@ -102,9 +134,9 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
     }
 
     return { canPlace: true }
-  }, [terrainSystem, godBoundary])
+  }, [terrainSystem, godBoundary, landManagement])
 
-  const placeBuilding = useCallback((x, y, buildingType) => {
+  const placeBuilding = useCallback((x, y, buildingType, ownerId = null) => {
     const buildingSpecs = {
       house: { width: 30, height: 30, cost: 100, maxWorkers: 2 },
       temple: { width: 60, height: 60, cost: 300, maxWorkers: 5 },
@@ -132,7 +164,8 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
       workers: 0,
       maxWorkers: spec.maxWorkers,
       constructionTime: 0,
-      isUnderConstruction: true
+      isUnderConstruction: true,
+      ownerId: ownerId
     }
 
     if (buildingType === 'house') {
@@ -141,9 +174,14 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
 
     buildingsRef.current.push(newBuilding)
     
-    // Update pathfinding grid for the new building
-    if (pathSystem && pathSystem.updateBuilding) {
-      pathSystem.updateBuilding(newBuilding, 'add')
+    // Register with land management
+    if (landManagement) {
+      landManagement.registerBuilding(newBuilding)
+      
+      // If owner is specified, claim the plot
+      if (ownerId) {
+        landManagement.claimPlot(x, y, `Player ${ownerId}`, ownerId)
+      }
     }
     
     // Regenerate paths when new buildings are added
@@ -152,7 +190,35 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
     }
     
     return { success: true, building: newBuilding }
-  }, [canPlaceBuilding])
+  }, [canPlaceBuilding, pathSystem, landManagement])
+
+  const removeBuilding = useCallback((buildingId) => {
+    const buildingIndex = buildingsRef.current.findIndex(b => b.id === buildingId)
+    if (buildingIndex === -1) return false
+    
+    const building = buildingsRef.current[buildingIndex]
+    
+    // Clear from land plot
+    if (landManagement) {
+      const plot = landManagement.getPlotAt(
+        building.x + building.width / 2,
+        building.y + building.height / 2
+      )
+      if (plot) {
+        plot.setBuilding(null, null)
+      }
+    }
+    
+    // Remove building
+    buildingsRef.current.splice(buildingIndex, 1)
+    
+    // Regenerate paths
+    if (pathSystem && pathSystem.generateInitialPaths) {
+      setTimeout(() => pathSystem.generateInitialPaths(buildingsRef.current), 50)
+    }
+    
+    return true
+  }, [pathSystem, landManagement])
 
   const updateBuildings = useCallback((gameTime) => {
     buildingsRef.current.forEach(building => {
@@ -185,6 +251,22 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
 
   const renderBuildings = useCallback((ctx) => {
     buildingsRef.current.forEach(building => {
+      // Get plot information for enhanced rendering
+      let plotInfo = null
+      if (landManagement) {
+        const plot = landManagement.getPlotAt(
+          building.x + building.width / 2,
+          building.y + building.height / 2
+        )
+        if (plot) {
+          plotInfo = {
+            owned: !!plot.owner,
+            type: plot.type,
+            developmentLevel: plot.developmentLevel
+          }
+        }
+      }
+      
       if (building.type === 'temple') {
         // Temple rendering
         ctx.fillStyle = building.isUnderConstruction ? '#ccaa00' : '#ffd700'
@@ -194,10 +276,11 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
           ctx.fillStyle = '#ff6b35'
           ctx.fillRect(building.x + 20, building.y + 20, 20, 20)
           
-          // Temple glow effect
+          // Temple glow effect (enhanced if on owned plot)
+          const glowRadius = plotInfo?.owned ? 50 : 40
           const gradient = ctx.createRadialGradient(
             building.x + building.width/2, building.y + building.height/2, 0,
-            building.x + building.width/2, building.y + building.height/2, 40
+            building.x + building.width/2, building.y + building.height/2, glowRadius
           )
           gradient.addColorStop(0, 'rgba(255, 215, 0, 0.3)')
           gradient.addColorStop(1, 'rgba(255, 215, 0, 0)')
@@ -218,9 +301,13 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
           ctx.fillStyle = '#4a2c17'
           ctx.fillRect(building.x + building.width/2 - 3, building.y + building.height - 8, 6, 8)
           
-          // Window
+          // Window (more windows if on developed plot)
           ctx.fillStyle = '#ffff88'
           ctx.fillRect(building.x + 8, building.y + 8, 6, 6)
+          
+          if (plotInfo?.developmentLevel > 2) {
+            ctx.fillRect(building.x + building.width - 14, building.y + 8, 6, 6)
+          }
         }
       } else if (building.type === 'workshop') {
         // Workshop rendering
@@ -247,13 +334,21 @@ export const useBuildingSystem = (worldSize, terrainSystem, godBoundary, pathSys
         ctx.lineWidth = 1
         ctx.strokeRect(building.x, building.y - 8, building.width, 4)
       }
+      
+      // Owner indicator (if building has owner)
+      if (building.ownerId && !building.isUnderConstruction) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+        ctx.font = '10px Arial'
+        ctx.fillText(building.ownerId.toString(), building.x + 2, building.y - 2)
+      }
     })
-  }, [])
+  }, [landManagement])
 
   return {
     createInitialBuildings,
     canPlaceBuilding,
     placeBuilding,
+    removeBuilding,
     updateBuildings,
     getBuildingsNear,
     renderBuildings,

@@ -105,12 +105,35 @@ export const useResourceSystem = (worldSize, terrainSystem) => {
     resourcesRef.current.forEach(resource => {
       if (resource.amount <= 0) return
       
+      // Position resources at center of tile
+      const centerX = resource.x + 20
+      const centerY = resource.y + 20
+      
       switch (resource.type) {
         case 'tree':
-          renderTree(ctx, resource)
+          renderTree(ctx, { ...resource, x: centerX, y: centerY })
           break
         case 'berries':
-          renderBerryBush(ctx, resource)
+        case 'berryBush':
+          renderBerryBush(ctx, { ...resource, x: centerX, y: centerY })
+          break
+        case 'stone':
+          renderStone(ctx, { ...resource, x: centerX, y: centerY })
+          break
+        case 'ironOre':
+          renderIronOre(ctx, { ...resource, x: centerX, y: centerY })
+          break
+        case 'goldOre':
+          renderGoldOre(ctx, { ...resource, x: centerX, y: centerY })
+          break
+        case 'wheat':
+          renderWheat(ctx, { ...resource, x: centerX, y: centerY })
+          break
+        case 'fish':
+          renderFish(ctx, { ...resource, x: centerX, y: centerY })
+          break
+        case 'clay':
+          renderClay(ctx, { ...resource, x: centerX, y: centerY })
           break
       }
       
@@ -119,7 +142,7 @@ export const useResourceSystem = (worldSize, terrainSystem) => {
         ctx.strokeStyle = '#ffff00'
         ctx.lineWidth = 2
         ctx.beginPath()
-        ctx.arc(resource.x, resource.y, 25, 0, Math.PI * 2)
+        ctx.arc(centerX, centerY, 25, 0, Math.PI * 2)
         ctx.stroke()
       }
       
@@ -127,11 +150,11 @@ export const useResourceSystem = (worldSize, terrainSystem) => {
       if (resource.beingHarvested && resource.harvestProgress > 0) {
         const progress = resource.harvestProgress / 100
         ctx.fillStyle = 'rgba(255, 255, 0, 0.7)'
-        ctx.fillRect(resource.x - 15, resource.y - 35, 30 * progress, 4)
+        ctx.fillRect(centerX - 15, centerY - 35, 30 * progress, 4)
         
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
         ctx.lineWidth = 1
-        ctx.strokeRect(resource.x - 15, resource.y - 35, 30, 4)
+        ctx.strokeRect(centerX - 15, centerY - 35, 30, 4)
       }
     })
   }, [])
@@ -177,6 +200,117 @@ export const useResourceSystem = (worldSize, terrainSystem) => {
         ctx.fill()
       }
     }
+  }
+
+  const renderStone = (ctx, stone) => {
+    const size = Math.max(8, (stone.amount / stone.maxAmount) * 12)
+    
+    // Stone shape
+    ctx.fillStyle = '#696969'
+    ctx.beginPath()
+    ctx.moveTo(stone.x - size, stone.y + size/2)
+    ctx.lineTo(stone.x - size/2, stone.y - size)
+    ctx.lineTo(stone.x + size/2, stone.y - size)
+    ctx.lineTo(stone.x + size, stone.y + size/2)
+    ctx.lineTo(stone.x, stone.y + size)
+    ctx.closePath()
+    ctx.fill()
+    
+    // Highlight
+    ctx.fillStyle = '#A9A9A9'
+    ctx.beginPath()
+    ctx.moveTo(stone.x - size/2, stone.y - size)
+    ctx.lineTo(stone.x, stone.y - size/2)
+    ctx.lineTo(stone.x + size/2, stone.y - size)
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  const renderIronOre = (ctx, ore) => {
+    const size = Math.max(6, (ore.amount / ore.maxAmount) * 10)
+    
+    // Dark ore base
+    ctx.fillStyle = '#4B4B4D'
+    ctx.fillRect(ore.x - size, ore.y - size, size * 2, size * 2)
+    
+    // Iron streaks
+    ctx.fillStyle = '#8B4513'
+    ctx.fillRect(ore.x - size/2, ore.y - size, size, 2)
+    ctx.fillRect(ore.x - size, ore.y, 2, size)
+    ctx.fillRect(ore.x + size/2, ore.y - size/2, 2, size)
+  }
+
+  const renderGoldOre = (ctx, ore) => {
+    const size = Math.max(5, (ore.amount / ore.maxAmount) * 8)
+    
+    // Gold ore
+    ctx.fillStyle = '#B8860B'
+    ctx.fillRect(ore.x - size, ore.y - size, size * 2, size * 2)
+    
+    // Gold sparkles
+    ctx.fillStyle = '#FFD700'
+    for (let i = 0; i < 3; i++) {
+      const sparkX = ore.x - size + Math.random() * size * 2
+      const sparkY = ore.y - size + Math.random() * size * 2
+      ctx.fillRect(sparkX, sparkY, 2, 2)
+    }
+  }
+
+  const renderWheat = (ctx, wheat) => {
+    const amount = wheat.amount / wheat.maxAmount
+    
+    // Wheat stalks
+    ctx.strokeStyle = amount > 0.5 ? '#DAA520' : '#8B7355'
+    ctx.lineWidth = 1
+    
+    for (let i = 0; i < 5; i++) {
+      const angle = (i / 5) * Math.PI * 2
+      const stalkX = wheat.x + Math.cos(angle) * 8
+      const stalkY = wheat.y + Math.sin(angle) * 8
+      
+      ctx.beginPath()
+      ctx.moveTo(stalkX, stalkY + 10)
+      ctx.lineTo(stalkX, stalkY - 10)
+      ctx.stroke()
+      
+      // Wheat head
+      ctx.fillStyle = amount > 0.5 ? '#F4A460' : '#DEB887'
+      ctx.fillRect(stalkX - 2, stalkY - 10, 4, 6)
+    }
+  }
+
+  const renderFish = (ctx, fish) => {
+    const size = Math.max(6, (fish.amount / fish.maxAmount) * 10)
+    
+    // Simple fish shape
+    ctx.fillStyle = '#4682B4'
+    ctx.beginPath()
+    ctx.ellipse(fish.x, fish.y, size, size/2, 0, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Tail
+    ctx.beginPath()
+    ctx.moveTo(fish.x + size, fish.y)
+    ctx.lineTo(fish.x + size + 4, fish.y - 3)
+    ctx.lineTo(fish.x + size + 4, fish.y + 3)
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  const renderClay = (ctx, clay) => {
+    const size = Math.max(8, (clay.amount / clay.maxAmount) * 10)
+    
+    // Clay mound
+    ctx.fillStyle = '#CD853F'
+    ctx.beginPath()
+    ctx.arc(clay.x, clay.y, size, 0, Math.PI * 2)
+    ctx.fill()
+    
+    // Wet clay highlight
+    ctx.fillStyle = '#DEB887'
+    ctx.beginPath()
+    ctx.arc(clay.x - size/3, clay.y - size/3, size/3, 0, Math.PI * 2)
+    ctx.fill()
   }
 
   const setResources = useCallback((newResources) => {

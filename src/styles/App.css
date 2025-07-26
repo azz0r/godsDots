@@ -5,3 +5,43 @@
   justify-content: center;
   align-items: center;
 }
+
+.main-menu {
+  text-align: center;
+  padding: 40px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 10px;
+  border: 2px solid #444;
+}
+
+.main-menu h1 {
+  font-size: 48px;
+  margin-bottom: 40px;
+  color: #4CAF50;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.main-menu button {
+  display: block;
+  width: 200px;
+  margin: 15px auto;
+  padding: 15px 30px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.main-menu button:hover {
+  background: #45a049;
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.main-menu button:active {
+  transform: scale(0.98);
+}

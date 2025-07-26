@@ -2,22 +2,28 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTerrainSystem } from './useTerrainSystem'
 import { useVillagerSystem } from './useVillagerSystem'
 import { useGodBoundary } from './useGodBoundary'
-import { useBuildingSystem } from './useBuildingSystem'
+import { useBuildingSystemWithLand } from './useBuildingSystemWithLand'
 import { usePathSystem } from './usePathSystem'
 import { usePlayerSystem } from './usePlayerSystem'
 import { useAISystem } from './useAISystem'
 import { useResourceSystem } from './useResourceSystem'
+import { usePixelPerfectMovement } from './usePixelPerfectMovement'
+import { useLandManagement } from './useLandManagement'
+import { GameInitializer } from '../utils/GameInitializer'
 import { dbService } from '../db/database.js'
+import gameConfig from '../config/gameConfig'
 
-export const useGameEngine = () => {
+export const useGameEngine = (gameContext = {}) => {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
   const gameTimeRef = useRef(0)
   const particlesRef = useRef([])
+  const fpsRef = useRef({ frames: 0, lastTime: 0, current: 60 })
+  const debugModeRef = useRef(gameContext.debugMode || false)
   
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 })
   const mouseRef = useRef({ x: 0, y: 0, down: false, lastX: 0, lastY: 0 })
-  const worldSize = { width: 4800, height: 3200 }
+  const worldSize = { width: gameConfig.map.width * gameConfig.tileSize, height: gameConfig.map.height * gameConfig.tileSize }
 
   const [gameState, setGameState] = useState({
     selectedPower: null,
@@ -25,18 +31,33 @@ export const useGameEngine = () => {
     gameId: 1,
     levelId: null,
     autoSaveInterval: 30000, // 30 seconds
-    lastAutoSave: 0
+    lastAutoSave: 0,
+    beliefPoints: gameConfig.startingBeliefPoints,
+    population: 0,
+    hoveredTile: null,
+    selectedTile: null
   })
 
-  // Initialize all systems
-  const terrainSystem = useTerrainSystem(worldSize)
+  // Initialize all systems with integrated pathfinding and land management
+  const terrainSystem = useTerrainSystem(worldSize, gameContext.mapGenerator)
   const resourceSystem = useResourceSystem(worldSize, terrainSystem)
-  const pathSystem = usePathSystem(worldSize, terrainSystem)
+  const pathSystem = usePathSystem(worldSize, terrainSystem, gameContext.pathfindingGrid)
   const playerSystem = usePlayerSystem(worldSize, terrainSystem, pathSystem)
-  const aiSystem = useAISystem(playerSystem, terrainSystem)
+  const buildingSystem = useBuildingSystemWithLand(worldSize, terrainSystem, gameContext.landManager, gameContext.pathfindingGrid)
+  const aiSystem = useAISystem(playerSystem, terrainSystem, buildingSystem)
+  const pixelPerfect = usePixelPerfectMovement(gameConfig.pixelPerfect)
+  const landManagement = useLandManagement(gameContext.landManager, gameState.beliefPoints)
 
   const initializeGame = useCallback(async () => {
-    console.log('🎮 Initializing game with database...')
+    console.log('🎮 Initializing game with integrated systems...')
+    
+    // Initialize game using the GameInitializer
+    const gameInitializer = new GameInitializer({
+      mapGenerator: gameContext.mapGenerator,
+      landManager: gameContext.landManager,
+      pathfindingGrid: gameContext.pathfindingGrid
+    })
+    
     try {
       // Initialize or get existing game
       console.log('Checking for existing game with ID:', gameState.gameId)
@@ -59,11 +80,6 @@ export const useGameEngine = () => {
       }
       
       setGameState(prev => ({ ...prev, levelId: level.id }))
-
-      // Initialize terrain and resources
-      terrainSystem.generateTerrain()
-      resourceSystem.generateResources()
-      console.log(`Generated ${resourceSystem.resources.length} resources`)
       
       // Try to load existing game state
       const savedGameState = await dbService.loadCompleteGameState(level.id)
@@ -71,54 +87,83 @@ export const useGameEngine = () => {
       if (savedGameState && savedGameState.players.length > 0) {
         // Load from database
         console.log('Loading saved game state')
-        await loadGameFromDatabase(savedGameState)
+        const loadedState = await gameInitializer.loadGame(savedGameState)
+        await loadGameFromDatabase(loadedState)
       } else {
-        // Create new game
-        console.log('Creating new game')
-        // Force resource regeneration for new games
-        resourceSystem.generateResources()
-        console.log(`New game resource generation: ${resourceSystem.resources.length} resources`)
+        // Create new game with integrated systems
+        console.log('Creating new game with procedural generation')
+        const initialState = await gameInitializer.initializeNewGame()
+        
+        // Apply generated state to systems
+        terrainSystem.setTerrain(initialState.terrain)
+        resourceSystem.setResources(initialState.resources)
+        terrainSystem.setSpawnPoints(initialState.spawnPoints)
+        
+        // Update game state
+        setGameState(prev => ({ 
+          ...prev, 
+          beliefPoints: initialState.beliefPoints,
+          population: initialState.population
+        }))
+        
         await createNewGame(level.id)
       }
       
     } catch (error) {
       console.error('Error initializing game:', error)
       // Fallback to creating new game without database
+      const initialState = await gameInitializer.initializeNewGame()
+      terrainSystem.setTerrain(initialState.terrain)
+      resourceSystem.setResources(initialState.resources)
+      terrainSystem.setSpawnPoints(initialState.spawnPoints)
       await createNewGame(null)
     }
-  }, [terrainSystem, resourceSystem, playerSystem, worldSize, gameState.gameId])
+  }, [gameContext, terrainSystem, resourceSystem, playerSystem, gameState.gameId])
 
   const createNewGame = async (levelId) => {
     // Clear existing players
     playerSystem.players.length = 0
     
-    // Create human player at center
-    const centerX = worldSize.width / 2
-    const centerY = worldSize.height / 2
-    const humanPlayer = playerSystem.createPlayer('human', { x: centerX, y: centerY }, '#ffd700', 'You')
-    humanPlayer.levelId = levelId
-    playerSystem.initializePlayer(humanPlayer, 8, 25)
+    // Get spawn points from terrain system
+    const spawnPoints = terrainSystem.getSpawnPoints()
     
-    // Create 3 AI rival gods at different locations (adjusted for smaller world)
-    const aiPositions = [
-      { x: centerX - 1000, y: centerY - 600, color: '#ff4444', name: 'Crimson God' },
-      { x: centerX + 1000, y: centerY - 500, color: '#4444ff', name: 'Azure God' },
-      { x: centerX, y: centerY + 800, color: '#44ff44', name: 'Emerald God' }
-    ]
-    
-    aiPositions.forEach(pos => {
-      const aiPlayer = playerSystem.createPlayer('ai', { x: pos.x, y: pos.y }, pos.color, pos.name)
-      aiPlayer.levelId = levelId
-      playerSystem.initializePlayer(aiPlayer, 6, 18)
-    })
-    
-    // Set human player ID for UI
-    setGameState(prev => ({ ...prev, humanPlayerId: humanPlayer.id }))
-    
-    // Only set initial camera position if not already set
-    if (cameraRef.current.zoom === 1 && cameraRef.current.x === 0) {
-      cameraRef.current.x = centerX - 600 // Offset to center the view
-      cameraRef.current.y = centerY - 400
+    if (spawnPoints.length === 0) {
+      console.warn('No spawn points generated, falling back to center position')
+      // Fallback to center if no spawn points
+      const centerX = worldSize.width / 2
+      const centerY = worldSize.height / 2
+      const humanPlayer = playerSystem.createPlayer('human', { x: centerX, y: centerY }, '#ffd700', 'You')
+      humanPlayer.levelId = levelId
+      playerSystem.initializePlayer(humanPlayer, 8, 25)
+      setGameState(prev => ({ ...prev, humanPlayerId: humanPlayer.id }))
+    } else {
+      // Use spawn points for player placement
+      const humanSpawn = spawnPoints[0]
+      const humanPlayer = playerSystem.createPlayer('human', { x: humanSpawn.x, y: humanSpawn.y }, '#ffd700', 'You')
+      humanPlayer.levelId = levelId
+      playerSystem.initializePlayer(humanPlayer, 8, 25)
+      
+      // Create AI players at other spawn points
+      const aiConfigs = [
+        { color: '#ff4444', name: 'Crimson God' },
+        { color: '#4444ff', name: 'Azure God' },
+        { color: '#44ff44', name: 'Emerald God' }
+      ]
+      
+      for (let i = 0; i < Math.min(aiConfigs.length, spawnPoints.length - 1); i++) {
+        const spawn = spawnPoints[i + 1]
+        const config = aiConfigs[i]
+        const aiPlayer = playerSystem.createPlayer('ai', { x: spawn.x, y: spawn.y }, config.color, config.name)
+        aiPlayer.levelId = levelId
+        playerSystem.initializePlayer(aiPlayer, 6, 18)
+      }
+      
+      // Set human player ID for UI
+      setGameState(prev => ({ ...prev, humanPlayerId: humanPlayer.id }))
+      
+      // Center camera on human spawn
+      cameraRef.current.x = humanSpawn.x - 600
+      cameraRef.current.y = humanSpawn.y - 400
       cameraRef.current.zoom = 1
     }
     
@@ -414,6 +459,11 @@ export const useGameEngine = () => {
     // Update territory
     playerSystem.updatePlayerTerritory(player)
     
+    // Update pathfinding grid for the new building
+    if (pathSystem && pathSystem.updateBuilding) {
+      pathSystem.updateBuilding(newBuilding, 'add')
+    }
+    
     // Regenerate paths to include new building
     if (pathSystem && pathSystem.generateInitialPaths) {
       setTimeout(() => pathSystem.generateInitialPaths(player.buildings), 100)
@@ -446,13 +496,21 @@ export const useGameEngine = () => {
     }
   }
 
-  const updateGame = useCallback(() => {
+  const updateGame = useCallback((currentTime) => {
     gameTimeRef.current++
+    
+    // Update FPS counter
+    fpsRef.current.frames++
+    if (currentTime - fpsRef.current.lastTime > 1000) {
+      fpsRef.current.current = fpsRef.current.frames
+      fpsRef.current.frames = 0
+      fpsRef.current.lastTime = currentTime
+    }
     
     // Update all players
     playerSystem.players.forEach(player => {
-      // Update villager AI and movement
-      updatePlayerVillagers(player, gameTimeRef.current)
+      // Update villager AI and movement with pixel-perfect system
+      updatePlayerVillagers(player, gameTimeRef.current, currentTime)
       
       // Update buildings
       updatePlayerBuildings(player, gameTimeRef.current)
@@ -488,6 +546,11 @@ export const useGameEngine = () => {
     // Auto-save every 30 seconds (1800 ticks at 60fps)
     if (gameTimeRef.current % 1800 === 0 && gameState.levelId) {
       autoSaveGame()
+    }
+    
+    // Clean pathfinding cache every 10 seconds
+    if (gameTimeRef.current % 600 === 0 && pathSystem.cleanupCache) {
+      pathSystem.cleanupCache()
     }
     
     // Update particles
@@ -545,7 +608,7 @@ export const useGameEngine = () => {
     return totalHappiness / player.villagers.length
   }
 
-  const updatePlayerVillagers = (player, gameTime) => {
+  const updatePlayerVillagers = (player, gameTime, currentTime) => {
     player.villagers.forEach(villager => {
       // Handle idle periods
       if (villager.movement.isIdle) {
@@ -564,11 +627,10 @@ export const useGameEngine = () => {
         villager.movement.lastMoveTime = gameTime
       }
 
-      // Movement with path following
-      updateVillagerMovement(villager, gameTime)
-      
-      // Constrain to world bounds and avoid water
-      constrainVillager(villager)
+      // Setup target for movement if needed
+      if (!villager.movement.isIdle) {
+        setupVillagerTarget(villager)
+      }
       
       // Update happiness based on territory - but keep villagers loyal to their god
       if (gameTime % 300 === Math.floor(villager.id % 300)) {
@@ -584,6 +646,9 @@ export const useGameEngine = () => {
     })
 
     player.population = player.villagers.length
+    
+    // Batch update movement with pixel-perfect system
+    pixelPerfect.batchUpdateMovement(player.villagers, currentTime, terrainSystem, worldSize)
   }
 
   const updatePlayerBuildings = (player, gameTime) => {
@@ -598,132 +663,131 @@ export const useGameEngine = () => {
   }
 
   const updateVillagerAI = (villager, player, gameTime) => {
+    const tileSize = gameConfig.tileSize
+    
     switch (villager.state) {
       case 'wandering':
-        if (!villager.pathfinding.targetNode || gameTime - villager.pathfinding.lastPathUpdate > 300 + Math.random() * 600) {
-          const pathDestination = pathSystem.findRandomDestinationOnPath(Math.random() < 0.7 ? 'main' : 'circular')
-          if (pathDestination) {
-            villager.pathfinding.targetNode = pathDestination
-            villager.pathfinding.lastPathUpdate = gameTime
+        if (!villager.path || villager.path.length === 0 || gameTime - villager.pathfinding.lastPathUpdate > 300 + Math.random() * 600) {
+          // Find a random destination using A* pathfinding
+          const currentTileX = Math.floor(villager.x / tileSize)
+          const currentTileY = Math.floor(villager.y / tileSize)
+          
+          // Random destination within territory or nearby
+          const radius = player.territory.radius / tileSize
+          const centerX = player.territory.center.x / tileSize
+          const centerY = player.territory.center.y / tileSize
+          
+          const targetX = Math.floor(centerX + (Math.random() - 0.5) * radius * 2)
+          const targetY = Math.floor(centerY + (Math.random() - 0.5) * radius * 2)
+          
+          // Use A* pathfinding to find path
+          if (gameContext.pathfindingGrid) {
+            const path = gameContext.pathfindingGrid.findPath(
+              currentTileX, currentTileY,
+              targetX, targetY
+            )
+            
+            if (path && path.length > 0) {
+              villager.path = path.map(node => ({
+                x: node.x * tileSize + tileSize / 2,
+                y: node.y * tileSize + tileSize / 2
+              }))
+              villager.pathIndex = 0
+              villager.pathfinding.lastPathUpdate = gameTime
+            }
           }
         }
         break
+        
       case 'fleeing':
         if (player.territory.center) {
-          const dx = player.territory.center.x - villager.x
-          const dy = player.territory.center.y - villager.y
+          const currentTileX = Math.floor(villager.x / tileSize)
+          const currentTileY = Math.floor(villager.y / tileSize)
+          
+          // Find path away from danger
+          const dx = villager.x - player.territory.center.x
+          const dy = villager.y - player.territory.center.y
           const distance = Math.sqrt(dx * dx + dy * dy)
           
-          if (distance > 20) {
-            villager.target = {
-              x: villager.x + (dx / distance) * 100,
-              y: villager.y + (dy / distance) * 100
-            }
-          } else {
+          if (distance > 20 * tileSize) {
             villager.state = 'wandering'
+          } else {
+            // Calculate flee target
+            const fleeDistance = 10 // tiles
+            const targetX = Math.floor(currentTileX + (dx / distance) * fleeDistance)
+            const targetY = Math.floor(currentTileY + (dy / distance) * fleeDistance)
+            
+            if (gameContext.pathfindingGrid) {
+              const path = gameContext.pathfindingGrid.findPath(
+                currentTileX, currentTileY,
+                targetX, targetY
+              )
+              
+              if (path && path.length > 0) {
+                villager.path = path.map(node => ({
+                  x: node.x * tileSize + tileSize / 2,
+                  y: node.y * tileSize + tileSize / 2
+                }))
+                villager.pathIndex = 0
+              }
+            }
           }
         }
         break
+        
       case 'returning_home':
-        // Force villager back to their own territory center
         if (player.territory.center) {
+          const currentTileX = Math.floor(villager.x / tileSize)
+          const currentTileY = Math.floor(villager.y / tileSize)
+          const centerTileX = Math.floor(player.territory.center.x / tileSize)
+          const centerTileY = Math.floor(player.territory.center.y / tileSize)
+          
           const dx = player.territory.center.x - villager.x
           const dy = player.territory.center.y - villager.y
           const distance = Math.sqrt(dx * dx + dy * dy)
           
           if (distance > player.territory.radius * 0.8) {
-            // Still outside - keep heading home
-            villager.target = {
-              x: player.territory.center.x + (Math.random() - 0.5) * player.territory.radius,
-              y: player.territory.center.y + (Math.random() - 0.5) * player.territory.radius
+            // Still outside - pathfind home
+            if (gameContext.pathfindingGrid) {
+              const path = gameContext.pathfindingGrid.findPath(
+                currentTileX, currentTileY,
+                centerTileX, centerTileY
+              )
+              
+              if (path && path.length > 0) {
+                villager.path = path.map(node => ({
+                  x: node.x * tileSize + tileSize / 2,
+                  y: node.y * tileSize + tileSize / 2
+                }))
+                villager.pathIndex = 0
+              }
             }
           } else {
-            // Back in territory - resume normal behavior
+            // Back in territory
             villager.state = 'wandering'
-            villager.target = null
+            villager.path = []
+            villager.pathIndex = 0
           }
         }
         break
     }
   }
 
-  const updateVillagerMovement = (villager, gameTime) => {
-    let targetX, targetY
-    
-    if (villager.pathfinding.targetNode) {
-      targetX = villager.pathfinding.targetNode.x
-      targetY = villager.pathfinding.targetNode.y
-      pathSystem.updatePathUsage(villager.pathfinding.targetNode)
-    } else if (villager.target) {
-      targetX = villager.target.x
-      targetY = villager.target.y
-    } else {
+  const setupVillagerTarget = (villager) => {
+    // Only set up target if villager doesn't have one
+    if (!villager.target && !villager.pathfinding.targetNode) {
       const nearestPath = pathSystem.findNearestPathNode(villager.x, villager.y, 150)
       if (nearestPath) {
-        targetX = nearestPath.x
-        targetY = nearestPath.y
         villager.pathfinding.targetNode = nearestPath
+        pathSystem.updatePathUsage(nearestPath)
       } else {
         villager.movement.isIdle = true
         villager.movement.idleDuration = 120 + Math.random() * 240
-        return
       }
     }
-    
-    const dx = targetX - villager.x
-    const dy = targetY - villager.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-    
-    if (distance > 8) {
-      const speed = 3.0 // Increased from 1.5
-      villager.vx = (dx / distance) * speed
-      villager.vy = (dy / distance) * speed
-    } else {
-      if (villager.pathfinding.targetNode) {
-        villager.pathfinding.targetNode = null
-        villager.movement.isIdle = true
-        villager.movement.idleDuration = 60 + Math.random() * 120
-      } else {
-        villager.target = null
-      }
-      villager.vx = 0
-      villager.vy = 0
-    }
-
-    villager.x += villager.vx
-    villager.y += villager.vy
-    villager.vx *= 0.85
-    villager.vy *= 0.85
   }
 
-  const constrainVillager = (villager) => {
-    if (!terrainSystem.isWalkable(villager.x, villager.y)) {
-      const walkable = findNearestWalkable(villager.x, villager.y, 80)
-      villager.x = walkable.x
-      villager.y = walkable.y
-      villager.vx = 0
-      villager.vy = 0
-      villager.target = null
-      villager.pathfinding.targetNode = null
-    }
-
-    villager.x = Math.max(20, Math.min(worldSize.width - 20, villager.x))
-    villager.y = Math.max(20, Math.min(worldSize.height - 20, villager.y))
-  }
-
-  const findNearestWalkable = (x, y, radius = 80) => {
-    for (let r = 20; r <= radius; r += 20) {
-      for (let angle = 0; angle < Math.PI * 2; angle += 0.5) {
-        const testX = x + Math.cos(angle) * r
-        const testY = y + Math.sin(angle) * r
-        
-        if (terrainSystem.isWalkable(testX, testY)) {
-          return { x: testX, y: testY }
-        }
-      }
-    }
-    return { x, y }
-  }
+  // Remove old constraint functions as they're handled by pixel-perfect movement
 
   const renderGame = useCallback(() => {
     const canvas = canvasRef.current
@@ -739,6 +803,12 @@ export const useGameEngine = () => {
     
     // Render in layers
     terrainSystem.renderTerrain(ctx)
+    
+    // Render land borders if enabled
+    if (gameContext.landManager && canvasRef.current.showLandBorders !== false) {
+      renderLandBorders(ctx)
+    }
+    
     resourceSystem.renderResources(ctx)
     pathSystem.renderPaths(ctx)
     
@@ -748,7 +818,7 @@ export const useGameEngine = () => {
     })
     
     playerSystem.players.forEach(player => {
-      playerSystem.renderPlayerBuildings(ctx, player)
+      buildingSystem.renderBuildings(ctx, player)
     })
     
     playerSystem.players.forEach(player => {
@@ -760,10 +830,15 @@ export const useGameEngine = () => {
       renderBuildingPreview(ctx)
     }
     
+    // Render debug info if enabled
+    if (debugModeRef.current || gameContext.debugMode) {
+      renderDebugInfo(ctx)
+    }
+    
     renderParticles(ctx)
     
     ctx.restore()
-  }, [terrainSystem, pathSystem, playerSystem, gameState.selectedPower])
+  }, [terrainSystem, pathSystem, playerSystem, buildingSystem, gameState.selectedPower, gameContext])
 
   const renderBuildingPreview = (ctx) => {
     const humanPlayer = getHumanPlayer()
@@ -830,6 +905,106 @@ export const useGameEngine = () => {
     })
   }
 
+  const renderLandBorders = (ctx) => {
+    const plots = gameContext.landManager.getAllPlots()
+    
+    plots.forEach(plot => {
+      ctx.strokeStyle = plot.owner ? gameConfig.land.ownedBorderColor : gameConfig.land.borderColor
+      ctx.lineWidth = gameConfig.land.borderWidth
+      
+      // Draw border around plot tiles
+      const tileSize = gameConfig.tileSize
+      const borderTiles = new Set()
+      
+      plot.tiles.forEach(tile => {
+        // Check each direction for border
+        const directions = [
+          { dx: 0, dy: -1 }, // up
+          { dx: 1, dy: 0 },  // right
+          { dx: 0, dy: 1 },  // down
+          { dx: -1, dy: 0 }  // left
+        ]
+        
+        directions.forEach(dir => {
+          const neighborX = tile.x + dir.dx
+          const neighborY = tile.y + dir.dy
+          const isInPlot = plot.tiles.some(t => t.x === neighborX && t.y === neighborY)
+          
+          if (!isInPlot) {
+            // This edge is a border
+            const key = `${tile.x},${tile.y},${dir.dx},${dir.dy}`
+            borderTiles.add(key)
+          }
+        })
+      })
+      
+      // Draw the borders
+      ctx.beginPath()
+      borderTiles.forEach(key => {
+        const [x, y, dx, dy] = key.split(',').map(Number)
+        const px = x * tileSize
+        const py = y * tileSize
+        
+        if (dx === 0 && dy === -1) { // top edge
+          ctx.moveTo(px, py)
+          ctx.lineTo(px + tileSize, py)
+        } else if (dx === 1 && dy === 0) { // right edge
+          ctx.moveTo(px + tileSize, py)
+          ctx.lineTo(px + tileSize, py + tileSize)
+        } else if (dx === 0 && dy === 1) { // bottom edge
+          ctx.moveTo(px, py + tileSize)
+          ctx.lineTo(px + tileSize, py + tileSize)
+        } else if (dx === -1 && dy === 0) { // left edge
+          ctx.moveTo(px, py)
+          ctx.lineTo(px, py + tileSize)
+        }
+      })
+      ctx.stroke()
+    })
+  }
+
+  const renderDebugInfo = (ctx) => {
+    if (!gameConfig.debug.showGrid) return
+    
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.lineWidth = 1
+    
+    const tileSize = gameConfig.tileSize
+    const { width, height } = gameConfig.map
+    
+    // Draw grid
+    for (let x = 0; x <= width; x++) {
+      ctx.beginPath()
+      ctx.moveTo(x * tileSize, 0)
+      ctx.lineTo(x * tileSize, height * tileSize)
+      ctx.stroke()
+    }
+    
+    for (let y = 0; y <= height; y++) {
+      ctx.beginPath()
+      ctx.moveTo(0, y * tileSize)
+      ctx.lineTo(width * tileSize, y * tileSize)
+      ctx.stroke()
+    }
+    
+    // Show pathfinding costs if enabled
+    if (gameConfig.debug.showPathfinding && gameContext.pathfindingGrid) {
+      ctx.font = '10px monospace'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const cost = gameContext.pathfindingGrid.getCost(x, y)
+          if (cost !== 1 && cost !== Infinity) {
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.8)'
+            ctx.fillText(cost.toFixed(1), x * tileSize + tileSize/2, y * tileSize + tileSize/2)
+          }
+        }
+      }
+    }
+  }
+
   const gameLoop = useCallback(() => {
     updateGame()
     renderGame()
@@ -860,20 +1035,48 @@ export const useGameEngine = () => {
     return playerSystem.players.find(p => p.id === gameState.humanPlayerId)
   }, [playerSystem.players, gameState.humanPlayerId])
 
+  const regenerateMap = useCallback(async (seed = null) => {
+    console.log('Regenerating map with seed:', seed)
+    
+    // Generate new terrain and resources
+    const mapData = terrainSystem.generateTerrain(seed)
+    
+    // Sync resources with resource system
+    resourceSystem.setResources(terrainSystem.resources)
+    
+    // Clear existing players and reinitialize
+    await createNewGame(gameState.levelId)
+    
+    console.log('Map regenerated successfully')
+  }, [terrainSystem, resourceSystem, gameState.levelId])
+  
+  // Toggle debug mode with keyboard
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'd' && e.ctrlKey) {
+        debugModeRef.current = !debugModeRef.current
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [])
+
   return {
     canvasRef,
     gameState: {
       ...gameState,
       // Expose human player data for UI
-      beliefPoints: getHumanPlayer()?.beliefPoints || 0,
-      population: getHumanPlayer()?.population || 0
+      beliefPoints: getHumanPlayer()?.beliefPoints || gameState.beliefPoints,
+      population: getHumanPlayer()?.population || gameState.population
     },
     gameStateRef: {
       current: {
         camera: cameraRef.current,
         mouse: mouseRef.current,
         worldSize,
-        time: gameTimeRef.current
+        time: gameTimeRef.current,
+        showLandBorders: canvasRef.current?.showLandBorders
       }
     },
     selectPower,
@@ -881,13 +1084,20 @@ export const useGameEngine = () => {
     zoomToWorldView,
     manualSaveGame,
     autoSaveGame,
+    regenerateMap,
+    mapSeed: terrainSystem.mapSeed,
+    hoveredTile: gameState.hoveredTile,
+    selectedTile: gameState.selectedTile,
     // Expose systems for debugging/external access
     systems: {
       terrain: terrainSystem,
       resources: resourceSystem,
       paths: pathSystem,
       players: playerSystem,
-      ai: aiSystem
+      ai: aiSystem,
+      building: buildingSystem,
+      land: landManagement,
+      pixelPerfect
     }
   }
 }

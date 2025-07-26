@@ -1,7 +1,9 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect } from 'react'
 import styles from '../styles/GameCanvas.module.css'
+import { usePixelPerfectMovement } from '../hooks/usePixelPerfectMovement'
 
 const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
+  const pixelPerfect = usePixelPerfectMovement()
   const handleMouseDown = useCallback((e) => {
     const game = gameStateRef.current
     game.mouse.down = true
@@ -33,30 +35,41 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
       const deltaX = e.clientX - game.mouse.lastX
       const deltaY = e.clientY - game.mouse.lastY
       
-      // Smooth camera movement
-      const sensitivity = 1.0 // Adjust for responsiveness
-      game.camera.x -= (deltaX / game.camera.zoom) * sensitivity
-      game.camera.y -= (deltaY / game.camera.zoom) * sensitivity
+      // Pixel-perfect camera movement
+      const sensitivity = 1.0
+      const cameraDeltaX = (deltaX / game.camera.zoom) * sensitivity
+      const cameraDeltaY = (deltaY / game.camera.zoom) * sensitivity
       
-      // Constrain camera - allow some padding when zoomed out
+      // Align camera movement to pixels
+      game.camera.x = pixelPerfect.alignToPixel(game.camera.x - cameraDeltaX)
+      game.camera.y = pixelPerfect.alignToPixel(game.camera.y - cameraDeltaY)
+      
+      // Constrain camera with pixel alignment
       const canvas = canvasRef.current
-      const padding = 200 // Allow 200px padding around world edges
-      const maxCameraX = game.worldSize.width - canvas.width / game.camera.zoom + padding
-      const maxCameraY = game.worldSize.height - canvas.height / game.camera.zoom + padding
-      game.camera.x = Math.max(-padding, Math.min(maxCameraX, game.camera.x))
-      game.camera.y = Math.max(-padding, Math.min(maxCameraY, game.camera.y))
+      const maxCameraX = game.worldSize.width - canvas.width / game.camera.zoom
+      const maxCameraY = game.worldSize.height - canvas.height / game.camera.zoom
+      game.camera.x = pixelPerfect.alignToPixel(Math.max(0, Math.min(maxCameraX, game.camera.x)))
+      game.camera.y = pixelPerfect.alignToPixel(Math.max(0, Math.min(maxCameraY, game.camera.y)))
     }
     
     game.mouse.lastX = e.clientX
     game.mouse.lastY = e.clientY
-  }, [canvasRef, gameStateRef, selectedPower])
+  }, [canvasRef, gameStateRef, selectedPower, pixelPerfect])
 
   const handleWheel = useCallback((e) => {
     e.preventDefault()
     const game = gameStateRef.current
-    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
-    game.camera.zoom = Math.max(0.1, Math.min(3, game.camera.zoom * zoomFactor))
-  }, [gameStateRef])
+    const zoomDirection = e.deltaY > 0 ? -1 : 1
+    pixelPerfect.setPixelPerfectZoom(game.camera, zoomDirection)
+  }, [gameStateRef, pixelPerfect])
+
+  // Set up canvas for pixel-perfect rendering
+  useEffect(() => {
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext('2d')
+      pixelPerfect.configureCanvasPixelPerfect(ctx)
+    }
+  }, [canvasRef, pixelPerfect])
 
   return (
     <canvas
@@ -68,6 +81,7 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
       onMouseUp={handleMouseUp}
       onMouseMove={handleMouseMove}
       onWheel={handleWheel}
+      style={{ imageRendering: 'pixelated' }}
     />
   )
 }

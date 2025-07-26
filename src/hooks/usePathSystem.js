@@ -1,14 +1,33 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
+import { PathfindingGrid } from '../utils/pathfinding/PathfindingGrid.js'
+import { AStar } from '../utils/pathfinding/AStar.js'
+import { PathNode } from '../utils/pathfinding/PathNode.js'
 
 export const usePathSystem = (worldSize, terrainSystem) => {
   const pathsRef = useRef([])
   const pathNodesRef = useRef([])
-  const pathUsageRef = useRef(new Map()) // Track how often paths are used
+  const pathUsageRef = useRef(new Map())
+  const gridRef = useRef(null)
+  const astarRef = useRef(null)
+  const activePathsRef = useRef(new Map()) // Track active paths for each entity
+
+  // Initialize pathfinding grid and A* when terrain system is ready
+  useEffect(() => {
+    if (terrainSystem && worldSize) {
+      gridRef.current = new PathfindingGrid(worldSize.width, worldSize.height, terrainSystem)
+      astarRef.current = new AStar(gridRef.current)
+    }
+  }, [terrainSystem, worldSize])
 
   const generateInitialPaths = useCallback((buildings) => {
     pathsRef.current = []
     pathNodesRef.current = []
     pathUsageRef.current.clear()
+
+    // Update grid with all buildings
+    if (gridRef.current) {
+      gridRef.current.updateAllBuildings(buildings)
+    }
 
     // Find main temple
     const temple = buildings.find(b => b.type === 'temple')
@@ -19,7 +38,7 @@ export const usePathSystem = (worldSize, terrainSystem) => {
       y: temple.y + temple.height / 2
     }
 
-    // Create main paths from temple to each building
+    // Create main paths from temple to each building using A*
     buildings.forEach(building => {
       if (building.type !== 'temple') {
         const buildingCenter = {
@@ -27,10 +46,15 @@ export const usePathSystem = (worldSize, terrainSystem) => {
           y: building.y + building.height / 2
         }
         
-        const path = createPath(templeCenter, buildingCenter, 'main')
+        const path = createPathWithAStar(templeCenter, buildingCenter, 'main')
         if (path.nodes.length > 0) {
           pathsRef.current.push(path)
           pathNodesRef.current.push(...path.nodes)
+          
+          // Mark these nodes as roads for faster travel
+          if (gridRef.current) {
+            gridRef.current.createRoad(path.nodes)
+          }
         }
       }
     })
@@ -43,36 +67,65 @@ export const usePathSystem = (worldSize, terrainSystem) => {
 
   }, [terrainSystem])
 
-  const createPath = (start, end, pathType = 'main') => {
-    const nodes = []
+  const createPathWithAStar = (start, end, pathType = 'main') => {
+    if (!astarRef.current || !gridRef.current) {
+      return { nodes: [] }
+    }
+
     const pathId = `${Math.floor(start.x)}_${Math.floor(start.y)}_to_${Math.floor(end.x)}_${Math.floor(end.y)}`
     
-    // Simple pathfinding - create waypoints avoiding water
-    const distance = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2)
-    const steps = Math.max(5, Math.floor(distance / 40))
-    
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps
-      let nodeX = start.x + (end.x - start.x) * t
-      let nodeY = start.y + (end.y - start.y) * t
-      
-      // Adjust node if it's on water
-      if (!terrainSystem.isWalkable(nodeX, nodeY)) {
-        const walkable = findNearestWalkable(nodeX, nodeY, 60)
-        nodeX = walkable.x
-        nodeY = walkable.y
-      }
-      
-      nodes.push({
-        x: nodeX,
-        y: nodeY,
-        id: `${pathId}_${i}`,
-        pathId,
-        pathType,
+    // Convert world coordinates to grid coordinates
+    const startX = Math.floor(start.x / PathNode.GRID_SIZE)
+    const startY = Math.floor(start.y / PathNode.GRID_SIZE)
+    const endX = Math.floor(end.x / PathNode.GRID_SIZE)
+    const endY = Math.floor(end.y / PathNode.GRID_SIZE)
+
+    // Check cache first
+    const cacheKey = `${startX},${startY}-${endX},${endY}`
+    const cachedPath = gridRef.current.getCachedPath(cacheKey)
+    if (cachedPath) {
+      return {
+        id: pathId,
+        type: pathType,
+        nodes: cachedPath.map((node, i) => ({
+          x: node.worldX + PathNode.GRID_SIZE / 2,
+          y: node.worldY + PathNode.GRID_SIZE / 2,
+          id: `${pathId}_${i}`,
+          pathId,
+          pathType,
+          usage: 0,
+          connections: []
+        })),
+        start,
+        end,
         usage: 0,
-        connections: []
-      })
+        lastUsed: 0
+      }
     }
+
+    // Find path using A*
+    const pathNodes = astarRef.current.findPath(startX, startY, endX, endY)
+    
+    if (pathNodes.length === 0) {
+      return { nodes: [] }
+    }
+
+    // Smooth the path
+    const smoothedPath = astarRef.current.smoothPath(pathNodes)
+    
+    // Cache the path
+    gridRef.current.cachePath(cacheKey, smoothedPath)
+
+    // Convert PathNode objects to path node format
+    const nodes = smoothedPath.map((node, i) => ({
+      x: node.worldX + PathNode.GRID_SIZE / 2,
+      y: node.worldY + PathNode.GRID_SIZE / 2,
+      id: `${pathId}_${i}`,
+      pathId,
+      pathType,
+      usage: 0,
+      connections: []
+    }))
 
     // Connect adjacent nodes
     for (let i = 0; i < nodes.length - 1; i++) {
@@ -90,6 +143,8 @@ export const usePathSystem = (worldSize, terrainSystem) => {
       lastUsed: 0
     }
   }
+
+  const createPath = createPathWithAStar // Alias for backward compatibility
 
   const createCircularPaths = (center, buildings) => {
     const radiuses = [80, 140, 200]
@@ -162,10 +217,15 @@ export const usePathSystem = (worldSize, terrainSystem) => {
         
         // Only connect if reasonably close
         if (distance < 120) {
-          const path = createPath(center1, center2, 'inter-building')
+          const path = createPathWithAStar(center1, center2, 'inter-building')
           if (path.nodes.length > 0) {
             pathsRef.current.push(path)
             pathNodesRef.current.push(...path.nodes)
+            
+            // Mark as roads
+            if (gridRef.current) {
+              gridRef.current.createRoad(path.nodes)
+            }
           }
         }
       })
@@ -234,6 +294,168 @@ export const usePathSystem = (worldSize, terrainSystem) => {
     }
   }, [])
 
+  /**
+   * Find path using A* algorithm
+   * @param {number} startX - Start world X coordinate
+   * @param {number} startY - Start world Y coordinate
+   * @param {number} endX - End world X coordinate
+   * @param {number} endY - End world Y coordinate
+   * @param {Array} dynamicObstacles - Array of {x, y} positions to avoid
+   * @returns {Array} Array of {x, y} waypoints in world coordinates
+   */
+  const findPath = useCallback((startX, startY, endX, endY, dynamicObstacles = []) => {
+    if (!astarRef.current || !gridRef.current) {
+      return []
+    }
+
+    // Convert world to grid coordinates
+    const gridStartX = Math.floor(startX / PathNode.GRID_SIZE)
+    const gridStartY = Math.floor(startY / PathNode.GRID_SIZE)
+    const gridEndX = Math.floor(endX / PathNode.GRID_SIZE)
+    const gridEndY = Math.floor(endY / PathNode.GRID_SIZE)
+
+    // Check cache
+    const cacheKey = `${gridStartX},${gridStartY}-${gridEndX},${gridEndY}`
+    const cachedPath = gridRef.current.getCachedPath(cacheKey)
+    
+    if (cachedPath && dynamicObstacles.length === 0) {
+      return cachedPath.map(node => ({
+        x: node.worldX + PathNode.GRID_SIZE / 2,
+        y: node.worldY + PathNode.GRID_SIZE / 2
+      }))
+    }
+
+    // Find path
+    const path = dynamicObstacles.length > 0
+      ? astarRef.current.findPathWithDynamicObstacles(gridStartX, gridStartY, gridEndX, gridEndY, dynamicObstacles)
+      : astarRef.current.findPath(gridStartX, gridStartY, gridEndX, gridEndY)
+
+    if (path.length === 0) {
+      return []
+    }
+
+    // Smooth and cache if no dynamic obstacles
+    const smoothedPath = astarRef.current.smoothPath(path)
+    if (dynamicObstacles.length === 0) {
+      gridRef.current.cachePath(cacheKey, smoothedPath)
+    }
+
+    // Convert to world coordinates
+    return smoothedPath.map(node => ({
+      x: node.worldX + PathNode.GRID_SIZE / 2,
+      y: node.worldY + PathNode.GRID_SIZE / 2
+    }))
+  }, [])
+
+  /**
+   * Request a path for an entity (manages multiple concurrent paths)
+   * @param {string} entityId - Unique identifier for the entity
+   * @param {number} startX 
+   * @param {number} startY 
+   * @param {number} endX 
+   * @param {number} endY 
+   * @returns {Object} Path object with waypoints and helpers
+   */
+  const requestPath = useCallback((entityId, startX, startY, endX, endY) => {
+    const waypoints = findPath(startX, startY, endX, endY)
+    
+    if (waypoints.length === 0) {
+      return null
+    }
+
+    const pathObject = {
+      id: entityId,
+      waypoints,
+      currentIndex: 0,
+      complete: false,
+      
+      // Get current target waypoint
+      getCurrentTarget() {
+        if (this.currentIndex >= this.waypoints.length) {
+          this.complete = true
+          return null
+        }
+        return this.waypoints[this.currentIndex]
+      },
+      
+      // Advance to next waypoint
+      advance() {
+        this.currentIndex++
+        if (this.currentIndex >= this.waypoints.length) {
+          this.complete = true
+        }
+      },
+      
+      // Check if close enough to current waypoint
+      isNearTarget(x, y, threshold = 10) {
+        const target = this.getCurrentTarget()
+        if (!target) return false
+        
+        const dx = target.x - x
+        const dy = target.y - y
+        return dx * dx + dy * dy < threshold * threshold
+      },
+      
+      // Get direction to current target
+      getDirection(x, y) {
+        const target = this.getCurrentTarget()
+        if (!target) return { x: 0, y: 0 }
+        
+        const dx = target.x - x
+        const dy = target.y - y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        
+        return distance > 0 
+          ? { x: dx / distance, y: dy / distance }
+          : { x: 0, y: 0 }
+      }
+    }
+
+    activePathsRef.current.set(entityId, pathObject)
+    return pathObject
+  }, [findPath])
+
+  /**
+   * Get active path for an entity
+   * @param {string} entityId 
+   * @returns {Object|null}
+   */
+  const getActivePath = useCallback((entityId) => {
+    return activePathsRef.current.get(entityId) || null
+  }, [])
+
+  /**
+   * Clear path for an entity
+   * @param {string} entityId 
+   */
+  const clearPath = useCallback((entityId) => {
+    activePathsRef.current.delete(entityId)
+  }, [])
+
+  /**
+   * Update grid when buildings change
+   * @param {Object} building 
+   * @param {string} action - 'add' or 'remove'
+   */
+  const updateBuilding = useCallback((building, action = 'add') => {
+    if (!gridRef.current) return
+
+    if (action === 'add') {
+      gridRef.current.updateForBuilding(building)
+    } else {
+      gridRef.current.updateForBuildingRemoval(building)
+    }
+  }, [])
+
+  /**
+   * Clean up expired cache entries periodically
+   */
+  const cleanupCache = useCallback(() => {
+    if (gridRef.current) {
+      gridRef.current.cleanCache()
+    }
+  }, [])
+
   const renderPaths = useCallback((ctx) => {
     // Render main paths
     pathsRef.current.forEach(path => {
@@ -268,6 +490,11 @@ export const usePathSystem = (worldSize, terrainSystem) => {
         ctx.fill()
       }
     })
+
+    // Debug render grid if needed
+    if (window.DEBUG_PATHFINDING && gridRef.current) {
+      gridRef.current.debugRender(ctx, true)
+    }
   }, [])
 
   return {
@@ -278,6 +505,13 @@ export const usePathSystem = (worldSize, terrainSystem) => {
     updatePathUsage,
     renderPaths,
     paths: pathsRef.current,
-    pathNodes: pathNodesRef.current
+    pathNodes: pathNodesRef.current,
+    // New A* pathfinding methods
+    findPath,
+    requestPath,
+    getActivePath,
+    clearPath,
+    updateBuilding,
+    cleanupCache
   }
 }
