@@ -1,0 +1,16 @@
+.gameCanvas {
+  background: linear-gradient(135deg, #2c5530, #4a7c59);
+  border: 2px solid #8b4513;
+}
+
+.grab {
+  cursor: grab;
+}
+
+.grab:active {
+  cursor: grabbing;
+}
+
+.crosshair {
+  cursor: crosshair;
+}
