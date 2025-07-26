@@ -12,7 +12,8 @@ function App() {
   
   // Initialize core systems
   const landManager = useMemo(() => new LandManager(), [])
-  const pathfindingGrid = useMemo(() => new PathfindingGrid(100, 100), [])
+  // PathfindingGrid will be initialized in GameContainer after terrain system is ready
+  const [pathfindingGrid, setPathfindingGrid] = useState(null)
   const mapGenerator = useMemo(() => new MapGenerator({
     width: 100,
     height: 100,
@@ -40,6 +41,7 @@ function App() {
   const gameContext = {
     landManager,
     pathfindingGrid,
+    setPathfindingGrid,
     mapGenerator,
     debugMode,
     gameState,

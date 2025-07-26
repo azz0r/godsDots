@@ -3,21 +3,29 @@ import { PathfindingGrid } from '../utils/pathfinding/PathfindingGrid.js'
 import { AStar } from '../utils/pathfinding/AStar.js'
 import { PathNode } from '../utils/pathfinding/PathNode.js'
 
-export const usePathSystem = (worldSize, terrainSystem) => {
+export const usePathSystem = (worldSize, terrainSystem, pathfindingGrid) => {
   const pathsRef = useRef([])
   const pathNodesRef = useRef([])
   const pathUsageRef = useRef(new Map())
-  const gridRef = useRef(null)
+  const gridRef = useRef(pathfindingGrid)
   const astarRef = useRef(null)
   const activePathsRef = useRef(new Map()) // Track active paths for each entity
 
-  // Initialize pathfinding grid and A* when terrain system is ready
+  // Initialize A* when pathfinding grid is ready
   useEffect(() => {
-    if (terrainSystem && worldSize) {
+    if (pathfindingGrid) {
+      gridRef.current = pathfindingGrid
+      astarRef.current = new AStar(pathfindingGrid)
+    }
+  }, [pathfindingGrid])
+
+  // Initialize local grid if no global one provided (backward compatibility)
+  useEffect(() => {
+    if (!pathfindingGrid && terrainSystem && worldSize && !gridRef.current) {
       gridRef.current = new PathfindingGrid(worldSize.width, worldSize.height, terrainSystem)
       astarRef.current = new AStar(gridRef.current)
     }
-  }, [terrainSystem, worldSize])
+  }, [terrainSystem, worldSize, pathfindingGrid])
 
   const generateInitialPaths = useCallback((buildings) => {
     pathsRef.current = []

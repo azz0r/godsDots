@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react'
 
-export const useBuildingSystemWithLand = (worldSize, terrainSystem, godBoundary, pathSystem, landManagement) => {
+export const useBuildingSystemWithLand = (worldSize, terrainSystem, landManager, pathfindingGrid) => {
   const buildingsRef = useRef([])
   const buildingIdCounter = useRef(0)
 
@@ -25,10 +25,12 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, godBoundary,
     buildingsRef.current = [temple]
     
     // Register temple with land management
-    if (landManagement) {
-      landManagement.registerBuilding(temple)
-      // Optionally claim the plot
-      landManagement.claimPlot(centerX, centerY, 'Temple of the Gods', 'temple-main')
+    if (landManager) {
+      const plot = landManager.getPlotAt(centerX, centerY)
+      if (plot) {
+        plot.setOwner('Temple of the Gods')
+        plot.addBuilding(temple)
+      }
     }
 
     // Create initial houses around temple
@@ -56,40 +58,40 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, godBoundary,
         
         // Check if land allows building
         let canPlace = true
-        if (landManagement) {
-          const landCheck = landManagement.canPlaceBuilding(houseX, houseY, 30, 30, 'house')
-          canPlace = landCheck.canPlace
+        if (landManager) {
+          const plot = landManager.getPlotAt(houseX + 15, houseY + 15)
+          if (plot && !plot.canPlaceBuilding('house')) {
+            canPlace = false
+          }
         }
         
         if (canPlace) {
           buildingsRef.current.push(house)
           
           // Register with land management
-          if (landManagement) {
-            landManagement.registerBuilding(house)
+          if (landManager) {
+            const plot = landManager.getPlotAt(houseX + 15, houseY + 15)
+            if (plot) {
+              plot.addBuilding(house)
+            }
           }
         }
       }
     }
     
-    // Generate initial paths after buildings are created
-    if (pathSystem && pathSystem.generateInitialPaths) {
-      setTimeout(() => pathSystem.generateInitialPaths(buildingsRef.current), 100)
+    // Update pathfinding grid with buildings
+    if (pathfindingGrid) {
+      pathfindingGrid.updateAllBuildings(buildingsRef.current)
     }
-  }, [worldSize, terrainSystem, pathSystem, landManagement])
+  }, [worldSize, terrainSystem, landManager, pathfindingGrid])
 
   const canPlaceBuilding = useCallback((x, y, width, height, buildingType) => {
     // First check land management system
-    if (landManagement) {
-      const landCheck = landManagement.canPlaceBuilding(x, y, width, height, buildingType)
-      if (!landCheck.canPlace) {
-        return landCheck
+    if (landManager) {
+      const plot = landManager.getPlotAt(x + width/2, y + height/2)
+      if (plot && !plot.canPlaceBuilding(buildingType)) {
+        return { canPlace: false, reason: 'Land plot does not allow this building type' }
       }
-    }
-    
-    // Check if location is within god boundary (except for outposts)
-    if (buildingType !== 'outpost' && !godBoundary.isWithinBoundary(x + width/2, y + height/2)) {
-      return { canPlace: false, reason: 'Outside god boundary' }
     }
 
     // Check terrain walkability
@@ -134,7 +136,7 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, godBoundary,
     }
 
     return { canPlace: true }
-  }, [terrainSystem, godBoundary, landManagement])
+  }, [terrainSystem, landManager])
 
   const placeBuilding = useCallback((x, y, buildingType, ownerId = null) => {
     const buildingSpecs = {
@@ -175,22 +177,25 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, godBoundary,
     buildingsRef.current.push(newBuilding)
     
     // Register with land management
-    if (landManagement) {
-      landManagement.registerBuilding(newBuilding)
-      
-      // If owner is specified, claim the plot
-      if (ownerId) {
-        landManagement.claimPlot(x, y, `Player ${ownerId}`, ownerId)
+    if (landManager) {
+      const plot = landManager.getPlotAt(x, y)
+      if (plot) {
+        plot.addBuilding(newBuilding)
+        
+        // If owner is specified, claim the plot
+        if (ownerId) {
+          plot.setOwner(`Player ${ownerId}`)
+        }
       }
     }
     
-    // Regenerate paths when new buildings are added
-    if (pathSystem && pathSystem.generateInitialPaths) {
-      setTimeout(() => pathSystem.generateInitialPaths(buildingsRef.current), 50)
+    // Update pathfinding grid
+    if (pathfindingGrid) {
+      pathfindingGrid.updateBuilding(newBuilding, true)
     }
     
     return { success: true, building: newBuilding }
-  }, [canPlaceBuilding, pathSystem, landManagement])
+  }, [canPlaceBuilding, landManager, pathfindingGrid])
 
   const removeBuilding = useCallback((buildingId) => {
     const buildingIndex = buildingsRef.current.findIndex(b => b.id === buildingId)
@@ -199,26 +204,26 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, godBoundary,
     const building = buildingsRef.current[buildingIndex]
     
     // Clear from land plot
-    if (landManagement) {
-      const plot = landManagement.getPlotAt(
+    if (landManager) {
+      const plot = landManager.getPlotAt(
         building.x + building.width / 2,
         building.y + building.height / 2
       )
       if (plot) {
-        plot.setBuilding(null, null)
+        plot.removeBuilding(building.id)
       }
     }
     
     // Remove building
     buildingsRef.current.splice(buildingIndex, 1)
     
-    // Regenerate paths
-    if (pathSystem && pathSystem.generateInitialPaths) {
-      setTimeout(() => pathSystem.generateInitialPaths(buildingsRef.current), 50)
+    // Update pathfinding grid
+    if (pathfindingGrid) {
+      pathfindingGrid.updateBuilding(building, false)
     }
     
     return true
-  }, [pathSystem, landManagement])
+  }, [landManager, pathfindingGrid])
 
   const updateBuildings = useCallback((gameTime) => {
     buildingsRef.current.forEach(building => {

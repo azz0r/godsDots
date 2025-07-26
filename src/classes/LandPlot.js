@@ -103,6 +103,24 @@ export class LandPlot {
     return true
   }
   
+  addBuilding(building) {
+    return this.setBuilding(building, building.id)
+  }
+  
+  removeBuilding(buildingId) {
+    if (this.buildingId === buildingId) {
+      this.building = null
+      this.buildingId = null
+      this.lastModified = Date.now()
+      return true
+    }
+    return false
+  }
+  
+  canPlaceBuilding(buildingType) {
+    return this.canBuild(buildingType)
+  }
+  
   canBuild(buildingType) {
     if (this.locked || this.building) return false
     if (!buildingType) return false

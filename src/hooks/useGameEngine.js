@@ -10,6 +10,7 @@ import { useResourceSystem } from './useResourceSystem'
 import { usePixelPerfectMovement } from './usePixelPerfectMovement'
 import { useLandManagement } from './useLandManagement'
 import { GameInitializer } from '../utils/GameInitializer'
+import { PathfindingGrid } from '../utils/pathfinding/PathfindingGrid'
 import { dbService } from '../db/database.js'
 import gameConfig from '../config/gameConfig'
 
@@ -47,6 +48,14 @@ export const useGameEngine = (gameContext = {}) => {
   const aiSystem = useAISystem(playerSystem, terrainSystem, buildingSystem)
   const pixelPerfect = usePixelPerfectMovement(gameConfig.pixelPerfect)
   const landManagement = useLandManagement(gameContext.landManager, gameState.beliefPoints)
+  
+  // Initialize PathfindingGrid once terrain system is ready
+  useEffect(() => {
+    if (terrainSystem && gameContext.setPathfindingGrid && !gameContext.pathfindingGrid) {
+      const grid = new PathfindingGrid(worldSize.width, worldSize.height, terrainSystem)
+      gameContext.setPathfindingGrid(grid)
+    }
+  }, [terrainSystem, gameContext, worldSize])
 
   const initializeGame = useCallback(async () => {
     console.log('🎮 Initializing game with integrated systems...')
