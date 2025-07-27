@@ -347,7 +347,7 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, landManager,
         ctx.fillText(building.ownerId.toString(), building.x + 2, building.y - 2)
       }
     })
-  }, [landManagement])
+  }, [landManager])
 
   return {
     createInitialBuildings,
