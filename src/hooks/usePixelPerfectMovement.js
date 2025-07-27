@@ -21,6 +21,9 @@ export const usePixelPerfectMovement = () => {
   const MAX_ZOOM = 4.0
   const ZOOM_SPEED = 0.001 // Base zoom speed per delta unit
   
+  // Predefined zoom levels for consistent scaling
+  const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0]
+  
   // Cache for pixel-aligned positions
   const positionCache = useRef(new Map())
   

@@ -1,4 +1,6 @@
 import { useRef, useCallback } from 'react'
+import { villagerRenderer } from '../utils/VillagerRenderer'
+import { villagerAnimationSystem } from '../utils/VillagerAnimationSystem'
 
 export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSystem) => {
   const villagersRef = useRef([])
@@ -14,13 +16,22 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
         y: centerY + (Math.random() - 0.5) * 200,
         vx: 0, vy: 0,
         health: 100,
+        hunger: 80 + Math.random() * 20,
         happiness: 50,
+        energy: 80 + Math.random() * 20,
         task: 'idle',
         target: null,
         age: Math.random() * 60 + 18,
         lastMove: 0,
         state: 'wandering',
         homeBuilding: null,
+        selected: false,
+        emotion: null,
+        emotionTimer: 0,
+        personality: generatePersonality(),
+        path: [],
+        pathIndex: 0,
+        workProgress: 0,
         pathfinding: {
           currentPath: null,
           targetNode: null,
@@ -31,7 +42,9 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
           isIdle: false,
           idleTime: 0,
           idleDuration: 0,
-          lastMoveTime: 0
+          lastMoveTime: 0,
+          smoothX: centerX + (Math.random() - 0.5) * 200,
+          smoothY: centerY + (Math.random() - 0.5) * 200
         }
       }
       villagersRef.current.push(villager)
@@ -51,6 +64,46 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
     }
     return { x, y }
   }, [terrainSystem])
+
+  const generatePersonality = () => {
+    return {
+      sociability: Math.random(),
+      workEthic: Math.random(),
+      bravery: Math.random(),
+      curiosity: Math.random(),
+      loyalty: Math.random()
+    }
+  }
+
+  const updateVillagerEmotion = (villager, gameTime) => {
+    // Update emotion timer
+    if (villager.emotionTimer > 0) {
+      villager.emotionTimer--
+      if (villager.emotionTimer === 0) {
+        villager.emotion = null
+      }
+    }
+    
+    // Trigger emotions based on state
+    if (villager.emotion === null && gameTime % 60 === 0) {
+      if (villager.happiness > 80) {
+        villager.emotion = 'happy'
+        villager.emotionTimer = 180
+      } else if (villager.happiness < 20) {
+        villager.emotion = 'sad'
+        villager.emotionTimer = 240
+      } else if (villager.health < 30) {
+        villager.emotion = 'tired'
+        villager.emotionTimer = 300
+      } else if (villager.hunger < 30) {
+        villager.emotion = 'hungry'
+        villager.emotionTimer = 200
+      } else if (villager.state === 'fleeing') {
+        villager.emotion = 'angry'
+        villager.emotionTimer = 120
+      }
+    }
+  }
 
   const updateVillagers = useCallback((gameTime) => {
     villagersRef.current.forEach(villager => {
@@ -76,6 +129,11 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
             break
           case 'fleeing':
             updateFleeing(villager, gameTime)
+            // Show speech bubble when fleeing
+            if (Math.random() < 0.01) {
+              const fleeMessages = ['Help!', 'Run!', 'Danger!', 'Save us!']
+              showSpeechBubble(villager, fleeMessages[Math.floor(Math.random() * fleeMessages.length)])
+            }
             break
           case 'returning_home':
             updateReturningHome(villager, gameTime)
@@ -90,7 +148,7 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
       // Constrain to world bounds and avoid water
       constrainVillager(villager)
       
-      // Update happiness less frequently
+      // Update happiness and hunger less frequently
       if (gameTime % 300 === Math.floor(villager.id % 300)) {
         const inBoundary = godBoundary.isWithinBoundary(villager.x, villager.y)
         if (inBoundary) {
@@ -98,7 +156,28 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
         } else {
           villager.happiness = Math.max(0, villager.happiness - 1)
         }
+        
+        // Update hunger
+        villager.hunger = Math.max(0, villager.hunger - 0.3)
+        if (villager.hunger < 20) {
+          villager.health = Math.max(0, villager.health - 0.5)
+        }
+        
+        // Update energy
+        if (villager.state === 'working') {
+          villager.energy = Math.max(0, villager.energy - 0.5)
+        } else if (villager.movement.isIdle) {
+          villager.energy = Math.min(100, villager.energy + 0.3)
+        }
       }
+      
+      // Update emotions
+      updateVillagerEmotion(villager, gameTime)
+      
+      // Update smooth movement for interpolation
+      const smoothingFactor = 0.2
+      villager.movement.smoothX += (villager.x - villager.movement.smoothX) * smoothingFactor
+      villager.movement.smoothY += (villager.y - villager.movement.smoothY) * smoothingFactor
     })
   }, [terrainSystem, godBoundary, pathSystem])
 
@@ -352,6 +431,16 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
     villager.y += villager.vy
     villager.vx *= 0.85 // Friction
     villager.vy *= 0.85
+    
+    // Update work progress if working
+    if (villager.state === 'working' && villager.task) {
+      villager.workProgress = Math.min(1, villager.workProgress + 0.01)
+      if (villager.workProgress >= 1) {
+        villager.workProgress = 0
+        villager.state = 'wandering'
+        villager.task = null
+      }
+    }
   }
 
   const constrainVillager = (villager) => {
@@ -393,36 +482,67 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
     })
   }, [])
 
-  const renderVillagers = useCallback((ctx) => {
+  const renderVillagers = useCallback((ctx, player, camera, gameTime) => {
+    // Update animation system
+    villagerAnimationSystem.updateAll(villagersRef.current, gameTime)
+    
+    // Render all villagers with the new renderer
+    villagerRenderer.renderAllVillagers(ctx, player, camera, gameTime)
+    
+    // Render paths for selected villagers
     villagersRef.current.forEach(villager => {
-      // Health ring color
-      const healthColor = villager.health > 70 ? '#00ff00' : 
-                         villager.health > 30 ? '#ffff00' : '#ff0000'
-      
-      // Use pixel-aligned positions
-      const x = Math.floor(villager.x)
-      const y = Math.floor(villager.y)
-      
-      // Draw health ring
-      ctx.fillStyle = healthColor
-      ctx.beginPath()
-      ctx.arc(x, y, 6, 0, Math.PI * 2)
-      ctx.fill()
-      
-      // Draw villager body
-      ctx.fillStyle = '#ffffff'
-      ctx.beginPath()
-      ctx.arc(x, y, 4, 0, Math.PI * 2)
-      ctx.fill()
-      
-      // Draw state indicator
-      if (villager.state === 'working') {
-        ctx.fillStyle = '#ffff00'
-        ctx.fillRect(x - 2, y - 10, 4, 2)
-      } else if (villager.state === 'fleeing') {
-        ctx.fillStyle = '#ff0000'
-        ctx.fillRect(x - 2, y - 10, 4, 2)
+      if (villager.selected) {
+        villagerRenderer.renderVillagerPath(ctx, villager)
       }
+    })
+  }, [])
+
+  // Getter function to access villagers
+  const getVillagers = useCallback(() => {
+    return villagersRef.current
+  }, [])
+  
+  // Select/deselect villagers
+  const selectVillager = useCallback((villagerId) => {
+    villagersRef.current.forEach(v => {
+      v.selected = v.id === villagerId
+    })
+  }, [])
+  
+  const selectVillagersInArea = useCallback((x1, y1, x2, y2) => {
+    const minX = Math.min(x1, x2)
+    const maxX = Math.max(x1, x2)
+    const minY = Math.min(y1, y2)
+    const maxY = Math.max(y1, y2)
+    
+    villagersRef.current.forEach(v => {
+      v.selected = v.x >= minX && v.x <= maxX && v.y >= minY && v.y <= maxY
+    })
+  }, [])
+  
+  const deselectAllVillagers = useCallback(() => {
+    villagersRef.current.forEach(v => {
+      v.selected = false
+    })
+  }, [])
+  
+  // Command selected villagers to move
+  const commandSelectedVillagers = useCallback((targetX, targetY) => {
+    const selectedVillagers = villagersRef.current.filter(v => v.selected)
+    
+    selectedVillagers.forEach((villager, index) => {
+      // Offset target positions for multiple villagers
+      const angle = (index / selectedVillagers.length) * Math.PI * 2
+      const radius = Math.min(10 * selectedVillagers.length, 50)
+      const offsetX = Math.cos(angle) * radius
+      const offsetY = Math.sin(angle) * radius
+      
+      villager.target = {
+        x: targetX + offsetX,
+        y: targetY + offsetY
+      }
+      villager.state = 'wandering'
+      villager.movement.isIdle = false
     })
   }, [])
 
@@ -431,6 +551,11 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
     updateVillagers,
     getVillagersNear,
     renderVillagers,
+    getVillagers,
+    selectVillager,
+    selectVillagersInArea,
+    deselectAllVillagers,
+    commandSelectedVillagers,
     villagers: villagersRef.current
   }
 }

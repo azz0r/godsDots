@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState } from 'react'
 import { MapGenerator } from '../utils/mapGeneration/MapGenerator'
+import { TerrainRenderer } from '../utils/TerrainRenderer'
 
 export const useTerrainSystem = (worldSize) => {
   const terrainRef = useRef([])
@@ -9,6 +10,7 @@ export const useTerrainSystem = (worldSize) => {
   const spawnPointsRef = useRef([])
   const [mapSeed, setMapSeed] = useState(null)
   const mapGeneratorRef = useRef(null)
+  const terrainRendererRef = useRef(new TerrainRenderer())
 
   const generateTerrain = useCallback((seed = null) => {
     // Create new map generator with seed
@@ -91,49 +93,9 @@ export const useTerrainSystem = (worldSize) => {
     return terrain ? terrain.walkable : false
   }, [getTerrainAt])
 
-  const renderTerrain = useCallback((ctx) => {
-    const colors = {
-      // Original terrain types
-      grass: '#4a7c59',
-      forest: '#2d4a3a',
-      hills: '#8b7355',
-      water: '#4682b4',
-      // New terrain types
-      deepWater: '#1e3a5f',
-      river: '#5090d3',
-      sand: '#f4e4a1',
-      desert: '#d4a76a',
-      mountain: '#8b7d6b',
-      snow: '#ffffff',
-      rockyHills: '#a0907d',
-      tundra: '#d0ddd0',
-      taiga: '#3d5a3d',
-      snowyForest: '#4a5d4a',
-      grassland: '#6b8e23',
-      savanna: '#bdb76b',
-      tropicalForest: '#228b22',
-      rainforest: '#2a4a2a',
-      jungle: '#1a3a1a'
-    }
-    
-    terrainRef.current.forEach(tile => {
-      ctx.fillStyle = colors[tile.type] || '#666666'
-      ctx.fillRect(tile.x, tile.y, tile.width, tile.height)
-      
-      // Add subtle shading based on elevation
-      if (tile.elevation !== undefined) {
-        ctx.globalAlpha = 0.2
-        if (tile.elevation > 0.7) {
-          ctx.fillStyle = '#ffffff'
-        } else if (tile.elevation < 0.3) {
-          ctx.fillStyle = '#000000'
-        } else {
-          ctx.globalAlpha = 0
-        }
-        ctx.fillRect(tile.x, tile.y, tile.width, tile.height)
-        ctx.globalAlpha = 1
-      }
-    })
+  const renderTerrain = useCallback((ctx, camera = { x: 0, y: 0, zoom: 1 }) => {
+    // Use the enhanced terrain renderer
+    terrainRendererRef.current.renderTerrain(ctx, terrainRef.current, camera)
   }, [])
 
   const renderResources = useCallback((ctx) => {
@@ -240,12 +202,22 @@ export const useTerrainSystem = (worldSize) => {
   const setTerrain = (newTerrain) => {
     terrainRef.current.length = 0
     terrainRef.current.push(...newTerrain)
+    
+    // Also update the terrain map for lookups
+    terrainMapRef.current.clear()
+    newTerrain.forEach(tile => {
+      terrainMapRef.current.set(`${tile.x},${tile.y}`, tile)
+    })
   }
   
   const setSpawnPoints = (newSpawnPoints) => {
     spawnPointsRef.current.length = 0
     spawnPointsRef.current.push(...newSpawnPoints)
   }
+  
+  const updateTerrainAnimation = useCallback((deltaTime) => {
+    terrainRendererRef.current.update(deltaTime)
+  }, [])
 
   return {
     generateTerrain,
@@ -260,6 +232,7 @@ export const useTerrainSystem = (worldSize) => {
     setSpawnPoints,
     saveMapData,
     loadMapData,
+    updateTerrainAnimation,
     terrain: terrainRef.current,
     resources: resourcesRef.current,
     spawnPoints: spawnPointsRef.current,

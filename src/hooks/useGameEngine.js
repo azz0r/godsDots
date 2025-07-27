@@ -11,6 +11,7 @@ import { usePixelPerfectMovement } from './usePixelPerfectMovement'
 import { useLandManagement } from './useLandManagement'
 import { GameInitializer } from '../utils/GameInitializer'
 import { PathfindingGrid } from '../utils/pathfinding/PathfindingGrid'
+import { VisualEffects } from '../utils/VisualEffects'
 import { dbService } from '../db/database.js'
 import gameConfig from '../config/gameConfig'
 
@@ -18,7 +19,7 @@ export const useGameEngine = (gameContext = {}) => {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
   const gameTimeRef = useRef(0)
-  const particlesRef = useRef([])
+  const visualEffectsRef = useRef(new VisualEffects())
   const fpsRef = useRef({ frames: 0, lastTime: 0, current: 60 })
   const debugModeRef = useRef(gameContext.debugMode || false)
   
@@ -36,7 +37,8 @@ export const useGameEngine = (gameContext = {}) => {
     beliefPoints: gameConfig.startingBeliefPoints,
     population: 0,
     hoveredTile: null,
-    selectedTile: null
+    selectedTile: null,
+    selectedVillagerIds: []
   })
 
   // Initialize all systems with integrated pathfinding and land management
@@ -200,8 +202,8 @@ export const useGameEngine = (gameContext = {}) => {
       cameraRef.current.zoom = 1
     }
     
-    // Reset particles and game time
-    particlesRef.current = []
+    // Reset visual effects and game time
+    visualEffectsRef.current.clear()
     gameTimeRef.current = 0
   }
 
@@ -238,22 +240,34 @@ export const useGameEngine = (gameContext = {}) => {
         vx: dbVillager.velocity.x,
         vy: dbVillager.velocity.y,
         health: dbVillager.health,
+        hunger: 80,
         happiness: dbVillager.happiness,
+        energy: 80,
         age: dbVillager.age,
         state: dbVillager.state,
         task: dbVillager.task,
         personality: dbVillager.personality,
         skills: dbVillager.skills,
         target: null,
+        selected: false,
+        emotion: null,
+        emotionTimer: 0,
+        path: [],
+        pathIndex: 0,
+        workProgress: 0,
         pathfinding: {
+          currentPath: null,
           targetNode: null,
+          stuck: 0,
           lastPathUpdate: 0
         },
         movement: {
           isIdle: false,
           idleTime: 0,
           idleDuration: 60,
-          lastMoveTime: 0
+          lastMoveTime: 0,
+          smoothX: dbVillager.position.x,
+          smoothY: dbVillager.position.y
         }
       }))
       
@@ -336,7 +350,11 @@ export const useGameEngine = (gameContext = {}) => {
 
     // Check if power can be used at this location
     if (!playerSystem.canPlayerUsePowerAt(humanPlayer, worldX, worldY, selectedPower)) {
-      createParticle(worldX, worldY, 'failed')
+      visualEffectsRef.current.createClickFeedback(worldX, worldY, {
+        color: '#ff0000',
+        type: 'ripple',
+        duration: 500
+      })
       return
     }
 
@@ -344,7 +362,11 @@ export const useGameEngine = (gameContext = {}) => {
     const cost = powerCosts[selectedPower] || 0
 
     if (humanPlayer.beliefPoints < cost) {
-      createParticle(worldX, worldY, 'failed')
+      visualEffectsRef.current.createClickFeedback(worldX, worldY, {
+        color: '#ff0000',
+        type: 'ripple',
+        duration: 500
+      })
       return
     }
 
@@ -384,12 +406,57 @@ export const useGameEngine = (gameContext = {}) => {
       villager.happiness += 10 * strength
       villager.state = 'wandering'
       player.stats.villagersHealed++
+      
+      // Create healing sparkles on each healed villager
+      visualEffectsRef.current.createSparkle(villager.x, villager.y, {
+        particleCount: 8,
+        colors: ['#00ff00', '#88ff88', '#aaffaa'],
+        duration: 800
+      })
     })
     
-    createParticle(x, y, 'heal')
+    // Create main healing effect
+    visualEffectsRef.current.createClickFeedback(x, y, {
+      color: '#00ff00',
+      type: 'ripple',
+      maxRadius: 100,
+      duration: 600
+    })
+    
+    // Add healing sparkles at center
+    visualEffectsRef.current.createSparkle(x, y, {
+      particleCount: 20,
+      colors: ['#00ff00', '#88ff88', '#ffffff'],
+      duration: 1000
+    })
   }
 
   const castStorm = (x, y, player) => {
+    // Create lightning effect
+    visualEffectsRef.current.createExplosion(x, y, {
+      particleCount: 40,
+      color: '#ffff00',
+      maxVelocity: 8,
+      particleSize: 6,
+      duration: 1200,
+      gravity: 0
+    })
+    
+    // Add secondary explosion effects
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        const offsetX = x + (Math.random() - 0.5) * 100
+        const offsetY = y + (Math.random() - 0.5) * 100
+        visualEffectsRef.current.createExplosion(offsetX, offsetY, {
+          particleCount: 20,
+          color: '#ff8800',
+          maxVelocity: 5,
+          particleSize: 4,
+          duration: 800
+        })
+      }, i * 200)
+    }
+    
     // Storm affects ALL players' villagers in range
     playerSystem.players.forEach(targetPlayer => {
       const nearbyVillagers = targetPlayer.villagers.filter(villager => {
@@ -406,7 +473,23 @@ export const useGameEngine = (gameContext = {}) => {
         villager.happiness -= 15 * strength
         villager.state = 'fleeing'
         
+        // Create damage effect on hit villagers
+        visualEffectsRef.current.createDamageEffect(villager.x, villager.y - 20, {
+          damage: Math.floor(damage),
+          color: '#ff0000',
+          fontSize: 14
+        })
+        
         if (villager.health <= 0) {
+          // Create death explosion
+          visualEffectsRef.current.createExplosion(villager.x, villager.y, {
+            particleCount: 15,
+            color: '#ff0000',
+            maxVelocity: 3,
+            particleSize: 3,
+            duration: 600
+          })
+          
           // Remove dead villager
           const index = targetPlayer.villagers.indexOf(villager)
           if (index > -1) {
@@ -416,8 +499,6 @@ export const useGameEngine = (gameContext = {}) => {
         }
       })
     })
-    
-    createParticle(x, y, 'storm')
   }
 
   const createFood = (x, y, player) => {
@@ -432,23 +513,51 @@ export const useGameEngine = (gameContext = {}) => {
     nearbyVillagers.forEach(villager => {
       villager.happiness += 15 * strength
       villager.health = Math.min(100, villager.health + 5 * strength)
+      
+      // Create small sparkles on fed villagers
+      visualEffectsRef.current.createSparkle(villager.x, villager.y, {
+        particleCount: 5,
+        colors: ['#ffd700', '#ffaa00'],
+        duration: 600
+      })
     })
     
-    createParticle(x, y, 'food')
+    // Create food manifestation effect
+    visualEffectsRef.current.createSparkle(x, y, {
+      particleCount: 25,
+      colors: ['#ffd700', '#ffaa00', '#ff8800'],
+      duration: 1000
+    })
+    
+    // Add a subtle dust cloud
+    visualEffectsRef.current.createDustCloud(x, y, {
+      particleCount: 15,
+      color: '#ffcc88',
+      radius: 30,
+      duration: 600
+    })
   }
 
   const buildStructure = (x, y, player) => {
     // Check if location is within player's territory
     if (!playerSystem.isWithinPlayerTerritory(player, x, y)) {
       console.log('Build failed: Outside territory')
-      createParticle(x, y, 'failed')
+      visualEffectsRef.current.createClickFeedback(x, y, {
+        color: '#ff0000',
+        type: 'ripple',
+        duration: 500
+      })
       return
     }
     
     // Check if terrain is walkable
     if (!terrainSystem.isWalkable(x, y)) {
       console.log('Build failed: Unwalkable terrain')
-      createParticle(x, y, 'failed')
+      visualEffectsRef.current.createClickFeedback(x, y, {
+        color: '#ff0000',
+        type: 'ripple',
+        duration: 500
+      })
       return
     }
     
@@ -462,7 +571,11 @@ export const useGameEngine = (gameContext = {}) => {
     
     if (tooClose) {
       console.log('Build failed: Too close to existing building')
-      createParticle(x, y, 'failed')
+      visualEffectsRef.current.createClickFeedback(x, y, {
+        color: '#ff0000',
+        type: 'ripple',
+        duration: 500
+      })
       return
     }
     
@@ -502,35 +615,24 @@ export const useGameEngine = (gameContext = {}) => {
       setTimeout(() => pathSystem.generateInitialPaths(player.buildings), 100)
     }
     
-    createParticle(x, y, 'build')
+    // Create building construction effects
+    visualEffectsRef.current.buildingConstruction(x, y)
+    
+    // Add placement effect
+    visualEffectsRef.current.createPlacementEffect(x, y, {
+      width: 30,
+      height: 30,
+      color: '#00aaff',
+      duration: 800
+    })
   }
 
-  const createParticle = (x, y, type) => {
-    const colors = {
-      heal: '#00ff00',
-      storm: '#ff0000', 
-      food: '#ffff00',
-      build: '#00ffff',
-      failed: '#ff8888'
-    }
-    
-    const particleCount = type === 'storm' ? 30 : 20
-    
-    for (let i = 0; i < particleCount; i++) {
-      particlesRef.current.push({
-        x, y,
-        vx: (Math.random() - 0.5) * 4,
-        vy: (Math.random() - 0.5) * 4,
-        color: colors[type] || '#ffffff',
-        life: type === 'storm' ? 80 : 60,
-        maxLife: type === 'storm' ? 80 : 60,
-        size: type === 'storm' ? 4 : 3
-      })
-    }
-  }
 
   const updateGame = useCallback((currentTime) => {
     gameTimeRef.current++
+    
+    // Calculate delta time for animations
+    const deltaTime = 16 // Assuming 60fps
     
     // Update FPS counter
     fpsRef.current.frames++
@@ -539,6 +641,9 @@ export const useGameEngine = (gameContext = {}) => {
       fpsRef.current.frames = 0
       fpsRef.current.lastTime = currentTime
     }
+    
+    // Update terrain animations
+    terrainSystem.updateTerrainAnimation(deltaTime)
     
     // Update all players
     playerSystem.players.forEach(player => {
@@ -576,6 +681,42 @@ export const useGameEngine = (gameContext = {}) => {
     // Update resources
     resourceSystem.updateResources(gameTimeRef.current)
     
+    // Check for resource harvesting and create effects
+    resourceSystem.resources.forEach(resource => {
+      if (resource.beingHarvested && gameTimeRef.current % 30 === 0) {
+        // Find the villager harvesting this resource
+        const harvester = playerSystem.players.flatMap(p => p.villagers)
+          .find(v => v.task === 'harvesting' && 
+                Math.abs(v.x - resource.x) < 50 && 
+                Math.abs(v.y - resource.y) < 50)
+        
+        if (harvester) {
+          if (resource.type === 'tree') {
+            // Wood chips effect
+            visualEffectsRef.current.createDustCloud(resource.x, resource.y, {
+              particleCount: 8,
+              color: '#8b4513',
+              radius: 25,
+              duration: 500
+            })
+          } else if (resource.type === 'berries') {
+            // Berry sparkles
+            visualEffectsRef.current.createSparkle(resource.x, resource.y, {
+              particleCount: 6,
+              colors: ['#ff6b6b', '#ff4444', '#ffaaaa'],
+              duration: 600
+            })
+          }
+        }
+        
+        // Resource depletion effect when exhausted
+        if (resource.amount <= 0 && resource.beingHarvested) {
+          visualEffectsRef.current.resourceDepleted(resource.x, resource.y, resource.type)
+          resource.beingHarvested = false
+        }
+      }
+    })
+    
     // Auto-save every 30 seconds (1800 ticks at 60fps)
     if (gameTimeRef.current % 1800 === 0 && gameState.levelId) {
       autoSaveGame()
@@ -586,15 +727,13 @@ export const useGameEngine = (gameContext = {}) => {
       pathSystem.cleanupCache()
     }
     
-    // Update particles
-    particlesRef.current = particlesRef.current.filter(particle => {
-      particle.x += particle.vx
-      particle.y += particle.vy
-      particle.vx *= 0.95
-      particle.vy *= 0.95
-      particle.life--
-      return particle.life > 0
-    })
+    // Update visual effects
+    visualEffectsRef.current.update(deltaTime)
+    
+    // Create ambient particles
+    if (gameTimeRef.current % 120 === 0) { // Every 2 seconds
+      createAmbientParticles()
+    }
   }, [playerSystem, aiSystem, gameState.levelId])
 
   const autoSaveGame = useCallback(async () => {
@@ -663,6 +802,20 @@ export const useGameEngine = (gameContext = {}) => {
       // Setup target for movement if needed
       if (!villager.movement.isIdle) {
         setupVillagerTarget(villager)
+      }
+      
+      // Create work particle effects based on task
+      if (gameTime % 30 === 0 && villager.task !== 'idle') {
+        createVillagerWorkEffects(villager)
+      }
+      
+      // Create celebration effects for happy villagers
+      if (villager.happiness > 80 && gameTime % 300 === Math.floor(villager.id % 300)) {
+        visualEffectsRef.current.createSparkle(villager.x, villager.y - 20, {
+          particleCount: 5,
+          colors: ['#ffff00', '#ff00ff', '#00ffff'],
+          duration: 1000
+        })
       }
       
       // Update happiness based on territory - but keep villagers loyal to their god
@@ -819,9 +972,231 @@ export const useGameEngine = (gameContext = {}) => {
       }
     }
   }
+  
+  const createVillagerWorkEffects = (villager) => {
+    switch (villager.task) {
+      case 'harvesting':
+        // Wood chips or berry sparkles
+        visualEffectsRef.current.createDustCloud(villager.x, villager.y, {
+          particleCount: 5,
+          color: '#8b4513',
+          radius: 20,
+          duration: 400
+        })
+        break
+        
+      case 'building':
+        // Hammer sparks and construction dust
+        visualEffectsRef.current.createSparkle(villager.x, villager.y - 10, {
+          particleCount: 3,
+          colors: ['#ffaa00', '#ff8800'],
+          duration: 300
+        })
+        visualEffectsRef.current.createDustCloud(villager.x, villager.y, {
+          particleCount: 8,
+          color: '#8b7355',
+          radius: 25,
+          duration: 500
+        })
+        break
+        
+      case 'farming':
+        // Farming dust
+        visualEffectsRef.current.createDustCloud(villager.x, villager.y, {
+          particleCount: 10,
+          color: '#aa8866',
+          radius: 30,
+          duration: 600
+        })
+        break
+        
+      case 'praying':
+        // Prayer sparkles
+        visualEffectsRef.current.createSparkle(villager.x, villager.y - 20, {
+          particleCount: 5,
+          colors: ['#ffffff', '#ffffaa'],
+          duration: 800
+        })
+        break
+    }
+    
+    // Footstep dust when walking
+    if (villager.state === 'wandering' && Math.abs(villager.vx) + Math.abs(villager.vy) > 0.5) {
+      visualEffectsRef.current.createDustCloud(villager.x, villager.y + 10, {
+        particleCount: 3,
+        color: '#998877',
+        radius: 10,
+        duration: 300
+      })
+    }
+  }
+  
+  const createAmbientParticles = () => {
+    const camera = cameraRef.current
+    const canvas = canvasRef.current
+    if (!canvas) return
+    
+    // Only create particles in visible area
+    const viewLeft = camera.x
+    const viewRight = camera.x + canvas.width / camera.zoom
+    const viewTop = camera.y
+    const viewBottom = camera.y + canvas.height / camera.zoom
+    
+    // Smoke from buildings
+    playerSystem.players.forEach(player => {
+      player.buildings.forEach(building => {
+        if (!building.isUnderConstruction &&
+            building.x > viewLeft - 100 && building.x < viewRight + 100 &&
+            building.y > viewTop - 100 && building.y < viewBottom + 100) {
+          // Create smoke from chimneys
+          if (Math.random() < 0.3) {
+            visualEffectsRef.current.createSmoke(
+              building.x + building.width / 2,
+              building.y - 5,
+              {
+                particleCount: 3,
+                color: '#888888',
+                duration: 3000,
+                spread: 10
+              }
+            )
+          }
+        }
+      })
+    })
+    
+    // Fireflies at night (simulate with time-based condition)
+    const isNight = (gameTimeRef.current % 7200) > 3600 // Night for half the cycle
+    if (isNight) {
+      for (let i = 0; i < 3; i++) {
+        const x = viewLeft + Math.random() * (viewRight - viewLeft)
+        const y = viewTop + Math.random() * (viewBottom - viewTop)
+        
+        // Check if position is in forest or grass terrain
+        const terrain = terrainSystem.getTerrainAt(x, y)
+        if (terrain && (terrain.type === 'forest' || terrain.type === 'grass')) {
+          visualEffectsRef.current.createSparkle(x, y, {
+            particleCount: 1,
+            colors: ['#ffff88', '#ffffaa'],
+            duration: 2000
+          })
+        }
+      }
+    }
+    
+    // Falling leaves in forest areas
+    for (let i = 0; i < 2; i++) {
+      const x = viewLeft + Math.random() * (viewRight - viewLeft)
+      const y = viewTop - 50 // Start above view
+      
+      const terrain = terrainSystem.getTerrainAt(x, y + 100)
+      if (terrain && terrain.type === 'forest') {
+        // Create a custom leaf effect
+        const effect = {
+          id: visualEffectsRef.current.effectId++,
+          type: 'leaf',
+          x,
+          y,
+          particles: [{
+            x,
+            y,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: 0.5 + Math.random() * 0.5,
+            size: 4,
+            color: Math.random() > 0.5 ? '#aa8822' : '#cc9933',
+            alpha: 1,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.1
+          }],
+          duration: 4000,
+          elapsed: 0,
+          active: true
+        }
+        visualEffectsRef.current.effects.push(effect)
+      }
+    }
+  }
 
   // Remove old constraint functions as they're handled by pixel-perfect movement
 
+  const handleVillagerSelect = useCallback((x1, y1, x2, y2, isBoxSelect) => {
+    const humanPlayer = getHumanPlayer()
+    if (!humanPlayer) return
+    
+    if (isBoxSelect && x2 !== undefined && y2 !== undefined) {
+      // Box selection
+      const minX = Math.min(x1, x2)
+      const maxX = Math.max(x1, x2)
+      const minY = Math.min(y1, y2)
+      const maxY = Math.max(y1, y2)
+      
+      const selectedIds = []
+      humanPlayer.villagers.forEach(v => {
+        if (v.x >= minX && v.x <= maxX && v.y >= minY && v.y <= maxY) {
+          v.selected = true
+          selectedIds.push(v.id)
+        } else if (!x2) { // Shift not held
+          v.selected = false
+        }
+      })
+      
+      setGameState(prev => ({ ...prev, selectedVillagerIds: selectedIds }))
+    } else {
+      // Click selection
+      const clickRadius = 10
+      let found = false
+      
+      humanPlayer.villagers.forEach(v => {
+        const distance = Math.sqrt((v.x - x1) ** 2 + (v.y - y1) ** 2)
+        if (distance <= clickRadius && !found) {
+          v.selected = !v.selected
+          found = true
+        } else if (!y1) { // Shift not held (y1 is used as shift flag in click mode)
+          v.selected = false
+        }
+      })
+      
+      const selectedIds = humanPlayer.villagers.filter(v => v.selected).map(v => v.id)
+      setGameState(prev => ({ ...prev, selectedVillagerIds: selectedIds }))
+    }
+  }, [getHumanPlayer])
+  
+  const handleVillagerCommand = useCallback((targetX, targetY) => {
+    const humanPlayer = getHumanPlayer()
+    if (!humanPlayer) return
+    
+    const selectedVillagers = humanPlayer.villagers.filter(v => v.selected)
+    if (selectedVillagers.length === 0) return
+    
+    // Create click feedback effect
+    visualEffectsRef.current.createClickFeedback(targetX, targetY, {
+      color: '#00ff00',
+      type: 'ripple',
+      maxRadius: 40,
+      duration: 400
+    })
+    
+    // Command selected villagers to move
+    selectedVillagers.forEach((villager, index) => {
+      // Offset target positions for multiple villagers
+      const angle = (index / selectedVillagers.length) * Math.PI * 2
+      const radius = Math.min(10 * selectedVillagers.length, 50)
+      const offsetX = Math.cos(angle) * radius
+      const offsetY = Math.sin(angle) * radius
+      
+      villager.target = {
+        x: targetX + offsetX,
+        y: targetY + offsetY
+      }
+      villager.state = 'wandering'
+      villager.movement.isIdle = false
+      
+      // Show path visualization briefly
+      villager.showPath = true
+      setTimeout(() => { villager.showPath = false }, 2000)
+    })
+  }, [getHumanPlayer])
+  
   const renderGame = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -830,12 +1205,16 @@ export const useGameEngine = (gameContext = {}) => {
     const camera = cameraRef.current
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+    
+    // Render terrain with its own camera handling
+    ctx.save()
+    terrainSystem.renderTerrain(ctx, camera)
+    ctx.restore()
+    
+    // Apply camera transform for other rendering
     ctx.save()
     ctx.scale(camera.zoom, camera.zoom)
     ctx.translate(-camera.x, -camera.y)
-    
-    // Render in layers
-    terrainSystem.renderTerrain(ctx)
     
     // Render land borders if enabled
     if (gameContext.landManager && canvasRef.current.showLandBorders !== false) {
@@ -855,7 +1234,12 @@ export const useGameEngine = (gameContext = {}) => {
     })
     
     playerSystem.players.forEach(player => {
-      playerSystem.renderPlayerVillagers(ctx, player)
+      const cameraWithDimensions = {
+        ...camera,
+        width: canvas.width,
+        height: canvas.height
+      }
+      playerSystem.renderPlayerVillagers(ctx, player, cameraWithDimensions, gameTimeRef.current)
     })
     
     // Render building preview if in build mode
@@ -868,9 +1252,26 @@ export const useGameEngine = (gameContext = {}) => {
       renderDebugInfo(ctx)
     }
     
-    renderParticles(ctx)
+    // Render visual effects
+    visualEffectsRef.current.render(ctx)
     
     ctx.restore()
+    
+    // Render selection box (in screen space)
+    if (gameStateRef.current.mouse?.selectionBox) {
+      const box = gameStateRef.current.mouse.selectionBox
+      ctx.save()
+      ctx.strokeStyle = '#00ff00'
+      ctx.lineWidth = 2
+      ctx.setLineDash([5, 5])
+      ctx.strokeRect(
+        Math.min(box.startX, box.endX),
+        Math.min(box.startY, box.endY),
+        Math.abs(box.endX - box.startX),
+        Math.abs(box.endY - box.startY)
+      )
+      ctx.restore()
+    }
   }, [terrainSystem, pathSystem, playerSystem, buildingSystem, gameState.selectedPower, gameContext])
 
   const renderBuildingPreview = (ctx) => {
@@ -928,15 +1329,6 @@ export const useGameEngine = (gameContext = {}) => {
     ctx.fillText(text, worldX, worldY - 25)
   }
 
-  const renderParticles = (ctx) => {
-    particlesRef.current.forEach(particle => {
-      const alpha = particle.life / particle.maxLife
-      ctx.fillStyle = particle.color + Math.floor(alpha * 255).toString(16).padStart(2, '0')
-      ctx.beginPath()
-      ctx.arc(particle.x, particle.y, particle.size || 3, 0, Math.PI * 2)
-      ctx.fill()
-    })
-  }
 
   const renderLandBorders = (ctx) => {
     if (!gameContext.landManager) return
@@ -1079,6 +1471,8 @@ export const useGameEngine = (gameContext = {}) => {
     mapSeed: terrainSystem.mapSeed,
     hoveredTile: gameState.hoveredTile,
     selectedTile: gameState.selectedTile,
+    handleVillagerSelect,
+    handleVillagerCommand,
     // Expose systems for debugging/external access
     systems: {
       terrain: terrainSystem,

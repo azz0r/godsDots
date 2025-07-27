@@ -21,7 +21,9 @@ const GameContainer = ({ gameContext }) => {
     regenerateMap, 
     mapSeed,
     hoveredTile,
-    selectedTile
+    selectedTile,
+    handleVillagerSelect,
+    handleVillagerCommand
   } = useGameEngine(gameContext)
   
   const {
@@ -64,6 +66,8 @@ const GameContainer = ({ gameContext }) => {
         gameStateRef={gameStateRef}
         selectedPower={gameState.selectedPower}
         usePower={handleTileClick}
+        onVillagerSelect={handleVillagerSelect}
+        onVillagerCommand={handleVillagerCommand}
         showLandBorders={showLandBorders}
         landManager={gameContext.landManager}
       />

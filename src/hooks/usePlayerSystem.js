@@ -1,4 +1,6 @@
 import { useRef, useCallback } from 'react'
+import { villagerRenderer } from '../utils/VillagerRenderer'
+import { villagerAnimationSystem } from '../utils/VillagerAnimationSystem'
 
 export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
   const playersRef = useRef([])
@@ -113,13 +115,28 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
         y: Math.floor(player.territory.center.y + (Math.random() - 0.5) * 200),
         vx: 0, vy: 0,
         health: 100,
+        hunger: 80 + Math.random() * 20,
         happiness: 50,
+        energy: 80 + Math.random() * 20,
         task: 'idle',
         target: null,
         age: Math.random() * 60 + 18,
         lastMove: 0,
         state: 'wandering',
         homeBuilding: null,
+        selected: false,
+        emotion: null,
+        emotionTimer: 0,
+        personality: {
+          sociability: Math.random(),
+          workEthic: Math.random(),
+          bravery: Math.random(),
+          curiosity: Math.random(),
+          loyalty: Math.random()
+        },
+        path: [],
+        pathIndex: 0,
+        workProgress: 0,
         pathfinding: {
           currentPath: null,
           targetNode: null,
@@ -130,7 +147,9 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
           isIdle: false,
           idleTime: 0,
           idleDuration: 0,
-          lastMoveTime: 0
+          lastMoveTime: 0,
+          smoothX: Math.floor(player.territory.center.x + (Math.random() - 0.5) * 200),
+          smoothY: Math.floor(player.territory.center.y + (Math.random() - 0.5) * 200)
         }
       }
       player.villagers.push(villager)
@@ -292,32 +311,17 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
     })
   }, [])
 
-  const renderPlayerVillagers = useCallback((ctx, player) => {
+  const renderPlayerVillagers = useCallback((ctx, player, camera, gameTime) => {
+    // Update animation system for this player's villagers
+    villagerAnimationSystem.updateAll(player.villagers, gameTime)
+    
+    // Render all villagers with the new renderer
+    villagerRenderer.renderAllVillagers(ctx, player, camera, gameTime)
+    
+    // Render paths for selected villagers
     player.villagers.forEach(villager => {
-      // Health ring color
-      const healthColor = villager.health > 70 ? '#00ff00' : 
-                         villager.health > 30 ? '#ffff00' : '#ff0000'
-      
-      // Draw health ring
-      ctx.fillStyle = healthColor
-      ctx.beginPath()
-      ctx.arc(villager.x, villager.y, 6, 0, Math.PI * 2)
-      ctx.fill()
-      
-      // Draw villager body with player color tint
-      const bodyColor = player.type === 'human' ? '#ffffff' : '#ffcccc'
-      ctx.fillStyle = bodyColor
-      ctx.beginPath()
-      ctx.arc(villager.x, villager.y, 4, 0, Math.PI * 2)
-      ctx.fill()
-      
-      // Draw state indicator
-      if (villager.state === 'working') {
-        ctx.fillStyle = '#ffff00'
-        ctx.fillRect(x - 2, y - 10, 4, 2)
-      } else if (villager.state === 'fleeing') {
-        ctx.fillStyle = '#ff0000'
-        ctx.fillRect(x - 2, y - 10, 4, 2)
+      if (villager.selected) {
+        villagerRenderer.renderVillagerPath(ctx, villager)
       }
     })
   }, [])

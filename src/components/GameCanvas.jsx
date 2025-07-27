@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import styles from '../styles/GameCanvas.module.css'
 import { usePixelPerfectMovement } from '../hooks/usePixelPerfectMovement'
 
-const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
+const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillagerSelect, onVillagerCommand }) => {
   const pixelPerfect = usePixelPerfectMovement()
   const eventHandlersRef = useRef({})
 
@@ -10,6 +10,15 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
   useEffect(() => {
     eventHandlersRef.current.handleMouseDown = (e) => {
       const game = gameStateRef.current
+      const canvas = canvasRef.current
+      const rect = canvas.getBoundingClientRect()
+      
+      // Store selection start position
+      game.mouse.selectionStart = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      }
+      
       game.mouse.down = true
       game.mouse.lastX = e.clientX
       game.mouse.lastY = e.clientY
@@ -17,16 +26,48 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
 
     eventHandlersRef.current.handleMouseUp = (e) => {
       const game = gameStateRef.current
+      const canvas = canvasRef.current
+      const rect = canvas.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
       
-      if (game.mouse.down && selectedPower) {
-        const canvas = canvasRef.current
-        const rect = canvas.getBoundingClientRect()
-        const worldX = (e.clientX - rect.left) / game.camera.zoom + game.camera.x
-        const worldY = (e.clientY - rect.top) / game.camera.zoom + game.camera.y
-        usePower(worldX, worldY)
+      // Convert to world coordinates
+      const worldX = mouseX / game.camera.zoom + game.camera.x
+      const worldY = mouseY / game.camera.zoom + game.camera.y
+      
+      if (game.mouse.down) {
+        // Check if this was a click or drag
+        const dragDistance = Math.sqrt(
+          Math.pow(mouseX - game.mouse.selectionStart.x, 2) +
+          Math.pow(mouseY - game.mouse.selectionStart.y, 2)
+        )
+        
+        if (selectedPower) {
+          // Use power
+          usePower(worldX, worldY)
+        } else if (dragDistance < 5) {
+          // Click - check for villager selection or command
+          if (e.button === 0) { // Left click
+            if (onVillagerSelect) {
+              onVillagerSelect(worldX, worldY, e.shiftKey)
+            }
+          } else if (e.button === 2) { // Right click
+            if (onVillagerCommand) {
+              onVillagerCommand(worldX, worldY)
+            }
+          }
+        } else {
+          // Drag selection
+          if (onVillagerSelect && !selectedPower) {
+            const startWorldX = game.mouse.selectionStart.x / game.camera.zoom + game.camera.x
+            const startWorldY = game.mouse.selectionStart.y / game.camera.zoom + game.camera.y
+            onVillagerSelect(startWorldX, startWorldY, worldX, worldY, true)
+          }
+        }
       }
       
       game.mouse.down = false
+      game.mouse.selectionBox = null
     }
 
     eventHandlersRef.current.handleMouseMove = (e) => {
@@ -39,23 +80,39 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
       game.mouse.y = e.clientY - rect.top
       
       if (game.mouse.down && !selectedPower) {
-        const deltaX = e.clientX - game.mouse.lastX
-        const deltaY = e.clientY - game.mouse.lastY
+        const dragDistance = Math.sqrt(
+          Math.pow(game.mouse.x - game.mouse.selectionStart.x, 2) +
+          Math.pow(game.mouse.y - game.mouse.selectionStart.y, 2)
+        )
         
-        // Pixel-perfect camera movement
-        const sensitivity = 1.0
-        const cameraDeltaX = (deltaX / game.camera.zoom) * sensitivity
-        const cameraDeltaY = (deltaY / game.camera.zoom) * sensitivity
-        
-        // Align camera movement to pixels
-        game.camera.x = pixelPerfect.alignToPixel(game.camera.x - cameraDeltaX)
-        game.camera.y = pixelPerfect.alignToPixel(game.camera.y - cameraDeltaY)
-        
-        // Constrain camera with pixel alignment
-        const maxCameraX = game.worldSize.width - canvas.width / game.camera.zoom
-        const maxCameraY = game.worldSize.height - canvas.height / game.camera.zoom
-        game.camera.x = pixelPerfect.alignToPixel(Math.max(0, Math.min(maxCameraX, game.camera.x)))
-        game.camera.y = pixelPerfect.alignToPixel(Math.max(0, Math.min(maxCameraY, game.camera.y)))
+        if (dragDistance > 5) {
+          // Update selection box
+          game.mouse.selectionBox = {
+            startX: game.mouse.selectionStart.x,
+            startY: game.mouse.selectionStart.y,
+            endX: game.mouse.x,
+            endY: game.mouse.y
+          }
+        } else {
+          // Camera panning
+          const deltaX = e.clientX - game.mouse.lastX
+          const deltaY = e.clientY - game.mouse.lastY
+          
+          // Pixel-perfect camera movement
+          const sensitivity = 1.0
+          const cameraDeltaX = (deltaX / game.camera.zoom) * sensitivity
+          const cameraDeltaY = (deltaY / game.camera.zoom) * sensitivity
+          
+          // Align camera movement to pixels
+          game.camera.x = pixelPerfect.alignToPixel(game.camera.x - cameraDeltaX)
+          game.camera.y = pixelPerfect.alignToPixel(game.camera.y - cameraDeltaY)
+          
+          // Constrain camera with pixel alignment
+          const maxCameraX = game.worldSize.width - canvas.width / game.camera.zoom
+          const maxCameraY = game.worldSize.height - canvas.height / game.camera.zoom
+          game.camera.x = pixelPerfect.alignToPixel(Math.max(0, Math.min(maxCameraX, game.camera.x)))
+          game.camera.y = pixelPerfect.alignToPixel(Math.max(0, Math.min(maxCameraY, game.camera.y)))
+        }
       }
       
       game.mouse.lastX = e.clientX
@@ -116,7 +173,11 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
         )
       }
     }
-  }, [canvasRef, gameStateRef, selectedPower, usePower, pixelPerfect])
+    
+    eventHandlersRef.current.handleContextMenu = (e) => {
+      e.preventDefault() // Prevent context menu
+    }
+  }, [canvasRef, gameStateRef, selectedPower, usePower, pixelPerfect, onVillagerSelect, onVillagerCommand])
 
   // Set up canvas and event listeners
   useEffect(() => {
@@ -132,6 +193,7 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
     canvas.addEventListener('mouseup', eventHandlersRef.current.handleMouseUp)
     canvas.addEventListener('mousemove', eventHandlersRef.current.handleMouseMove)
     canvas.addEventListener('wheel', eventHandlersRef.current.handleWheel, { passive: false })
+    canvas.addEventListener('contextmenu', eventHandlersRef.current.handleContextMenu)
 
     // Also add global mouseup to handle when mouse is released outside canvas
     document.addEventListener('mouseup', eventHandlersRef.current.handleMouseUp)
@@ -145,6 +207,7 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
       canvas.removeEventListener('mouseup', eventHandlersRef.current.handleMouseUp)
       canvas.removeEventListener('mousemove', eventHandlersRef.current.handleMouseMove)
       canvas.removeEventListener('wheel', eventHandlersRef.current.handleWheel)
+      canvas.removeEventListener('contextmenu', eventHandlersRef.current.handleContextMenu)
       document.removeEventListener('mouseup', eventHandlersRef.current.handleMouseUp)
       document.removeEventListener('keydown', eventHandlersRef.current.handleKeyDown)
     }
