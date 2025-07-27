@@ -65,8 +65,56 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
     eventHandlersRef.current.handleWheel = (e) => {
       e.preventDefault()
       const game = gameStateRef.current
-      const zoomDirection = e.deltaY > 0 ? -1 : 1
-      pixelPerfect.setPixelPerfectZoom(game.camera, zoomDirection)
+      const canvas = canvasRef.current
+      const rect = canvas.getBoundingClientRect()
+      
+      // Get mouse position relative to canvas
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+      
+      // Normalize wheel delta for consistent zoom speed across browsers/devices
+      const delta = e.deltaY || e.wheelDelta || -e.detail
+      const zoomDirection = delta > 0 ? -1 : 1
+      
+      pixelPerfect.setPixelPerfectZoom(
+        game.camera, 
+        zoomDirection, 
+        mouseX, 
+        mouseY, 
+        canvas.width, 
+        canvas.height,
+        Math.abs(delta)
+      )
+    }
+    
+    eventHandlersRef.current.handleKeyDown = (e) => {
+      const game = gameStateRef.current
+      const canvas = canvasRef.current
+      
+      // Zoom with + and - keys (including numpad)
+      if (e.key === '+' || e.key === '=' || e.key === 'Add') {
+        e.preventDefault()
+        pixelPerfect.setPixelPerfectZoom(
+          game.camera,
+          1,
+          canvas.width / 2,
+          canvas.height / 2,
+          canvas.width,
+          canvas.height,
+          100
+        )
+      } else if (e.key === '-' || e.key === '_' || e.key === 'Subtract') {
+        e.preventDefault()
+        pixelPerfect.setPixelPerfectZoom(
+          game.camera,
+          -1,
+          canvas.width / 2,
+          canvas.height / 2,
+          canvas.width,
+          canvas.height,
+          100
+        )
+      }
     }
   }, [canvasRef, gameStateRef, selectedPower, usePower, pixelPerfect])
 
@@ -87,6 +135,9 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
 
     // Also add global mouseup to handle when mouse is released outside canvas
     document.addEventListener('mouseup', eventHandlersRef.current.handleMouseUp)
+    
+    // Add keyboard controls
+    document.addEventListener('keydown', eventHandlersRef.current.handleKeyDown)
 
     // Cleanup
     return () => {
@@ -95,6 +146,7 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower }) => {
       canvas.removeEventListener('mousemove', eventHandlersRef.current.handleMouseMove)
       canvas.removeEventListener('wheel', eventHandlersRef.current.handleWheel)
       document.removeEventListener('mouseup', eventHandlersRef.current.handleMouseUp)
+      document.removeEventListener('keydown', eventHandlersRef.current.handleKeyDown)
     }
   }, [canvasRef, pixelPerfect])
 

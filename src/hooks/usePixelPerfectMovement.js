@@ -16,8 +16,10 @@ export const usePixelPerfectMovement = () => {
     ROAD_MULTIPLIER: 1.5
   }
   
-  // Zoom levels (integer scales only)
-  const ZOOM_LEVELS = [1, 2, 3, 4]
+  // Zoom configuration for smooth zooming
+  const MIN_ZOOM = 0.25
+  const MAX_ZOOM = 4.0
+  const ZOOM_SPEED = 0.001 // Base zoom speed per delta unit
   
   // Cache for pixel-aligned positions
   const positionCache = useRef(new Map())
@@ -185,20 +187,39 @@ export const usePixelPerfectMovement = () => {
     camera.y = alignToPixel(Math.max(0, Math.min(maxCameraY, camera.y)))
   }, [alignToPixel])
   
-  // Handle zoom with integer scales
-  const setPixelPerfectZoom = useCallback((camera, zoomDirection) => {
-    const currentIndex = ZOOM_LEVELS.findIndex(z => z === camera.zoom)
-    let newIndex = currentIndex
+  // Handle zoom with smooth interpolation and zoom-to-mouse
+  const setPixelPerfectZoom = useCallback((camera, zoomDirection, mouseX, mouseY, canvasWidth, canvasHeight, deltaAmount = 100) => {
+    // Calculate zoom factor based on scroll speed
+    const normalizedDelta = Math.min(Math.abs(deltaAmount), 500) / 100 // Normalize to reasonable range
+    const zoomAmount = ZOOM_SPEED * normalizedDelta * 10 // Scale for better feel
+    const zoomFactor = zoomDirection > 0 ? 1 + zoomAmount : 1 - zoomAmount
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, camera.zoom * zoomFactor))
     
-    if (zoomDirection > 0 && currentIndex < ZOOM_LEVELS.length - 1) {
-      newIndex = currentIndex + 1
-    } else if (zoomDirection < 0 && currentIndex > 0) {
-      newIndex = currentIndex - 1
-    }
+    if (newZoom === camera.zoom) return camera.zoom // No change
     
-    camera.zoom = ZOOM_LEVELS[newIndex]
+    // Calculate world position under mouse before zoom
+    const worldX = camera.x + mouseX / camera.zoom
+    const worldY = camera.y + mouseY / camera.zoom
+    
+    // Update zoom
+    camera.zoom = newZoom
+    
+    // Calculate new camera position to keep mouse position stable
+    const newCameraX = worldX - mouseX / newZoom
+    const newCameraY = worldY - mouseY / newZoom
+    
+    // Update camera with bounds checking
+    // Assuming world size is much larger than canvas (using config default of 100x100 tiles * 32 pixels)
+    const worldWidth = 3200 // This should ideally be passed in
+    const worldHeight = 3200
+    const maxCameraX = Math.max(0, worldWidth - canvasWidth / newZoom)
+    const maxCameraY = Math.max(0, worldHeight - canvasHeight / newZoom)
+    
+    camera.x = alignToPixel(Math.max(0, Math.min(maxCameraX, newCameraX)))
+    camera.y = alignToPixel(Math.max(0, Math.min(maxCameraY, newCameraY)))
+    
     return camera.zoom
-  }, [])
+  }, [alignToPixel])
   
   // Configure canvas for pixel-perfect rendering
   const configureCanvasPixelPerfect = useCallback((ctx) => {
