@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import styles from '../styles/GameCanvas.module.css'
 import { usePixelPerfectMovement } from '../hooks/usePixelPerfectMovement'
 
-const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillagerSelect, onVillagerCommand, showPaths, showLandBorders }) => {
+const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillagerSelect, onVillagerCommand, showPaths, showLandBorders, hoveredEntity }) => {
   const pixelPerfect = usePixelPerfectMovement()
   const eventHandlersRef = useRef({})
   const lastClickTimeRef = useRef(0)
@@ -240,10 +240,18 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillag
     }
   }, [canvasRef, pixelPerfect, showPaths, showLandBorders])
 
+  // Determine cursor style
+  let cursorClass = styles.grab
+  if (selectedPower) {
+    cursorClass = styles.crosshair
+  } else if (hoveredEntity) {
+    cursorClass = styles.pointer
+  }
+  
   return (
     <canvas
       ref={canvasRef}
-      className={`${styles.gameCanvas} ${selectedPower ? styles.crosshair : styles.grab}`}
+      className={`${styles.gameCanvas} ${cursorClass}`}
       width={1200}
       height={800}
       style={{ imageRendering: 'pixelated' }}

@@ -19,8 +19,8 @@ export const usePixelPerfectMovement = () => {
   // Zoom configuration for smooth zooming
   const MIN_ZOOM = 0.25
   const MAX_ZOOM = 4.0
-  const ZOOM_SPEED = 0.003 // Increased for easier zooming
-  const DOUBLE_CLICK_ZOOM = 2.0 // Zoom factor for double-click
+  const ZOOM_SPEED = 0.002 // Smooth zoom speed
+  const DOUBLE_CLICK_ZOOM = 1.5 // Zoom factor for double-click - more natural increment
   
   // Predefined zoom levels for consistent scaling
   const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0]
@@ -223,23 +223,38 @@ export const usePixelPerfectMovement = () => {
   }, [alignToPixel])
   
   // Handle zoom with smooth interpolation and zoom-to-mouse
-  // Handle double-click zoom
+  // Handle double-click zoom with smooth animation
   const handleDoubleClickZoom = useCallback((camera, clickX, clickY, canvasWidth, canvasHeight, worldWidth, worldHeight) => {
     // Calculate world position at click
     const worldX = camera.x + clickX / camera.zoom
     const worldY = camera.y + clickY / camera.zoom
     
-    // Apply 2x zoom
-    const newZoom = Math.min(camera.zoom * DOUBLE_CLICK_ZOOM, MAX_ZOOM)
-    camera.zoom = newZoom
+    // Find next sensible zoom level
+    const currentZoom = camera.zoom
+    let targetZoom = currentZoom
+    
+    // If zoomed out, zoom to 1.0 first, then 1.5, then 2.0
+    if (currentZoom < 0.9) {
+      targetZoom = 1.0
+    } else if (currentZoom < 1.4) {
+      targetZoom = 1.5
+    } else if (currentZoom < 1.9) {
+      targetZoom = 2.0
+    } else if (currentZoom < 2.9) {
+      targetZoom = 3.0
+    } else {
+      targetZoom = Math.min(currentZoom * DOUBLE_CLICK_ZOOM, MAX_ZOOM)
+    }
+    
+    camera.zoom = targetZoom
     
     // Center on clicked point
-    camera.x = worldX - clickX / newZoom
-    camera.y = worldY - clickY / newZoom
+    camera.x = worldX - clickX / targetZoom
+    camera.y = worldY - clickY / targetZoom
     
     // Bounds checking
-    const maxCameraX = Math.max(0, worldWidth - canvasWidth / newZoom)
-    const maxCameraY = Math.max(0, worldHeight - canvasHeight / newZoom)
+    const maxCameraX = Math.max(0, worldWidth - canvasWidth / targetZoom)
+    const maxCameraY = Math.max(0, worldHeight - canvasHeight / targetZoom)
     
     camera.x = alignToPixel(Math.max(0, Math.min(maxCameraX, camera.x)))
     camera.y = alignToPixel(Math.max(0, Math.min(maxCameraY, camera.y)))

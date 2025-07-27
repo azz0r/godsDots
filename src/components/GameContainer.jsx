@@ -73,12 +73,14 @@ const GameContainer = ({ gameContext }) => {
         showLandBorders={showLandBorders}
         showPaths={showPaths}
         landManager={gameContext.landManager}
+        hoveredEntity={gameState.hoveredEntity}
       />
       
       <div className={styles.ui}>
         <TopBar
           beliefPoints={gameState.beliefPoints}
           population={gameState.population}
+          timeInfo={gameState.timeInfo}
           onSave={handleSave}
           onZoomOut={zoomToWorldView}
           onTempleView={zoomToTemple}
@@ -94,9 +96,10 @@ const GameContainer = ({ gameContext }) => {
         />
         
         <InfoPanel 
-          hoveredTile={hoveredTile}
-          selectedTile={selectedTile}
-          landInfo={selectedPlot ? getPlotInfo(selectedPlot) : null}
+          selectedVillager={gameState.selectedVillagerIds?.length === 1 ? 
+            gameState.hoveredEntity?.type === 'villager' ? gameState.hoveredEntity.entity : null 
+            : null}
+          hoveredEntity={gameState.hoveredEntity}
         />
         
         {showLandPanel && (

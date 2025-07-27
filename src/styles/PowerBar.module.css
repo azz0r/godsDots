@@ -6,28 +6,37 @@
   display: flex;
   gap: 15px;
   pointer-events: auto;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  padding: 15px;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .powerBtn {
   background: linear-gradient(45deg, #4a7c59, #2c5530);
   border: 2px solid #ffd700;
   color: #ffd700;
-  padding: 12px 20px;
-  border-radius: 8px;
+  padding: 14px 24px;
+  border-radius: 10px;
   font-weight: bold;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   text-transform: uppercase;
-  font-size: 12px;
+  font-size: 13px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
 }
 
 .powerBtn:hover {
   background: linear-gradient(45deg, #5a8c69, #3c6540);
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
+  border-color: #fff;
 }
 
 .powerBtn:active {
@@ -38,12 +47,27 @@
 .powerBtn.selected {
   background: linear-gradient(45deg, #ffd700, #ffed4e);
   color: #2c5530;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+  }
 }
 
 .cost {
-  font-size: 10px;
-  margin-top: 2px;
-  opacity: 0.8;
+  font-size: 11px;
+  margin-top: 4px;
+  opacity: 0.9;
+  font-weight: normal;
 }
 
 .zoomBtn {

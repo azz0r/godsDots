@@ -1,16 +1,22 @@
 import { useRef, useCallback } from 'react'
 import { villagerRenderer } from '../utils/VillagerRenderer'
 import { villagerAnimationSystem } from '../utils/VillagerAnimationSystem'
+import { VillagerNeedsSystem } from '../systems/VillagerNeedsSystem'
+import { ProfessionSystem } from '../systems/ProfessionSystem'
 
 export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSystem) => {
   const villagersRef = useRef([])
   const villagerIdCounter = useRef(0)
+  const villagerNeedsSystem = useRef(new VillagerNeedsSystem())
+  const professionSystem = useRef(new ProfessionSystem())
 
   const spawnVillagers = useCallback((count, centerX, centerY) => {
     villagersRef.current = []
     
     for (let i = 0; i < count; i++) {
       const villager = {
+        // Initialize with needs system
+        ...villagerNeedsSystem.current.initializeVillager(),
         id: villagerIdCounter.current++,
         x: centerX + (Math.random() - 0.5) * 200,
         y: centerY + (Math.random() - 0.5) * 200,
@@ -32,6 +38,7 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
         path: [],
         pathIndex: 0,
         workProgress: 0,
+        profession: null, // Will be assigned based on village needs
         pathfinding: {
           currentPath: null,
           targetNode: null,

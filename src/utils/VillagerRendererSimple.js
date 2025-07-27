@@ -69,6 +69,23 @@ export class VillagerRendererSimple {
       ctx.setLineDash([])
     }
     
+    // Hover effect
+    if (villager.hovered) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(x, y, size + 4, 0, Math.PI * 2)
+      ctx.stroke()
+      
+      // Show name on hover
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+      ctx.fillRect(x - 30, y - 25, 60, 16)
+      ctx.fillStyle = '#FFFFFF'
+      ctx.font = '11px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText(villager.name || 'Villager', x, y - 12)
+    }
+    
     // Simple status indicators
     this.drawSimpleStatus(ctx, x, y, villager)
     

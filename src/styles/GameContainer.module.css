@@ -6,6 +6,7 @@
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  background: #1a1a1a;
 }
 
 .ui {
@@ -21,4 +22,9 @@
 /* Allow pointer events on all UI child elements */
 .ui > * {
   pointer-events: auto;
+}
+
+/* Smooth transitions for UI elements */
+.ui * {
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }

@@ -61,6 +61,12 @@ export class TerrainGenerator {
     for (let x = 0; x < width; x++) {
       heightMap[x] = []
       for (let y = 0; y < height; y++) {
+        // Force water at all map borders
+        if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
+          heightMap[x][y] = 0
+          continue
+        }
+        
         // Multiple octaves for realistic terrain
         let elevation = 0
         let amplitude = 1
@@ -76,30 +82,52 @@ export class TerrainGenerator {
         
         elevation = elevation / maxValue
         
-        // Apply island mask to ensure island shape
+        // Apply stronger island mask with smoother gradient
         const centerX = width / 2
         const centerY = height / 2
-        const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2)
-        const maxDistance = Math.min(width, height) / 2
         
-        // Create a stronger island effect - force water at edges
-        const distanceRatio = distance / maxDistance
-        let islandFactor = 1
+        // Calculate normalized distance from center (0 at center, 1 at corners)
+        const dx = (x - centerX) / (width / 2)
+        const dy = (y - centerY) / (height / 2)
+        const normalizedDistance = Math.sqrt(dx * dx + dy * dy)
         
-        if (distanceRatio > 0.7) {
-          // Force water at edges
-          islandFactor = Math.max(0, 1 - Math.pow((distanceRatio - 0.7) / 0.3, 2))
+        // Create smooth island mask using multiple techniques
+        let islandMask = 1
+        
+        // Method 1: Smooth polynomial falloff
+        if (normalizedDistance > 0.3) {
+          const t = (normalizedDistance - 0.3) / 0.7
+          islandMask *= 1 - (3 * t * t - 2 * t * t * t) // Smoothstep function
         }
         
-        elevation = elevation * islandFactor
-        
-        // Force deep water at the very edges
-        if (distanceRatio > 0.9) {
-          elevation = 0
+        // Method 2: Force water at edges with exponential decay
+        if (normalizedDistance > 0.6) {
+          const edgeFactor = (normalizedDistance - 0.6) / 0.4
+          islandMask *= Math.exp(-5 * edgeFactor * edgeFactor)
         }
         
-        // Normalize to 0-1 range
+        // Method 3: Hard cutoff near edges to ensure water
+        if (normalizedDistance > 0.85) {
+          islandMask = 0
+        }
+        
+        // Apply island mask to elevation
+        elevation = elevation * islandMask
+        
+        // Add slight random variation to create more natural coastlines
+        if (normalizedDistance > 0.4 && normalizedDistance < 0.7) {
+          const coastNoise = this.detailNoise(x * 0.1, y * 0.1) * 0.1
+          elevation += coastNoise * islandMask
+        }
+        
+        // Normalize to 0-1 range and ensure non-negative
         heightMap[x][y] = Math.max(0, Math.min(1, (elevation + 1) / 2))
+        
+        // Extra safety: force very low elevation near edges
+        const edgeDistance = Math.min(x, y, width - 1 - x, height - 1 - y)
+        if (edgeDistance < 3) {
+          heightMap[x][y] *= Math.pow(edgeDistance / 3, 2)
+        }
       }
     }
     
@@ -155,10 +183,10 @@ export class TerrainGenerator {
   }
 
   determineBiome(height, moisture, temperature) {
-    // Water bodies - adjusted for better island formation
-    if (height < 0.15) return 'deepWater'
-    if (height < 0.25) return 'water'
-    if (height < 0.3) return 'sand' // Beaches
+    // Water bodies - adjusted for guaranteed island with beaches
+    if (height < 0.1) return 'deepWater'  // Deep ocean
+    if (height < 0.2) return 'water'      // Shallow water
+    if (height < 0.28) return 'sand'      // Wide beach zones
     
     // Mountain peaks
     if (height > 0.8) {

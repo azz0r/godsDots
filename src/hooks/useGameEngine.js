@@ -16,6 +16,14 @@ import { dbService } from '../db/database.js'
 import gameConfig from '../config/gameConfig'
 import { debugVillagerMovement } from '../utils/debugVillagerMovement'
 
+// Import new game systems
+import { VillagerNeedsSystem } from '../systems/VillagerNeedsSystem'
+import { WorshipSystem } from '../systems/WorshipSystem'
+import { ProfessionSystem } from '../systems/ProfessionSystem'
+import { DayNightSystem } from '../systems/DayNightSystem'
+import { BuildingUpgradeSystem } from '../systems/BuildingUpgradeSystem'
+import { VillageExpansionAI } from '../systems/VillageExpansionAI'
+
 export const useGameEngine = (gameContext = {}) => {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
@@ -23,6 +31,14 @@ export const useGameEngine = (gameContext = {}) => {
   const visualEffectsRef = useRef(new VisualEffects())
   const fpsRef = useRef({ frames: 0, lastTime: 0, current: 60 })
   const debugModeRef = useRef(gameContext.debugMode || false)
+  
+  // Initialize new game systems
+  const villagerNeedsSystemRef = useRef(new VillagerNeedsSystem())
+  const worshipSystemRef = useRef(new WorshipSystem())
+  const professionSystemRef = useRef(new ProfessionSystem())
+  const dayNightSystemRef = useRef(new DayNightSystem())
+  const buildingUpgradeSystemRef = useRef(new BuildingUpgradeSystem())
+  const villageExpansionAIRef = useRef(new VillageExpansionAI())
   
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 })
   const mouseRef = useRef({ x: 0, y: 0, down: false, lastX: 0, lastY: 0 })
@@ -39,7 +55,10 @@ export const useGameEngine = (gameContext = {}) => {
     population: 0,
     hoveredTile: null,
     selectedTile: null,
-    selectedVillagerIds: []
+    selectedVillagerIds: [],
+    hoveredEntity: null, // Track what's being hovered
+    currentTime: 'day', // Track day/night cycle
+    timeOfDay: 0 // 0-1 representing time of day
   })
 
   // Initialize all systems with integrated pathfinding and land management
@@ -199,10 +218,19 @@ export const useGameEngine = (gameContext = {}) => {
       // Set human player ID for UI
       setGameState(prev => ({ ...prev, humanPlayerId: humanPlayer.id }))
       
-      // Center camera on human spawn
-      cameraRef.current.x = humanSpawn.x - 600
-      cameraRef.current.y = humanSpawn.y - 400
-      cameraRef.current.zoom = 1
+      // Center camera on human spawn with good default view
+      const canvas = canvasRef.current
+      if (canvas) {
+        const defaultZoom = 1.2 // Slightly zoomed in for better initial view
+        cameraRef.current.x = humanSpawn.x - (canvas.width / 2) / defaultZoom
+        cameraRef.current.y = humanSpawn.y - (canvas.height / 2) / defaultZoom
+        cameraRef.current.zoom = defaultZoom
+      } else {
+        // Fallback if canvas not ready
+        cameraRef.current.x = humanSpawn.x - 500
+        cameraRef.current.y = humanSpawn.y - 333
+        cameraRef.current.zoom = 1.2
+      }
     }
     
     // Reset visual effects and game time
@@ -236,6 +264,8 @@ export const useGameEngine = (gameContext = {}) => {
       
       // Restore villagers
       player.villagers = dbPlayer.villagers.map(dbVillager => ({
+        // Initialize with needs system
+        ...villagerNeedsSystemRef.current.initializeVillager(),
         id: dbVillager.id,
         name: dbVillager.name,
         x: dbVillager.position.x,
@@ -338,10 +368,11 @@ export const useGameEngine = (gameContext = {}) => {
     const zoomY = canvas.height / worldSize.height
     const targetZoom = Math.min(zoomX, zoomY) * 0.9 // Add 10% padding
 
-    // Center on world
-    cameraRef.current.zoom = targetZoom
-    cameraRef.current.x = (worldSize.width - canvas.width / targetZoom) / 2
-    cameraRef.current.y = (worldSize.height - canvas.height / targetZoom) / 2
+    // Store target values for smooth transition
+    cameraRef.current.targetZoom = targetZoom
+    cameraRef.current.targetX = (worldSize.width - canvas.width / targetZoom) / 2
+    cameraRef.current.targetY = (worldSize.height - canvas.height / targetZoom) / 2
+    cameraRef.current.transitioning = true
   }, [worldSize])
     const getHumanPlayer = useCallback(() => {
     return playerSystem.players.find(p => p.id === gameState.humanPlayerId)
@@ -357,17 +388,20 @@ export const useGameEngine = (gameContext = {}) => {
     
     // Find the player's temple
     const temple = humanPlayer.buildings.find(b => b.type === 'temple')
+    const targetZoom = 1.5
+    
     if (!temple) {
       // If no temple, zoom to territory center
-      camera.x = humanPlayer.territory.center.x - canvas.width / 2 / 1.5
-      camera.y = humanPlayer.territory.center.y - canvas.height / 2 / 1.5
-      camera.zoom = 1.5
+      camera.targetX = humanPlayer.territory.center.x - canvas.width / 2 / targetZoom
+      camera.targetY = humanPlayer.territory.center.y - canvas.height / 2 / targetZoom
     } else {
       // Center on temple
-      camera.x = temple.x + temple.width / 2 - canvas.width / 2 / 1.5
-      camera.y = temple.y + temple.height / 2 - canvas.height / 2 / 1.5
-      camera.zoom = 1.5
+      camera.targetX = temple.x + temple.width / 2 - canvas.width / 2 / targetZoom
+      camera.targetY = temple.y + temple.height / 2 - canvas.height / 2 / targetZoom
     }
+    
+    camera.targetZoom = targetZoom
+    camera.transitioning = true
   }, [humanPlayer, canvasRef])
 
   const usePower = useCallback((worldX, worldY) => {
@@ -663,12 +697,64 @@ export const useGameEngine = (gameContext = {}) => {
     // Calculate delta time for animations
     const deltaTime = 16 // Assuming 60fps
     
+    // Update day/night cycle
+    const dayNightState = dayNightSystemRef.current.updateTime(deltaTime)
+    if (dayNightState.timeOfDay !== gameState.timeOfDay || dayNightState.currentPeriod !== gameState.currentTime) {
+      setGameState(prev => ({ 
+        ...prev, 
+        timeOfDay: dayNightState.timeOfDay,
+        currentTime: dayNightState.currentPeriod
+      }))
+    }
+    
     // Update FPS counter
     fpsRef.current.frames++
     if (currentTime - fpsRef.current.lastTime > 1000) {
       fpsRef.current.current = fpsRef.current.frames
       fpsRef.current.frames = 0
       fpsRef.current.lastTime = currentTime
+    }
+    
+    // Handle smooth camera transitions
+    const camera = cameraRef.current
+    if (camera.transitioning) {
+      const transitionSpeed = 0.15 // Smooth transition speed
+      
+      // Smooth zoom transition
+      if (camera.targetZoom !== undefined) {
+        const zoomDiff = camera.targetZoom - camera.zoom
+        if (Math.abs(zoomDiff) > 0.01) {
+          camera.zoom += zoomDiff * transitionSpeed
+        } else {
+          camera.zoom = camera.targetZoom
+        }
+      }
+      
+      // Smooth position transition
+      if (camera.targetX !== undefined) {
+        const xDiff = camera.targetX - camera.x
+        if (Math.abs(xDiff) > 1) {
+          camera.x += xDiff * transitionSpeed
+        } else {
+          camera.x = camera.targetX
+        }
+      }
+      
+      if (camera.targetY !== undefined) {
+        const yDiff = camera.targetY - camera.y
+        if (Math.abs(yDiff) > 1) {
+          camera.y += yDiff * transitionSpeed
+        } else {
+          camera.y = camera.targetY
+        }
+      }
+      
+      // Check if transition is complete
+      if (camera.zoom === camera.targetZoom && 
+          camera.x === camera.targetX && 
+          camera.y === camera.targetY) {
+        camera.transitioning = false
+      }
     }
     
     // Update terrain animations
@@ -678,6 +764,88 @@ export const useGameEngine = (gameContext = {}) => {
     playerSystem.players.forEach(player => {
       // Update villager AI and movement with pixel-perfect system
       updatePlayerVillagers(player, gameTimeRef.current, currentTime)
+      
+      // Update villager needs
+      player.villagers.forEach(villager => {
+        villagerNeedsSystemRef.current.updateVillagerNeeds(villager, deltaTime)
+      })
+      
+      // Update professions based on village needs
+      if (gameTimeRef.current % 300 === 0) { // Every 5 seconds
+        const villageNeeds = professionSystemRef.current.analyzeVillageNeeds(player)
+        player.villagers.forEach(villager => {
+          if (!villager.profession) {
+            professionSystemRef.current.assignProfession(villager, villageNeeds)
+          }
+        })
+      }
+      
+      // Update worship system for temples
+      const temples = player.buildings.filter(b => b.type === 'temple' && !b.isUnderConstruction)
+      temples.forEach(temple => {
+        const worshippers = player.villagers.filter(v => {
+          const distance = Math.sqrt((v.x - temple.x) ** 2 + (v.y - temple.y) ** 2)
+          return distance < 100
+        })
+        const worship = worshipSystemRef.current.updateWorship(temple, worshippers, deltaTime)
+        if (worship.beliefGenerated > 0) {
+          player.beliefPoints += worship.beliefGenerated
+          // Create worship effects
+          if (gameTimeRef.current % 60 === 0) {
+            visualEffectsRef.current.createSparkle(temple.x + temple.width/2, temple.y, {
+              particleCount: 5,
+              colors: ['#ffd700', '#ffffff'],
+              duration: 1000
+            })
+          }
+        }
+      })
+      
+      // Update building upgrades
+      if (gameTimeRef.current % 180 === 0) { // Every 3 seconds
+        player.buildings.forEach(building => {
+          const upgrade = buildingUpgradeSystemRef.current.checkUpgradeEligibility(building, player)
+          if (upgrade && player.beliefPoints >= upgrade.cost) {
+            // Auto-upgrade important buildings
+            if (building.type === 'temple' && building.level < 2) {
+              buildingUpgradeSystemRef.current.upgradeBuilding(building, player)
+              player.beliefPoints -= upgrade.cost
+            }
+          }
+        })
+      }
+      
+      // Village expansion AI for AI players
+      if (player.type === 'ai' && gameTimeRef.current % 600 === 0) { // Every 10 seconds
+        const expansion = villageExpansionAIRef.current.planExpansion(player, terrainSystem)
+        if (expansion.action) {
+          // AI executes expansion plans
+          switch (expansion.action) {
+            case 'build':
+              if (player.beliefPoints >= 100) {
+                const newBuilding = {
+                  id: `house_${player.id}_${Date.now()}`,
+                  x: expansion.location.x,
+                  y: expansion.location.y,
+                  width: 30,
+                  height: 30,
+                  type: expansion.buildingType || 'house',
+                  health: 80,
+                  level: 1,
+                  playerId: player.id,
+                  workers: 0,
+                  maxWorkers: 2,
+                  residents: 2,
+                  isUnderConstruction: true,
+                  constructionTime: 0
+                }
+                player.buildings.push(newBuilding)
+                player.beliefPoints -= 100
+              }
+              break
+          }
+        }
+      }
       
       // Debug villager movement for human player
       if (player.type === 'human') {
@@ -694,9 +862,10 @@ export const useGameEngine = (gameContext = {}) => {
       if (gameTimeRef.current % 60 === 0) { // Every second
         const populationFactor = Math.max(0, player.villagers.length * 0.3) // Increased from 0.1
         const happinessFactor = getAverageHappiness(player) * 0.02 // Increased from 0.01
-        const templeFactor = player.buildings.filter(b => b.type === 'temple' && !b.isUnderConstruction).length * 1.0 // Increased from 0.5
+        const templeFactor = player.buildings.filter(b => b.type === 'temple' && !b.isUnderConstruction).length * 0.5 // Temple belief now handled by worship system
+        const needsSatisfaction = player.villagers.reduce((sum, v) => sum + villagerNeedsSystemRef.current.getNeedsSatisfaction(v), 0) / player.villagers.length * 0.5
         
-        const beliefGeneration = populationFactor + happinessFactor + templeFactor
+        const beliefGeneration = populationFactor + happinessFactor + templeFactor + needsSatisfaction
         
         if (player.type === 'human') {
           console.log(`Belief generation: pop=${populationFactor.toFixed(1)}, happiness=${happinessFactor.toFixed(1)}, temple=${templeFactor}, total=${beliefGeneration.toFixed(1)}, current=${player.beliefPoints.toFixed(1)}`)
@@ -905,6 +1074,11 @@ export const useGameEngine = (gameContext = {}) => {
   }
 
   const updateVillagerAI = (villager, player, gameTime) => {
+    // Skip AI updates if pathfinding grid is not ready
+    if (!gameContext.pathfindingGrid) {
+      return
+    }
+    
     const tileSize = gameConfig.tileSize
     
     switch (villager.state) {
@@ -954,8 +1128,6 @@ export const useGameEngine = (gameContext = {}) => {
                 to: { x: targetX, y: targetY }
               })
             }
-          } else {
-            console.error('PathfindingGrid not initialized!')
           }
         }
         // Update target from path
@@ -1317,6 +1489,11 @@ export const useGameEngine = (gameContext = {}) => {
     })
   }, [getHumanPlayer])
   
+  // Get current time info for UI
+  const getTimeInfo = useCallback(() => {
+    return dayNightSystemRef.current.getTimeInfo()
+  }, [])
+  
   const renderGame = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -1351,7 +1528,36 @@ export const useGameEngine = (gameContext = {}) => {
       buildingSystem.renderBuildings(ctx, player)
     })
     
+    // Check for hover before rendering
+    const worldMouseX = mouseRef.current.x / camera.zoom + camera.x
+    const worldMouseY = mouseRef.current.y / camera.zoom + camera.y
+    let hoveredEntity = null
+    
     playerSystem.players.forEach(player => {
+      // Check hover on villagers
+      if (player.type === 'human' && !hoveredEntity) {
+        player.villagers.forEach(v => {
+          const distance = Math.sqrt((v.x - worldMouseX) ** 2 + (v.y - worldMouseY) ** 2)
+          if (distance <= 10) {
+            hoveredEntity = { type: 'villager', entity: v }
+            v.hovered = true
+          } else {
+            v.hovered = false
+          }
+        })
+        
+        // Check hover on buildings
+        player.buildings.forEach(b => {
+          if (worldMouseX >= b.x && worldMouseX <= b.x + b.width &&
+              worldMouseY >= b.y && worldMouseY <= b.y + b.height) {
+            hoveredEntity = { type: 'building', entity: b }
+            b.hovered = true
+          } else {
+            b.hovered = false
+          }
+        })
+      }
+      
       const cameraWithDimensions = {
         ...camera,
         width: canvas.width,
@@ -1359,6 +1565,12 @@ export const useGameEngine = (gameContext = {}) => {
       }
       playerSystem.renderPlayerVillagers(ctx, player, cameraWithDimensions, gameTimeRef.current)
     })
+    
+    // Update hover state
+    if (hoveredEntity?.type !== gameState.hoveredEntity?.type || 
+        hoveredEntity?.entity?.id !== gameState.hoveredEntity?.entity?.id) {
+      setGameState(prev => ({ ...prev, hoveredEntity }))
+    }
     
     // Render building preview if in build mode
     if (gameState.selectedPower === 'build') {
@@ -1565,7 +1777,8 @@ export const useGameEngine = (gameContext = {}) => {
       ...gameState,
       // Expose human player data for UI
       beliefPoints: getHumanPlayer()?.beliefPoints || gameState.beliefPoints,
-      population: getHumanPlayer()?.population || gameState.population
+      population: getHumanPlayer()?.population || gameState.population,
+      timeInfo: getTimeInfo()
     },
     gameStateRef: {
       current: {
@@ -1597,7 +1810,13 @@ export const useGameEngine = (gameContext = {}) => {
       ai: aiSystem,
       building: buildingSystem,
       land: landManagement,
-      pixelPerfect
+      pixelPerfect,
+      villagerNeeds: villagerNeedsSystemRef.current,
+      worship: worshipSystemRef.current,
+      profession: professionSystemRef.current,
+      dayNight: dayNightSystemRef.current,
+      buildingUpgrade: buildingUpgradeSystemRef.current,
+      villageExpansion: villageExpansionAIRef.current
     }
   }
 }

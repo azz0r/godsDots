@@ -254,8 +254,8 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, landManager,
     })
   }, [])
 
-  const renderBuildings = useCallback((ctx) => {
-    buildingsRef.current.forEach(building => {
+  const renderBuildings = useCallback((ctx, player) => {
+    player.buildings.forEach(building => {
       // Get plot information for enhanced rendering
       let plotInfo = null
       if (landManagement) {
@@ -270,6 +270,23 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, landManager,
             developmentLevel: plot.developmentLevel
           }
         }
+      }
+      
+      // Draw hover effect first (behind building)
+      if (building.hovered) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'
+        ctx.lineWidth = 3
+        ctx.strokeRect(building.x - 2, building.y - 2, building.width + 4, building.height + 4)
+        
+        // Glow effect
+        const gradient = ctx.createRadialGradient(
+          building.x + building.width/2, building.y + building.height/2, 0,
+          building.x + building.width/2, building.y + building.height/2, Math.max(building.width, building.height)
+        )
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.2)')
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+        ctx.fillStyle = gradient
+        ctx.fillRect(building.x - 10, building.y - 10, building.width + 20, building.height + 20)
       }
       
       if (building.type === 'temple') {
@@ -345,6 +362,32 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, landManager,
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
         ctx.font = '10px Arial'
         ctx.fillText(building.ownerId.toString(), building.x + 2, building.y - 2)
+      }
+      
+      // Hover tooltip
+      if (building.hovered) {
+        const tooltipX = building.x + building.width / 2
+        const tooltipY = building.y - 20
+        const tooltipText = building.type.charAt(0).toUpperCase() + building.type.slice(1)
+        const residents = building.residents || 0
+        const healthPercent = Math.round((building.health / 100) * 100)
+        
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
+        ctx.fillRect(tooltipX - 50, tooltipY - 35, 100, 30)
+        
+        // Text
+        ctx.fillStyle = '#FFFFFF'
+        ctx.font = 'bold 12px Arial'
+        ctx.textAlign = 'center'
+        ctx.fillText(tooltipText, tooltipX, tooltipY - 20)
+        
+        ctx.font = '10px Arial'
+        ctx.fillText(`Health: ${healthPercent}%`, tooltipX, tooltipY - 8)
+        if (building.type === 'house') {
+          ctx.fillText(`Residents: ${residents}`, tooltipX, tooltipY + 4)
+        }
+        ctx.textAlign = 'left'
       }
     })
   }, [landManager])
