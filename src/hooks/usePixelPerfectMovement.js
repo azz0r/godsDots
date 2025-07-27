@@ -56,13 +56,16 @@ export const usePixelPerfectMovement = () => {
   
   // Calculate movement delta with fixed timestep
   const calculateMovementDelta = useCallback((currentTime) => {
+    // Handle both millisecond and frame-based timestamps
+    const time = currentTime > 1000000 ? currentTime : performance.now()
+    
     if (lastFrameTime.current === 0) {
-      lastFrameTime.current = currentTime
-      return 0
+      lastFrameTime.current = time
+      return 1 // Return 1 step for first frame
     }
     
-    const frameTime = (currentTime - lastFrameTime.current) / 1000
-    lastFrameTime.current = currentTime
+    const frameTime = (time - lastFrameTime.current) / 1000
+    lastFrameTime.current = time
     
     accumulator.current += Math.min(frameTime, MAX_ACCUMULATED_TIME)
     
@@ -113,8 +116,22 @@ export const usePixelPerfectMovement = () => {
     }
     
     // Move entity by calculated velocity * steps
-    const newX = entity.x + movement.vx * steps
-    const newY = entity.y + movement.vy * steps
+    const deltaX = movement.vx * steps
+    const deltaY = movement.vy * steps
+    const newX = entity.x + deltaX
+    const newY = entity.y + deltaY
+    
+    // Debug log significant movements
+    if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
+      console.log('Movement update:', {
+        entityId: entity.id,
+        from: { x: entity.x, y: entity.y },
+        delta: { x: deltaX, y: deltaY },
+        to: { x: newX, y: newY },
+        velocity: { vx: movement.vx, vy: movement.vy },
+        steps: steps
+      })
+    }
     
     // Snap to pixel grid
     const snapped = snapToPixelGrid(newX, newY)
@@ -132,6 +149,7 @@ export const usePixelPerfectMovement = () => {
   const batchUpdateMovement = useCallback((entities, currentTime, terrainSystem, worldSize) => {
     const steps = calculateMovementDelta(currentTime)
     
+    let debugFirst = true
     entities.forEach(entity => {
       // Skip if no movement needed
       if (!entity.target && !entity.pathfinding?.targetNode) return
@@ -153,6 +171,19 @@ export const usePixelPerfectMovement = () => {
       
       // Determine speed
       const speed = entity.isRunning ? MOVEMENT_SPEEDS.RUNNING : MOVEMENT_SPEEDS.WALKING
+      
+      // Debug log for first entity with movement
+      if (debugFirst && entity.target) {
+        console.log('PixelPerfect Movement:', {
+          entityId: entity.id,
+          steps: steps,
+          position: { x: entity.x, y: entity.y },
+          target: { x: targetX, y: targetY },
+          speed: speed,
+          onRoad: onRoad
+        })
+        debugFirst = false
+      }
       
       // Update position
       const arrived = updateEntityPosition(entity, targetX, targetY, speed, onRoad, steps)

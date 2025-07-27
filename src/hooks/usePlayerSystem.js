@@ -143,7 +143,7 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
           lastPathUpdate: 0
         },
         movement: {
-          isIdle: true,
+          isIdle: false, // Start not idle so they begin moving
           idleTime: 0,
           idleDuration: Math.floor(Math.random() * 120) + 60,
           lastMoveTime: 0,

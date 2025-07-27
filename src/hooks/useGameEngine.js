@@ -14,6 +14,7 @@ import { PathfindingGrid } from '../utils/pathfinding/PathfindingGrid'
 import { VisualEffects } from '../utils/VisualEffects'
 import { dbService } from '../db/database.js'
 import gameConfig from '../config/gameConfig'
+import { debugVillagerMovement } from '../utils/debugVillagerMovement'
 
 export const useGameEngine = (gameContext = {}) => {
   const canvasRef = useRef(null)
@@ -62,13 +63,14 @@ export const useGameEngine = (gameContext = {}) => {
   const initializeGame = useCallback(async () => {
     console.log('🎮 Initializing game with integrated systems...')
     
-    // Ensure pathfindingGrid is initialized
+    // Ensure pathfindingGrid is initialized with terrain system
     let pathfindingGrid = gameContext.pathfindingGrid
     if (!pathfindingGrid) {
-      console.log('Creating PathfindingGrid...')
+      console.log('Creating PathfindingGrid with terrain system...')
       pathfindingGrid = new PathfindingGrid(
         worldSize.width,
-        worldSize.height
+        worldSize.height,
+        terrainSystem // Pass terrain system on creation
       )
       // Update the context if we have setPathfindingGrid
       if (gameContext.setPathfindingGrid) {
@@ -126,6 +128,7 @@ export const useGameEngine = (gameContext = {}) => {
         
         // Set terrain system on pathfinding grid if needed
         if (pathfindingGrid && !pathfindingGrid.terrainSystem) {
+          console.log('Setting terrain system on pathfinding grid')
           pathfindingGrid.setTerrainSystem(terrainSystem)
         }
         
@@ -237,14 +240,14 @@ export const useGameEngine = (gameContext = {}) => {
         name: dbVillager.name,
         x: dbVillager.position.x,
         y: dbVillager.position.y,
-        vx: dbVillager.velocity.x,
-        vy: dbVillager.velocity.y,
+        vx: 0, // Reset velocity on load
+        vy: 0,
         health: dbVillager.health,
         hunger: 80,
         happiness: dbVillager.happiness,
         energy: 80,
         age: dbVillager.age,
-        state: dbVillager.state,
+        state: 'wandering', // Reset to wandering state
         task: dbVillager.task,
         personality: dbVillager.personality,
         skills: dbVillager.skills,
@@ -676,6 +679,11 @@ export const useGameEngine = (gameContext = {}) => {
       // Update villager AI and movement with pixel-perfect system
       updatePlayerVillagers(player, gameTimeRef.current, currentTime)
       
+      // Debug villager movement for human player
+      if (player.type === 'human') {
+        debugVillagerMovement(player, gameTimeRef.current)
+      }
+      
       // Update buildings
       updatePlayerBuildings(player, gameTimeRef.current)
       
@@ -831,6 +839,21 @@ export const useGameEngine = (gameContext = {}) => {
         setupVillagerTarget(villager)
       }
       
+      // Debug logging for first villager
+      if (villager.id === player.villagers[0]?.id && gameTime % 60 === 0) {
+        console.log('Villager Debug:', {
+          id: villager.id,
+          state: villager.state,
+          isIdle: villager.movement.isIdle,
+          position: { x: villager.x, y: villager.y },
+          velocity: { vx: villager.vx, vy: villager.vy },
+          target: villager.target,
+          pathfindingTarget: villager.pathfinding?.targetNode,
+          path: villager.path?.length || 0,
+          pathIndex: villager.pathIndex
+        })
+      }
+      
       // Create work particle effects disabled for performance
       // if (gameTime % 120 === 0 && villager.task !== 'idle') {
       //   createVillagerWorkEffects(villager)
@@ -859,6 +882,12 @@ export const useGameEngine = (gameContext = {}) => {
     })
 
     player.population = player.villagers.length
+    
+    // Debug: Check if any villagers have targets before batch update
+    const villagersWithTargets = player.villagers.filter(v => v.target || v.pathfinding?.targetNode).length
+    if (gameTime % 60 === 0 && player.type === 'human') {
+      console.log(`Player ${player.id} villagers with targets: ${villagersWithTargets}/${player.villagers.length}`)
+    }
     
     // Batch update movement with pixel-perfect system
     pixelPerfect.batchUpdateMovement(player.villagers, currentTime, terrainSystem, worldSize)
@@ -907,7 +936,49 @@ export const useGameEngine = (gameContext = {}) => {
               }))
               villager.pathIndex = 0
               villager.pathfinding.lastPathUpdate = gameTime
+              
+              // Set the first target for pixel-perfect movement
+              if (villager.path.length > 0) {
+                villager.target = villager.path[0]
+              }
+              
+              console.log(`Villager ${villager.id} new path:`, {
+                from: { x: currentTileX, y: currentTileY },
+                to: { x: targetX, y: targetY },
+                pathLength: villager.path.length,
+                firstTarget: villager.path[0]
+              })
+            } else {
+              console.warn(`No path found for villager ${villager.id}`, {
+                from: { x: currentTileX, y: currentTileY },
+                to: { x: targetX, y: targetY }
+              })
             }
+          } else {
+            console.error('PathfindingGrid not initialized!')
+          }
+        }
+        // Update target from path
+        else if (villager.path && villager.path.length > 0 && villager.pathIndex < villager.path.length) {
+          const currentTarget = villager.path[villager.pathIndex]
+          const dx = currentTarget.x - villager.x
+          const dy = currentTarget.y - villager.y
+          const distance = Math.sqrt(dx * dx + dy * dy)
+          
+          // If close to current waypoint, move to next
+          if (distance < 10) {
+            villager.pathIndex++
+            if (villager.pathIndex < villager.path.length) {
+              villager.target = villager.path[villager.pathIndex]
+            } else {
+              // Path complete
+              villager.path = []
+              villager.pathIndex = 0
+              villager.target = null
+            }
+          } else {
+            // Keep current target
+            villager.target = currentTarget
           }
         }
         break
@@ -942,6 +1013,10 @@ export const useGameEngine = (gameContext = {}) => {
                   y: node.y * tileSize + tileSize / 2
                 }))
                 villager.pathIndex = 0
+                // Set the first target for movement
+                if (villager.path.length > 0) {
+                  villager.target = villager.path[0]
+                }
               }
             }
           }
@@ -973,6 +1048,10 @@ export const useGameEngine = (gameContext = {}) => {
                   y: node.y * tileSize + tileSize / 2
                 }))
                 villager.pathIndex = 0
+                // Set the first target for movement
+                if (villager.path.length > 0) {
+                  villager.target = villager.path[0]
+                }
               }
             }
           } else {
@@ -980,6 +1059,7 @@ export const useGameEngine = (gameContext = {}) => {
             villager.state = 'wandering'
             villager.path = []
             villager.pathIndex = 0
+            villager.target = null
           }
         }
         break
@@ -987,13 +1067,25 @@ export const useGameEngine = (gameContext = {}) => {
   }
 
   const setupVillagerTarget = (villager) => {
-    // Only set up target if villager doesn't have one
-    if (!villager.target && !villager.pathfinding.targetNode) {
+    // Skip if villager already has a target from path following
+    if (villager.target) {
+      return
+    }
+    
+    // If villager has a path but no current target, set up next waypoint
+    if (villager.path && villager.path.length > 0 && villager.pathIndex < villager.path.length) {
+      villager.target = villager.path[villager.pathIndex]
+      return
+    }
+    
+    // Legacy path system fallback (for roads)
+    if (!villager.pathfinding.targetNode) {
       const nearestPath = pathSystem.findNearestPathNode(villager.x, villager.y, 150)
       if (nearestPath) {
         villager.pathfinding.targetNode = nearestPath
         pathSystem.updatePathUsage(nearestPath)
       } else {
+        // No path available, go idle
         villager.movement.isIdle = true
         villager.movement.idleDuration = 120 + Math.random() * 240
       }
@@ -1248,7 +1340,7 @@ export const useGameEngine = (gameContext = {}) => {
     }
     
     resourceSystem.renderResources(ctx)
-    pathSystem.renderPaths(ctx)
+    pathSystem.renderPaths(ctx, canvasRef.current.showPaths)
     
     // Render all players
     playerSystem.players.forEach(player => {

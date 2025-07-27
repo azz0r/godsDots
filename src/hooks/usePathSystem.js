@@ -464,18 +464,86 @@ export const usePathSystem = (worldSize, terrainSystem, pathfindingGrid) => {
     }
   }, [])
 
-  const renderPaths = useCallback((ctx) => {
-    // Render main paths
+  const renderPaths = useCallback((ctx, showPaths = true) => {
+    // Only render if showPaths is true
+    if (!showPaths) return
+    
+    // First pass: Draw road surfaces (wide, light paths)
+    ctx.save()
     pathsRef.current.forEach(path => {
       if (path.nodes.length < 2) return
       
-      // Path opacity based on usage
-      const baseOpacity = path.type === 'main' ? 0.15 : 0.08
-      const usageOpacity = Math.min(0.3, baseOpacity + (path.usage * 0.002))
+      const baseWidth = path.type === 'main' ? 12 : 8
+      const usageWidth = Math.min(4, path.usage * 0.02)
+      const totalWidth = baseWidth + usageWidth
       
-      ctx.strokeStyle = `rgba(139, 69, 19, ${usageOpacity})`
-      ctx.lineWidth = path.type === 'main' ? 3 : 2
-      ctx.setLineDash(path.type === 'circular' ? [5, 5] : [])
+      // Road surface gradient based on path type
+      const gradient = ctx.createRadialGradient(
+        path.nodes[0].x, path.nodes[0].y, 0,
+        path.nodes[0].x, path.nodes[0].y, 200
+      )
+      
+      if (path.type === 'main') {
+        // Main roads: darker, more defined
+        gradient.addColorStop(0, 'rgba(180, 140, 100, 0.8)')
+        gradient.addColorStop(1, 'rgba(160, 120, 80, 0.6)')
+      } else if (path.type === 'circular') {
+        // Circular paths: lighter, decorative
+        gradient.addColorStop(0, 'rgba(200, 180, 160, 0.6)')
+        gradient.addColorStop(1, 'rgba(180, 160, 140, 0.4)')
+      } else {
+        // Inter-building paths: subtle
+        gradient.addColorStop(0, 'rgba(190, 170, 150, 0.5)')
+        gradient.addColorStop(1, 'rgba(170, 150, 130, 0.3)')
+      }
+      
+      // Draw road surface
+      ctx.strokeStyle = gradient
+      ctx.lineWidth = totalWidth
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      
+      ctx.beginPath()
+      ctx.moveTo(path.nodes[0].x, path.nodes[0].y)
+      
+      // Smooth path drawing with quadratic curves
+      for (let i = 1; i < path.nodes.length - 1; i++) {
+        const xc = (path.nodes[i].x + path.nodes[i + 1].x) / 2
+        const yc = (path.nodes[i].y + path.nodes[i + 1].y) / 2
+        ctx.quadraticCurveTo(path.nodes[i].x, path.nodes[i].y, xc, yc)
+      }
+      
+      // Last segment
+      if (path.nodes.length > 1) {
+        const lastNode = path.nodes[path.nodes.length - 1]
+        ctx.lineTo(lastNode.x, lastNode.y)
+      }
+      
+      ctx.stroke()
+    })
+    ctx.restore()
+    
+    // Second pass: Draw road edges and details
+    ctx.save()
+    pathsRef.current.forEach(path => {
+      if (path.nodes.length < 2) return
+      
+      const baseWidth = path.type === 'main' ? 10 : 6
+      const usageWidth = Math.min(3, path.usage * 0.015)
+      const edgeWidth = baseWidth + usageWidth
+      
+      // Draw darker edges
+      ctx.strokeStyle = path.type === 'main' 
+        ? 'rgba(120, 80, 40, 0.7)'
+        : 'rgba(140, 100, 60, 0.5)'
+      ctx.lineWidth = edgeWidth
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      
+      // Add dashed pattern for circular paths
+      if (path.type === 'circular') {
+        ctx.setLineDash([15, 10])
+      }
       
       ctx.beginPath()
       ctx.moveTo(path.nodes[0].x, path.nodes[0].y)
@@ -487,15 +555,57 @@ export const usePathSystem = (worldSize, terrainSystem, pathfindingGrid) => {
       ctx.stroke()
       ctx.setLineDash([])
     })
+    ctx.restore()
     
-    // Render heavily used nodes as small dots
-    pathNodesRef.current.forEach(node => {
-      if (node.usage > 20) {
-        const opacity = Math.min(0.6, node.usage * 0.01)
-        ctx.fillStyle = `rgba(139, 69, 19, ${opacity})`
+    // Third pass: Draw wear patterns on heavily used paths
+    ctx.save()
+    pathsRef.current.forEach(path => {
+      if (path.usage < 50) return
+      
+      const wearOpacity = Math.min(0.4, path.usage * 0.002)
+      ctx.strokeStyle = `rgba(100, 70, 40, ${wearOpacity})`
+      ctx.lineWidth = path.type === 'main' ? 3 : 2
+      ctx.lineCap = 'round'
+      
+      // Draw wear marks as shorter segments
+      for (let i = 0; i < path.nodes.length - 1; i += 3) {
+        const start = path.nodes[i]
+        const end = path.nodes[Math.min(i + 2, path.nodes.length - 1)]
+        
         ctx.beginPath()
-        ctx.arc(node.x, node.y, 2, 0, Math.PI * 2)
-        ctx.fill()
+        ctx.moveTo(start.x, start.y)
+        ctx.lineTo(end.x, end.y)
+        ctx.stroke()
+      }
+    })
+    ctx.restore()
+    
+    // Fourth pass: Draw intersection markers
+    pathNodesRef.current.forEach(node => {
+      // Only draw nodes that connect multiple paths
+      if (node.connections.length <= 2) return
+      
+      const nodeOpacity = 0.4 + Math.min(0.4, node.usage * 0.005)
+      
+      // Draw intersection circle
+      ctx.fillStyle = `rgba(160, 140, 120, ${nodeOpacity})`
+      ctx.beginPath()
+      ctx.arc(node.x, node.y, 8, 0, Math.PI * 2)
+      ctx.fill()
+      
+      // Draw center stone
+      ctx.fillStyle = `rgba(140, 120, 100, ${nodeOpacity})`
+      ctx.beginPath()
+      ctx.arc(node.x, node.y, 4, 0, Math.PI * 2)
+      ctx.fill()
+      
+      // Draw highlight for very busy intersections
+      if (node.usage > 100) {
+        ctx.strokeStyle = `rgba(200, 180, 160, ${nodeOpacity * 0.5})`
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, 10, 0, Math.PI * 2)
+        ctx.stroke()
       }
     })
 

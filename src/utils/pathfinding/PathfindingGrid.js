@@ -1,4 +1,5 @@
 import { PathNode } from './PathNode.js'
+import { AStar } from './AStar.js'
 
 /**
  * Grid representation for pathfinding
@@ -22,6 +23,9 @@ export class PathfindingGrid {
     this.pathCache = new Map()
     this.cacheTimeout = 5000 // Cache paths for 5 seconds
     this.maxCacheSize = 100
+    
+    // Initialize AStar pathfinding
+    this.astar = new AStar(this)
     
     // Only initialize grid if we have a terrain system
     if (this.terrainSystem) {
@@ -357,6 +361,33 @@ export class PathfindingGrid {
     return nodes
   }
 
+  /**
+   * Find path using A* algorithm
+   * @param {number} startX - Start X in grid coordinates
+   * @param {number} startY - Start Y in grid coordinates
+   * @param {number} endX - End X in grid coordinates
+   * @param {number} endY - End Y in grid coordinates
+   * @returns {Array<PathNode>} Array of nodes forming the path
+   */
+  findPath(startX, startY, endX, endY) {
+    // Check cache first
+    const cacheKey = `${startX},${startY}-${endX},${endY}`
+    const cached = this.getCachedPath(cacheKey)
+    if (cached) {
+      return cached
+    }
+    
+    // Use AStar to find path
+    const path = this.astar.findPath(startX, startY, endX, endY)
+    
+    // Cache the result
+    if (path && path.length > 0) {
+      this.cachePath(cacheKey, path)
+    }
+    
+    return path
+  }
+  
   /**
    * Debug render method to visualize the grid
    * @param {CanvasRenderingContext2D} ctx 
