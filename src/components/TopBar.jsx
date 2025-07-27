@@ -1,7 +1,7 @@
 import React from 'react'
 import styles from '../styles/TopBar.module.css'
 
-const TopBar = ({ beliefPoints, population, onSave, onZoomOut }) => {
+const TopBar = ({ beliefPoints, population, onSave, onZoomOut, onTempleView }) => {
   return (
     <div className={styles.topBar}>
       <div className={styles.resources}>
@@ -12,6 +12,9 @@ const TopBar = ({ beliefPoints, population, onSave, onZoomOut }) => {
       <div className={styles.controls}>
         <button onClick={onZoomOut} className={styles.controlButton}>
           🌍 World View
+        </button>
+        <button onClick={onTempleView} className={styles.controlButton}>
+          ⛪ Temple View
         </button>
         <button onClick={onSave} className={styles.controlButton}>
           💾 Save

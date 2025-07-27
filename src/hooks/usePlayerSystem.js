@@ -1,6 +1,5 @@
 import { useRef, useCallback } from 'react'
-import { villagerRenderer } from '../utils/VillagerRenderer'
-import { villagerAnimationSystem } from '../utils/VillagerAnimationSystem'
+import { villagerRendererSimple } from '../utils/VillagerRendererSimple'
 
 export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
   const playersRef = useRef([])
@@ -254,74 +253,91 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
     ctx.stroke()
     ctx.setLineDash([])
     
-    // Draw energy particles around border
-    const time = Date.now() * 0.001
-    const particleCount = player.type === 'human' ? 20 : 12
-    
-    for (let i = 0; i < particleCount; i++) {
-      const angle = (i / particleCount) * Math.PI * 2 + time * 0.5
-      const x = center.x + Math.cos(angle) * radius
-      const y = center.y + Math.sin(angle) * radius
-      
-      const particleAlpha = player.type === 'human' 
-        ? 0.3 + Math.sin(time * 3 + i) * 0.2
-        : 0.15 + Math.sin(time * 2 + i) * 0.1
-      
-      ctx.fillStyle = `rgba(${colorRgb}, ${particleAlpha})`
-      ctx.beginPath()
-      ctx.arc(x, y, 2, 0, Math.PI * 2)
-      ctx.fill()
-    }
+    // Energy particles disabled for performance
+    // const time = Date.now() * 0.001
+    // const particleCount = player.type === 'human' ? 20 : 12
+    // 
+    // for (let i = 0; i < particleCount; i++) {
+    //   const angle = (i / particleCount) * Math.PI * 2 + time * 0.5
+    //   const x = center.x + Math.cos(angle) * radius
+    //   const y = center.y + Math.sin(angle) * radius
+    //   
+    //   const particleAlpha = player.type === 'human' 
+    //     ? 0.3 + Math.sin(time * 3 + i) * 0.2
+    //     : 0.15 + Math.sin(time * 2 + i) * 0.1
+    //   
+    //   ctx.fillStyle = `rgba(${colorRgb}, ${particleAlpha})`
+    //   ctx.beginPath()
+    //   ctx.arc(x, y, 2, 0, Math.PI * 2)
+    //   ctx.fill()
+    // }
   }, [])
 
   const renderPlayerBuildings = useCallback((ctx, player) => {
     player.buildings.forEach(building => {
+      // Draw building outline for visibility
+      ctx.strokeStyle = '#000000'
+      ctx.lineWidth = 2
+      ctx.strokeRect(building.x - 1, building.y - 1, building.width + 2, building.height + 2)
+      
       if (building.type === 'temple') {
-        // Temple rendering with player color
-        const baseColor = player.color
-        ctx.fillStyle = building.isUnderConstruction ? '#999999' : baseColor
+        // Temple - distinctive shape with player color
+        ctx.fillStyle = building.isUnderConstruction ? '#666666' : player.color
         ctx.fillRect(building.x, building.y, building.width, building.height)
         
         if (!building.isUnderConstruction) {
-          ctx.fillStyle = player.type === 'human' ? '#ff6b35' : '#cc3333'
-          ctx.fillRect(building.x + 20, building.y + 20, 20, 20)
+          // Temple symbol
+          ctx.fillStyle = '#FFFFFF'
+          ctx.font = 'bold 24px Arial'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText('⛪', building.x + building.width/2, building.y + building.height/2)
         }
       } else if (building.type === 'house') {
-        // House rendering with slight color variation
-        const houseColor = player.type === 'human' ? '#8b4513' : '#7a3f12'
-        ctx.fillStyle = building.isUnderConstruction ? '#665533' : houseColor
+        // House - simple brown with roof indicator
+        ctx.fillStyle = building.isUnderConstruction ? '#444444' : '#8B4513'
         ctx.fillRect(building.x, building.y, building.width, building.height)
         
         if (!building.isUnderConstruction) {
-          ctx.fillStyle = player.type === 'human' ? '#654321' : '#5d3018'
-          ctx.fillRect(building.x + 2, building.y + 2, building.width - 4, building.height - 4)
+          // Simple roof triangle
+          ctx.fillStyle = '#654321'
+          ctx.beginPath()
+          ctx.moveTo(building.x, building.y)
+          ctx.lineTo(building.x + building.width/2, building.y - 10)
+          ctx.lineTo(building.x + building.width, building.y)
+          ctx.closePath()
+          ctx.fill()
+          
+          // Door
+          ctx.fillStyle = '#333333'
+          ctx.fillRect(building.x + building.width/2 - 4, building.y + building.height - 10, 8, 10)
         }
       }
       
-      // Construction progress indicator
+      // Construction progress bar
       if (building.isUnderConstruction) {
         const progress = building.constructionTime / 300
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.7)'
-        ctx.fillRect(building.x, building.y - 8, building.width * progress, 4)
+        const barY = building.y - 10
         
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
-        ctx.lineWidth = 1
-        ctx.strokeRect(building.x, building.y - 8, building.width, 4)
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+        ctx.fillRect(building.x, barY, building.width, 4)
+        
+        // Progress
+        ctx.fillStyle = '#00FF00'
+        ctx.fillRect(building.x, barY, building.width * progress, 4)
       }
     })
   }, [])
 
   const renderPlayerVillagers = useCallback((ctx, player, camera, gameTime) => {
-    // Update animation system for this player's villagers
-    villagerAnimationSystem.updateAll(player.villagers, gameTime)
-    
-    // Render all villagers with the new renderer
-    villagerRenderer.renderAllVillagers(ctx, player, camera, gameTime)
+    // Render all villagers with simplified renderer for better visibility
+    villagerRendererSimple.renderAllVillagers(ctx, player, camera, gameTime)
     
     // Render paths for selected villagers
     player.villagers.forEach(villager => {
       if (villager.selected) {
-        villagerRenderer.renderVillagerPath(ctx, villager)
+        villagerRendererSimple.renderVillagerPath(ctx, villager)
       }
     })
   }, [])

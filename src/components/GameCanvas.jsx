@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import styles from '../styles/GameCanvas.module.css'
 import { usePixelPerfectMovement } from '../hooks/usePixelPerfectMovement'
 
-const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillagerSelect, onVillagerCommand }) => {
+const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillagerSelect, onVillagerCommand, showPaths, showLandBorders }) => {
   const pixelPerfect = usePixelPerfectMovement()
   const eventHandlersRef = useRef({})
+  const lastClickTimeRef = useRef(0)
+  const DOUBLE_CLICK_DELAY = 300 // milliseconds
 
   // Create event handlers that will be attached natively
   useEffect(() => {
@@ -12,11 +14,32 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillag
       const game = gameStateRef.current
       const canvas = canvasRef.current
       const rect = canvas.getBoundingClientRect()
+      const clickX = e.clientX - rect.left
+      const clickY = e.clientY - rect.top
+      
+      // Check for double-click
+      const currentTime = Date.now()
+      if (currentTime - lastClickTimeRef.current < DOUBLE_CLICK_DELAY) {
+        // Double-click detected - zoom to clicked point
+        const worldSize = game.worldSize || { width: 1600, height: 1600 } // 50 * 32
+        pixelPerfect.handleDoubleClickZoom(
+          game.camera,
+          clickX,
+          clickY,
+          canvas.width,
+          canvas.height,
+          worldSize.width,
+          worldSize.height
+        )
+        lastClickTimeRef.current = 0 // Reset to prevent triple-click
+        return
+      }
+      lastClickTimeRef.current = currentTime
       
       // Store selection start position
       game.mouse.selectionStart = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: clickX,
+        y: clickY
       }
       
       game.mouse.down = true
@@ -183,6 +206,10 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillag
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    
+    // Store display settings on canvas for render functions to access
+    canvas.showPaths = showPaths
+    canvas.showLandBorders = showLandBorders
 
     // Configure pixel-perfect rendering
     const ctx = canvas.getContext('2d')
@@ -211,7 +238,7 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillag
       document.removeEventListener('mouseup', eventHandlersRef.current.handleMouseUp)
       document.removeEventListener('keydown', eventHandlersRef.current.handleKeyDown)
     }
-  }, [canvasRef, pixelPerfect])
+  }, [canvasRef, pixelPerfect, showPaths, showLandBorders])
 
   return (
     <canvas

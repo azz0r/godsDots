@@ -340,6 +340,32 @@ export const useGameEngine = (gameContext = {}) => {
     cameraRef.current.x = (worldSize.width - canvas.width / targetZoom) / 2
     cameraRef.current.y = (worldSize.height - canvas.height / targetZoom) / 2
   }, [worldSize])
+    const getHumanPlayer = useCallback(() => {
+    return playerSystem.players.find(p => p.id === gameState.humanPlayerId)
+  }, [playerSystem.players, gameState.humanPlayerId])
+
+  const humanPlayer = getHumanPlayer()
+  const zoomToTemple = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    
+    const camera = cameraRef.current
+    if (!humanPlayer) return
+    
+    // Find the player's temple
+    const temple = humanPlayer.buildings.find(b => b.type === 'temple')
+    if (!temple) {
+      // If no temple, zoom to territory center
+      camera.x = humanPlayer.territory.center.x - canvas.width / 2 / 1.5
+      camera.y = humanPlayer.territory.center.y - canvas.height / 2 / 1.5
+      camera.zoom = 1.5
+    } else {
+      // Center on temple
+      camera.x = temple.x + temple.width / 2 - canvas.width / 2 / 1.5
+      camera.y = temple.y + temple.height / 2 - canvas.height / 2 / 1.5
+      camera.zoom = 1.5
+    }
+  }, [humanPlayer, canvasRef])
 
   const usePower = useCallback((worldX, worldY) => {
     const { selectedPower, humanPlayerId } = gameState
@@ -690,30 +716,31 @@ export const useGameEngine = (gameContext = {}) => {
                 Math.abs(v.x - resource.x) < 50 && 
                 Math.abs(v.y - resource.y) < 50)
         
-        if (harvester) {
-          if (resource.type === 'tree') {
-            // Wood chips effect
-            visualEffectsRef.current.createDustCloud(resource.x, resource.y, {
-              particleCount: 8,
-              color: '#8b4513',
-              radius: 25,
-              duration: 500
-            })
-          } else if (resource.type === 'berries') {
-            // Berry sparkles
-            visualEffectsRef.current.createSparkle(resource.x, resource.y, {
-              particleCount: 6,
-              colors: ['#ff6b6b', '#ff4444', '#ffaaaa'],
-              duration: 600
-            })
-          }
-        }
+        // Harvest effects disabled for performance
+        // if (harvester) {
+        //   if (resource.type === 'tree') {
+        //     // Wood chips effect
+        //     visualEffectsRef.current.createDustCloud(resource.x, resource.y, {
+        //       particleCount: 8,
+        //       color: '#8b4513',
+        //       radius: 25,
+        //       duration: 500
+        //     })
+        //   } else if (resource.type === 'berries') {
+        //     // Berry sparkles
+        //     visualEffectsRef.current.createSparkle(resource.x, resource.y, {
+        //       particleCount: 6,
+        //       colors: ['#ff6b6b', '#ff4444', '#ffaaaa'],
+        //       duration: 600
+        //     })
+        //   }
+        // }
         
-        // Resource depletion effect when exhausted
-        if (resource.amount <= 0 && resource.beingHarvested) {
-          visualEffectsRef.current.resourceDepleted(resource.x, resource.y, resource.type)
-          resource.beingHarvested = false
-        }
+        // Resource depletion effect disabled for performance
+        // if (resource.amount <= 0 && resource.beingHarvested) {
+        //   visualEffectsRef.current.resourceDepleted(resource.x, resource.y, resource.type)
+        //   resource.beingHarvested = false
+        // }
       }
     })
     
@@ -730,10 +757,10 @@ export const useGameEngine = (gameContext = {}) => {
     // Update visual effects
     visualEffectsRef.current.update(deltaTime)
     
-    // Create ambient particles
-    if (gameTimeRef.current % 120 === 0) { // Every 2 seconds
-      createAmbientParticles()
-    }
+    // Create ambient particles - disabled for performance
+    // if (gameTimeRef.current % 120 === 0) { // Every 2 seconds
+    //   createAmbientParticles()
+    // }
   }, [playerSystem, aiSystem, gameState.levelId])
 
   const autoSaveGame = useCallback(async () => {
@@ -804,19 +831,19 @@ export const useGameEngine = (gameContext = {}) => {
         setupVillagerTarget(villager)
       }
       
-      // Create work particle effects based on task
-      if (gameTime % 30 === 0 && villager.task !== 'idle') {
-        createVillagerWorkEffects(villager)
-      }
+      // Create work particle effects disabled for performance
+      // if (gameTime % 120 === 0 && villager.task !== 'idle') {
+      //   createVillagerWorkEffects(villager)
+      // }
       
-      // Create celebration effects for happy villagers
-      if (villager.happiness > 80 && gameTime % 300 === Math.floor(villager.id % 300)) {
-        visualEffectsRef.current.createSparkle(villager.x, villager.y - 20, {
-          particleCount: 5,
-          colors: ['#ffff00', '#ff00ff', '#00ffff'],
-          duration: 1000
-        })
-      }
+      // Create celebration effects for happy villagers - disabled for performance
+      // if (villager.happiness > 80 && gameTime % 300 === Math.floor(villager.id % 300)) {
+      //   visualEffectsRef.current.createSparkle(villager.x, villager.y - 20, {
+      //     particleCount: 5,
+      //     colors: ['#ffff00', '#ff00ff', '#00ffff'],
+      //     duration: 1000
+      //   })
+      // }
       
       // Update happiness based on territory - but keep villagers loyal to their god
       if (gameTime % 300 === Math.floor(villager.id % 300)) {
@@ -1048,8 +1075,8 @@ export const useGameEngine = (gameContext = {}) => {
         if (!building.isUnderConstruction &&
             building.x > viewLeft - 100 && building.x < viewRight + 100 &&
             building.y > viewTop - 100 && building.y < viewBottom + 100) {
-          // Create smoke from chimneys
-          if (Math.random() < 0.3) {
+          // Create smoke from chimneys - disabled for performance
+          if (false && Math.random() < 0.3) {
             visualEffectsRef.current.createSmoke(
               building.x + building.width / 2,
               building.y - 5,
@@ -1119,9 +1146,6 @@ export const useGameEngine = (gameContext = {}) => {
 
   // Remove old constraint functions as they're handled by pixel-perfect movement
 
-  const getHumanPlayer = useCallback(() => {
-    return playerSystem.players.find(p => p.id === gameState.humanPlayerId)
-  }, [playerSystem.players, gameState.humanPlayerId])
 
   const handleVillagerSelect = useCallback((x1, y1, x2, y2, isBoxSelect) => {
     const humanPlayer = getHumanPlayer()
@@ -1210,15 +1234,13 @@ export const useGameEngine = (gameContext = {}) => {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
-    // Render terrain with its own camera handling
-    ctx.save()
-    terrainSystem.renderTerrain(ctx, camera)
-    ctx.restore()
-    
-    // Apply camera transform for other rendering
+    // Apply camera transform for all rendering
     ctx.save()
     ctx.scale(camera.zoom, camera.zoom)
     ctx.translate(-camera.x, -camera.y)
+    
+    // Render terrain (now uses the same transform as everything else)
+    terrainSystem.renderTerrain(ctx, camera)
     
     // Render land borders if enabled
     if (gameContext.landManager && canvasRef.current.showLandBorders !== false) {
@@ -1465,6 +1487,7 @@ export const useGameEngine = (gameContext = {}) => {
     selectPower,
     usePower,
     zoomToWorldView,
+    zoomToTemple,
     manualSaveGame,
     autoSaveGame,
     regenerateMap,

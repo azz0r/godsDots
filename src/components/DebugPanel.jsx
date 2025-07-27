@@ -8,7 +8,9 @@ const DebugPanel = ({
   showLandBorders, 
   onToggleLandBorders,
   pathfindingGrid,
-  landManager 
+  landManager,
+  showPaths,
+  onTogglePaths
 }) => {
   const [showPathfinding, setShowPathfinding] = useState(gameConfig.debug.showPathfinding)
   const [showGrid, setShowGrid] = useState(gameConfig.debug.showGrid)
@@ -84,6 +86,15 @@ const DebugPanel = ({
             onChange={onToggleLandBorders}
           />
           Show Land Borders
+        </label>
+        
+        <label className={styles.debugOption}>
+          <input
+            type="checkbox"
+            checked={showPaths}
+            onChange={onTogglePaths}
+          />
+          Show Paths
         </label>
         
         <label className={styles.debugOption}>

@@ -16,7 +16,8 @@ const GameContainer = ({ gameContext }) => {
     gameStateRef, 
     selectPower, 
     usePower, 
-    zoomToWorldView, 
+    zoomToWorldView,
+    zoomToTemple, 
     manualSaveGame, 
     regenerateMap, 
     mapSeed,
@@ -38,6 +39,7 @@ const GameContainer = ({ gameContext }) => {
   
   const [showLandBorders, setShowLandBorders] = useState(true)
   const [showLandPanel, setShowLandPanel] = useState(false)
+  const [showPaths, setShowPaths] = useState(false)
 
   const handleSave = async () => {
     const success = await manualSaveGame()
@@ -69,6 +71,7 @@ const GameContainer = ({ gameContext }) => {
         onVillagerSelect={handleVillagerSelect}
         onVillagerCommand={handleVillagerCommand}
         showLandBorders={showLandBorders}
+        showPaths={showPaths}
         landManager={gameContext.landManager}
       />
       
@@ -78,6 +81,7 @@ const GameContainer = ({ gameContext }) => {
           population={gameState.population}
           onSave={handleSave}
           onZoomOut={zoomToWorldView}
+          onTempleView={zoomToTemple}
         />
         
         <PowerBar
@@ -115,6 +119,8 @@ const GameContainer = ({ gameContext }) => {
             currentSeed={mapSeed}
             showLandBorders={showLandBorders}
             onToggleLandBorders={() => setShowLandBorders(!showLandBorders)}
+            showPaths={showPaths}
+            onTogglePaths={() => setShowPaths(!showPaths)}
             pathfindingGrid={gameContext.pathfindingGrid}
             landManager={gameContext.landManager}
           />

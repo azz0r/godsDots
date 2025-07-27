@@ -69,9 +69,9 @@ export class BorderRenderer {
     // Save context state
     ctx.save()
     
-    // Apply camera transform
-    ctx.translate(-camera.x, -camera.y)
+    // Apply camera transform (scale first, then translate)
     ctx.scale(camera.zoom, camera.zoom)
+    ctx.translate(-camera.x, -camera.y)
     
     // Group plots by type for batch rendering
     const plotsByType = this.groupPlotsByType(plots)

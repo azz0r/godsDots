@@ -76,14 +76,27 @@ export class TerrainGenerator {
         
         elevation = elevation / maxValue
         
-        // Apply island mask to create continents
+        // Apply island mask to ensure island shape
         const centerX = width / 2
         const centerY = height / 2
         const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2)
         const maxDistance = Math.min(width, height) / 2
-        const islandFactor = 1 - Math.pow(distance / maxDistance, 2)
+        
+        // Create a stronger island effect - force water at edges
+        const distanceRatio = distance / maxDistance
+        let islandFactor = 1
+        
+        if (distanceRatio > 0.7) {
+          // Force water at edges
+          islandFactor = Math.max(0, 1 - Math.pow((distanceRatio - 0.7) / 0.3, 2))
+        }
         
         elevation = elevation * islandFactor
+        
+        // Force deep water at the very edges
+        if (distanceRatio > 0.9) {
+          elevation = 0
+        }
         
         // Normalize to 0-1 range
         heightMap[x][y] = Math.max(0, Math.min(1, (elevation + 1) / 2))
@@ -142,10 +155,10 @@ export class TerrainGenerator {
   }
 
   determineBiome(height, moisture, temperature) {
-    // Water bodies
-    if (height < 0.2) return 'deepWater'
-    if (height < 0.3) return 'water'
-    if (height < 0.35) return 'sand' // Beaches
+    // Water bodies - adjusted for better island formation
+    if (height < 0.15) return 'deepWater'
+    if (height < 0.25) return 'water'
+    if (height < 0.3) return 'sand' // Beaches
     
     // Mountain peaks
     if (height > 0.8) {

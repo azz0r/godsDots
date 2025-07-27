@@ -158,30 +158,21 @@ export class TerrainRenderer {
   /**
    * Render terrain with enhanced visuals
    */
-  renderTerrain(ctx, terrain, camera = { x: 0, y: 0, zoom: 1 }) {
-    // Save context state
-    ctx.save()
-    
-    // Apply camera transform
-    ctx.translate(-camera.x, -camera.y)
-    ctx.scale(camera.zoom, camera.zoom)
+  renderTerrain(ctx, terrain, camera = { x: 0, y: 0, zoom: 1 }, resources = null) {
+    // Don't apply camera transform here - it should be applied by the caller
+    // This ensures terrain and resources use the same coordinate system
     
     // Group terrain by type for batch rendering
     const terrainGroups = this.groupTerrainByType(terrain)
     
-    // Render each terrain type
+    // Render each terrain type with simplified visuals
     terrainGroups.forEach((tiles, type) => {
-      this.renderTerrainType(ctx, tiles, type)
+      this.renderTerrainTypeSimple(ctx, tiles, type)
     })
     
-    // Render terrain transitions/blending
-    this.renderTerrainBlending(ctx, terrain)
-    
-    // Render ambient effects
-    this.renderAmbientEffects(ctx, terrain)
-    
-    // Restore context
-    ctx.restore()
+    // Skip terrain blending and ambient effects for performance
+    // this.renderTerrainBlending(ctx, terrain)
+    // this.renderAmbientEffects(ctx, terrain)
   }
   
   /**
@@ -201,7 +192,23 @@ export class TerrainRenderer {
   }
   
   /**
-   * Render all tiles of a specific terrain type
+   * Render all tiles with simplified solid colors
+   */
+  renderTerrainTypeSimple(ctx, tiles, type) {
+    const terrainConfig = this.terrainColors[type] || {
+      base: '#666666'
+    }
+    
+    // Use solid color for all tiles of this type
+    ctx.fillStyle = terrainConfig.base
+    
+    tiles.forEach(tile => {
+      ctx.fillRect(tile.x, tile.y, tile.width, tile.height)
+    })
+  }
+  
+  /**
+   * Render all tiles of a specific terrain type (kept for reference but unused)
    */
   renderTerrainType(ctx, tiles, type) {
     const terrainConfig = this.terrainColors[type] || {

@@ -110,23 +110,78 @@ export const useTerrainSystem = (worldSize) => {
       clay: '#cd853f'
     }
     
+    // Resource symbols for better visibility
+    const resourceSymbols = {
+      tree: '🌲',
+      stone: '⬤',
+      ironOre: '▲',
+      goldOre: '◆',
+      berryBush: '●',
+      wheat: '┃',
+      fish: '~',
+      clay: '■'
+    }
+    
     resourcesRef.current.forEach(resource => {
-      // Draw resource indicator
-      ctx.fillStyle = resourceColors[resource.type] || '#ffffff'
-      ctx.beginPath()
-      ctx.arc(resource.x + 20, resource.y + 20, 8, 0, Math.PI * 2)
-      ctx.fill()
+      const centerX = resource.x + resource.width / 2
+      const centerY = resource.y + resource.height / 2
       
-      // Draw amount indicator
-      if (resource.amount < resource.maxAmount) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
-        ctx.font = '10px Arial'
-        ctx.textAlign = 'center'
-        ctx.fillText(
-          Math.floor((resource.amount / resource.maxAmount) * 100) + '%',
-          resource.x + 20,
-          resource.y + 35
-        )
+      // Draw resource based on type
+      if (resource.type === 'tree') {
+        // Simple triangle tree
+        ctx.fillStyle = resourceColors[resource.type]
+        ctx.beginPath()
+        ctx.moveTo(centerX, centerY - 15)
+        ctx.lineTo(centerX - 10, centerY + 5)
+        ctx.lineTo(centerX + 10, centerY + 5)
+        ctx.closePath()
+        ctx.fill()
+        
+        // Trunk
+        ctx.fillStyle = '#654321'
+        ctx.fillRect(centerX - 2, centerY + 5, 4, 8)
+      } else {
+        // Draw simple shapes for other resources
+        ctx.fillStyle = resourceColors[resource.type] || '#ffffff'
+        ctx.beginPath()
+        
+        switch(resource.type) {
+          case 'stone':
+            // Rock shape
+            ctx.arc(centerX, centerY, 6, 0, Math.PI * 2)
+            break
+          case 'goldOre':
+            // Diamond shape
+            ctx.moveTo(centerX, centerY - 8)
+            ctx.lineTo(centerX + 6, centerY)
+            ctx.lineTo(centerX, centerY + 8)
+            ctx.lineTo(centerX - 6, centerY)
+            ctx.closePath()
+            break
+          case 'berryBush':
+            // Berry clusters
+            for(let i = 0; i < 3; i++) {
+              const angle = (i / 3) * Math.PI * 2
+              const bx = centerX + Math.cos(angle) * 4
+              const by = centerY + Math.sin(angle) * 4
+              ctx.moveTo(bx + 3, by)
+              ctx.arc(bx, by, 3, 0, Math.PI * 2)
+            }
+            break
+          default:
+            ctx.arc(centerX, centerY, 6, 0, Math.PI * 2)
+        }
+        
+        ctx.fill()
+      }
+      
+      // Draw amount indicator only if depleted
+      if (resource.amount < resource.maxAmount * 0.5) {
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'
+        ctx.fillRect(centerX - 10, centerY + 12, 20 * (resource.amount / resource.maxAmount), 3)
+        
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
+        ctx.strokeRect(centerX - 10, centerY + 12, 20, 3)
       }
     })
   }, [])
@@ -216,7 +271,8 @@ export const useTerrainSystem = (worldSize) => {
   }
   
   const updateTerrainAnimation = useCallback((deltaTime) => {
-    terrainRendererRef.current.update(deltaTime)
+    // Disabled for performance
+    // terrainRendererRef.current.update(deltaTime)
   }, [])
 
   return {

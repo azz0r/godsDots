@@ -19,7 +19,8 @@ export const usePixelPerfectMovement = () => {
   // Zoom configuration for smooth zooming
   const MIN_ZOOM = 0.25
   const MAX_ZOOM = 4.0
-  const ZOOM_SPEED = 0.001 // Base zoom speed per delta unit
+  const ZOOM_SPEED = 0.003 // Increased for easier zooming
+  const DOUBLE_CLICK_ZOOM = 2.0 // Zoom factor for double-click
   
   // Predefined zoom levels for consistent scaling
   const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0]
@@ -191,10 +192,34 @@ export const usePixelPerfectMovement = () => {
   }, [alignToPixel])
   
   // Handle zoom with smooth interpolation and zoom-to-mouse
+  // Handle double-click zoom
+  const handleDoubleClickZoom = useCallback((camera, clickX, clickY, canvasWidth, canvasHeight, worldWidth, worldHeight) => {
+    // Calculate world position at click
+    const worldX = camera.x + clickX / camera.zoom
+    const worldY = camera.y + clickY / camera.zoom
+    
+    // Apply 2x zoom
+    const newZoom = Math.min(camera.zoom * DOUBLE_CLICK_ZOOM, MAX_ZOOM)
+    camera.zoom = newZoom
+    
+    // Center on clicked point
+    camera.x = worldX - clickX / newZoom
+    camera.y = worldY - clickY / newZoom
+    
+    // Bounds checking
+    const maxCameraX = Math.max(0, worldWidth - canvasWidth / newZoom)
+    const maxCameraY = Math.max(0, worldHeight - canvasHeight / newZoom)
+    
+    camera.x = alignToPixel(Math.max(0, Math.min(maxCameraX, camera.x)))
+    camera.y = alignToPixel(Math.max(0, Math.min(maxCameraY, camera.y)))
+    
+    return camera.zoom
+  }, [alignToPixel])
+  
   const setPixelPerfectZoom = useCallback((camera, zoomDirection, mouseX, mouseY, canvasWidth, canvasHeight, deltaAmount = 100) => {
     // Calculate zoom factor based on scroll speed
     const normalizedDelta = Math.min(Math.abs(deltaAmount), 500) / 100 // Normalize to reasonable range
-    const zoomAmount = ZOOM_SPEED * normalizedDelta * 10 // Scale for better feel
+    const zoomAmount = ZOOM_SPEED * normalizedDelta * 20 // Increased scale for easier zooming
     const zoomFactor = zoomDirection > 0 ? 1 + zoomAmount : 1 - zoomAmount
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, camera.zoom * zoomFactor))
     
@@ -325,6 +350,7 @@ export const usePixelPerfectMovement = () => {
     batchUpdateMovement,
     updateCameraPixelPerfect,
     setPixelPerfectZoom,
+    handleDoubleClickZoom,
     configureCanvasPixelPerfect,
     getRenderPosition,
     snapToPixelGrid,

@@ -1,8 +1,8 @@
 const gameConfig = {
   // Map generation settings
   map: {
-    width: 100,
-    height: 100,
+    width: 50,
+    height: 50,
     defaultSeed: Date.now(),
     biomes: {
       plains: { weight: 0.4, color: '#90EE90' },
