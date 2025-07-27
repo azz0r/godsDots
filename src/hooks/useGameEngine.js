@@ -1119,6 +1119,10 @@ export const useGameEngine = (gameContext = {}) => {
 
   // Remove old constraint functions as they're handled by pixel-perfect movement
 
+  const getHumanPlayer = useCallback(() => {
+    return playerSystem.players.find(p => p.id === gameState.humanPlayerId)
+  }, [playerSystem.players, gameState.humanPlayerId])
+
   const handleVillagerSelect = useCallback((x1, y1, x2, y2, isBoxSelect) => {
     const humanPlayer = getHumanPlayer()
     if (!humanPlayer) return
@@ -1258,8 +1262,8 @@ export const useGameEngine = (gameContext = {}) => {
     ctx.restore()
     
     // Render selection box (in screen space)
-    if (gameStateRef.current.mouse?.selectionBox) {
-      const box = gameStateRef.current.mouse.selectionBox
+    if (mouseRef.current?.selectionBox) {
+      const box = mouseRef.current.selectionBox
       ctx.save()
       ctx.strokeStyle = '#00ff00'
       ctx.lineWidth = 2
@@ -1388,8 +1392,8 @@ export const useGameEngine = (gameContext = {}) => {
     }
   }
 
-  const gameLoop = useCallback(() => {
-    updateGame()
+  const gameLoop = useCallback((currentTime) => {
+    updateGame(currentTime || performance.now())
     renderGame()
     animationRef.current = requestAnimationFrame(gameLoop)
   }, [updateGame, renderGame])
@@ -1413,10 +1417,6 @@ export const useGameEngine = (gameContext = {}) => {
       }
     }
   }, []) // Empty dependency array to initialize only once
-
-  const getHumanPlayer = useCallback(() => {
-    return playerSystem.players.find(p => p.id === gameState.humanPlayerId)
-  }, [playerSystem.players, gameState.humanPlayerId])
 
   const regenerateMap = useCallback(async (seed = null) => {
     console.log('Regenerating map with seed:', seed)

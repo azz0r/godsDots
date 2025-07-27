@@ -144,9 +144,9 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
           lastPathUpdate: 0
         },
         movement: {
-          isIdle: false,
+          isIdle: true,
           idleTime: 0,
-          idleDuration: 0,
+          idleDuration: Math.floor(Math.random() * 120) + 60,
           lastMoveTime: 0,
           smoothX: Math.floor(player.territory.center.x + (Math.random() - 0.5) * 200),
           smoothY: Math.floor(player.territory.center.y + (Math.random() - 0.5) * 200)
