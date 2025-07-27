@@ -15,27 +15,27 @@ export class GameInitializer {
   async initializeNewGame() {
     console.log('Initializing new game...')
     
-    // Generate terrain
-    const terrain = this.mapGenerator.generateTerrain()
+    // Generate map data - convert tile dimensions to pixel dimensions
+    const worldSize = {
+      width: gameConfig.map.width * gameConfig.tileSize,
+      height: gameConfig.map.height * gameConfig.tileSize
+    }
+    const mapData = this.mapGenerator.generateMap(worldSize)
     
     // Initialize pathfinding grid with terrain costs
-    this.initializePathfindingGrid(terrain)
+    this.initializePathfindingGrid(mapData.terrain, mapData.terrainMap)
     
-    // Generate and register land plots
-    const plots = this.generateLandPlots(terrain)
-    this.registerLandPlots(plots)
-    
-    // Generate initial resources
-    const resources = this.generateInitialResources(terrain)
-    
-    // Create spawn points
-    const spawnPoints = this.createSpawnPoints(terrain)
+    // Land plots are already initialized by LandManager in App.jsx
+    // Just log the count for debugging
+    console.log(`LandManager has ${this.landManager?.plots?.size || 0} plots`)
     
     // Create initial game state
     const initialState = {
-      terrain,
-      resources,
-      spawnPoints,
+      terrain: mapData.terrain,
+      terrainMap: mapData.terrainMap,
+      resources: mapData.resources,
+      resourceMap: mapData.resourceMap,
+      spawnPoints: mapData.spawnPoints,
       buildings: [],
       villagers: [],
       beliefPoints: gameConfig.startingBeliefPoints,
@@ -46,7 +46,7 @@ export class GameInitializer {
     }
     
     // Add initial villagers at spawn points
-    initialState.villagers = this.createInitialVillagers(spawnPoints)
+    initialState.villagers = this.createInitialVillagers(mapData.spawnPoints)
     initialState.population = initialState.villagers.length
     
     console.log('Game initialization complete')
@@ -56,55 +56,62 @@ export class GameInitializer {
   /**
    * Initialize pathfinding grid based on terrain
    */
-  initializePathfindingGrid(terrain) {
-    const { width, height } = gameConfig.map
-    
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const tile = terrain[y]?.[x]
-        if (!tile) continue
-        
-        // Set movement costs based on terrain type
-        const cost = gameConfig.terrainCosts[tile.type] || 1
-        this.pathfindingGrid.setCost(x, y, cost)
-        
-        // Mark impassable tiles
-        if (cost === Infinity) {
-          this.pathfindingGrid.setWalkable(x, y, false)
-        }
-      }
+  initializePathfindingGrid(terrain, terrainMap) {
+    if (!this.pathfindingGrid) {
+      console.warn('PathfindingGrid not provided to GameInitializer')
+      return
     }
+    
+    const tileSize = 40 // From MapGenerator
+    
+    // Process each terrain tile
+    terrain.forEach(tile => {
+      const gridX = Math.floor(tile.x / tileSize)
+      const gridY = Math.floor(tile.y / tileSize)
+      
+      // Set movement costs based on terrain type
+      const cost = gameConfig.terrainCosts[tile.type] || 1
+      this.pathfindingGrid.setCost(gridX, gridY, cost)
+      
+      // Mark impassable tiles
+      if (!tile.walkable || cost === Infinity) {
+        this.pathfindingGrid.setWalkable(gridX, gridY, false)
+      }
+    })
   }
 
   /**
    * Generate land plots based on terrain
    */
-  generateLandPlots(terrain) {
+  generateLandPlots(terrain, terrainMap) {
     const plots = []
     const { plotSize } = gameConfig.land
     const { width, height } = gameConfig.map
+    const tileSize = 40 // From MapGenerator
     
-    // Create a grid of plots
-    for (let y = 0; y < height; y += plotSize) {
-      for (let x = 0; x < width; x += plotSize) {
+    // Create a grid of plots based on pixel coordinates
+    const plotSizePixels = plotSize * tileSize
+    
+    for (let y = 0; y < height; y += plotSizePixels) {
+      for (let x = 0; x < width; x += plotSizePixels) {
         const tiles = []
         let totalValue = 0
         let hasWater = false
         let hasMountain = false
         
         // Collect tiles for this plot
-        for (let py = 0; py < plotSize && y + py < height; py++) {
-          for (let px = 0; px < plotSize && x + px < width; px++) {
+        for (let py = 0; py < plotSizePixels && y + py < height; py += tileSize) {
+          for (let px = 0; px < plotSizePixels && x + px < width; px += tileSize) {
             const tileX = x + px
             const tileY = y + py
-            const tile = terrain[tileY]?.[tileX]
+            const tile = terrainMap.get(`${tileX},${tileY}`)
             
             if (tile) {
               tiles.push({ x: tileX, y: tileY })
               
               // Calculate plot value based on terrain
-              if (tile.type === 'water') hasWater = true
-              if (tile.type === 'mountain') hasMountain = true
+              if (tile.type === 'water' || tile.type === 'deepWater' || tile.type === 'river') hasWater = true
+              if (tile.type === 'mountain' || tile.type === 'snow') hasMountain = true
               
               totalValue += gameConfig.terrainValues[tile.type] || 1
             }
@@ -247,8 +254,8 @@ export class GameInitializer {
       for (let i = 0; i < villagersPerSpawn && villagers.length < gameConfig.startingVillagers; i++) {
         villagers.push({
           id: `villager_${villagers.length}`,
-          x: spawn.x * gameConfig.tileSize + Math.random() * gameConfig.tileSize,
-          y: spawn.y * gameConfig.tileSize + Math.random() * gameConfig.tileSize,
+          x: spawn.x + (Math.random() - 0.5) * 20, // Already in pixel coordinates from MapGenerator
+          y: spawn.y + (Math.random() - 0.5) * 20,
           targetX: null,
           targetY: null,
           path: [],

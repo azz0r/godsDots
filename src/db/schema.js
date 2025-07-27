@@ -1,5 +1,5 @@
 // God Dots - DexieJS Database Schema
-export const version = 2
+export const version = 3
 
 export const name = `GodDots001`
 const lightStandard = '++id, name'
@@ -65,7 +65,7 @@ export const Groups = [
   {
     group: 'Player',
     imports: [],
-    params: '++id, levelId -> Level.id, name, type, color, isHuman, position, beliefPoints, totalBeliefGenerated, isActive, aiPersonality, statistics, [levelId+type], [levelId+isActive]',
+    params: '++id, levelId -> Level.id, name, type, color, isHuman, position, beliefPoints, totalBeliefGenerated, isActive, aiPersonality, statistics',
     defaultFields: {
       levelId: null,
       name: 'Divine Being',
@@ -106,7 +106,7 @@ export const Groups = [
   {
     group: 'Territory',
     imports: [],
-    params: '++id, playerId -> Player.id, center, radius, strength, influencePoints, lastUpdated, [playerId+lastUpdated]',
+    params: '++id, playerId -> Player.id, center, radius, strength, influencePoints, lastUpdated',
     defaultFields: {
       playerId: null,
       center: { x: 0, y: 0 },
@@ -119,7 +119,7 @@ export const Groups = [
   {
     group: 'Villager',
     imports: [],
-    params: '++id, playerId -> Player.id, levelId -> Level.id, name, position, velocity, health, happiness, age, state, task, homeId -> Building.id, workplaceId -> Building.id, personality, skills, relationships, lastUpdated, [playerId+state], [levelId+playerId], [homeId+playerId]',
+    params: '++id, playerId -> Player.id, levelId -> Level.id, name, position, velocity, health, happiness, age, state, task, homeId -> Building.id, workplaceId -> Building.id, personality, skills, relationships, lastUpdated',
     defaultFields: {
       playerId: null,
       levelId: null,
@@ -154,7 +154,7 @@ export const Groups = [
   {
     group: 'Building',
     imports: [],
-    params: '++id, playerId -> Player.id, levelId -> Level.id, name, type, position, size, health, level, isUnderConstruction, constructionProgress, workers, storage, production, lastProduced, capacity, efficiency, [playerId+type], [levelId+playerId], [type+isUnderConstruction]',
+    params: '++id, playerId -> Player.id, levelId -> Level.id, name, type, position, size, health, level, isUnderConstruction, constructionProgress, workers, storage, production, lastProduced, capacity, efficiency',
     defaultFields: {
       playerId: null,
       levelId: null,
@@ -181,7 +181,7 @@ export const Groups = [
   {
     group: 'Resource',
     imports: [],
-    params: '++id, levelId -> Level.id, type, position, amount, maxAmount, regenerationRate, isBeingHarvested, harvestProgress, harvesterId -> Villager.id, lastHarvested, [levelId+type], [type+amount]',
+    params: '++id, levelId -> Level.id, type, position, amount, maxAmount, regenerationRate, isBeingHarvested, harvestProgress, harvesterId -> Villager.id, lastHarvested',
     defaultFields: {
       levelId: null,
       type: 'tree', // 'tree' | 'berries' | 'stone_deposit' | 'water' | 'fertile_soil'
@@ -198,7 +198,7 @@ export const Groups = [
   {
     group: 'TerrainTile',
     imports: [],
-    params: '++id, levelId -> Level.id, position, type, fertility, walkable, waterLevel, temperature, [levelId+type]',
+    params: '++id, levelId -> Level.id, position, type, fertility, walkable, waterLevel, temperature',
     defaultFields: {
       levelId: null,
       position: { x: 0, y: 0 },
@@ -212,7 +212,7 @@ export const Groups = [
   {
     group: 'Path',
     imports: [],
-    params: '++id, levelId -> Level.id, playerId -> Player.id, name, pathType, nodes, usage, lastUsed, isActive, [levelId+playerId], [pathType+usage]',
+    params: '++id, levelId -> Level.id, playerId -> Player.id, name, pathType, nodes, usage, lastUsed, isActive',
     defaultFields: {
       levelId: null,
       playerId: null,
@@ -227,7 +227,7 @@ export const Groups = [
   {
     group: 'Miracle',
     imports: [],
-    params: '++id, levelId -> Level.id, playerId -> Player.id, type, position, power, cost, castTime, effects, duration, isActive, [levelId+playerId], [type+castTime]',
+    params: '++id, levelId -> Level.id, playerId -> Player.id, type, position, power, cost, castTime, effects, duration, isActive',
     defaultFields: {
       levelId: null,
       playerId: null,
@@ -244,7 +244,7 @@ export const Groups = [
   {
     group: 'Effect',
     imports: [],
-    params: '++id, miracleId -> Miracle.id, targetType, targetId, effectType, magnitude, duration, remainingTime, isExpired, [targetType+targetId], [miracleId+effectType]',
+    params: '++id, miracleId -> Miracle.id, targetType, targetId, effectType, magnitude, duration, remainingTime, isExpired',
     defaultFields: {
       miracleId: null,
       targetType: 'villager', // 'villager' | 'building' | 'resource' | 'terrain'
@@ -259,7 +259,7 @@ export const Groups = [
   {
     group: 'Event',
     imports: [],
-    params: '++id, levelId -> Level.id, type, timestamp, data, severity, isResolved, affectedEntities, [levelId+type], [timestamp+severity]',
+    params: '++id, levelId -> Level.id, type, timestamp, data, severity, isResolved, affectedEntities',
     defaultFields: {
       levelId: null,
       type: 'villager_born', // 'villager_born' | 'building_completed' | 'resource_depleted' | 'territory_expanded' | 'conflict'
@@ -273,7 +273,7 @@ export const Groups = [
   {
     group: 'Objective',
     imports: [],
-    params: '++id, levelId -> Level.id, name, description, type, targetValue, currentValue, isCompleted, completedAt, reward, [levelId+isCompleted], [type+isCompleted]',
+    params: '++id, levelId -> Level.id, name, description, type, targetValue, currentValue, isCompleted, completedAt, reward',
     defaultFields: {
       levelId: null,
       name: 'Divine Objective',
@@ -292,7 +292,7 @@ export const Groups = [
   {
     group: 'PlayerResources',
     imports: [],
-    params: '++id, playerId -> Player.id, resourceType, amount, maxCapacity, generationRate, lastUpdated, [playerId+resourceType]',
+    params: '++id, playerId -> Player.id, resourceType, amount, maxCapacity, generationRate, lastUpdated',
     defaultFields: {
       playerId: null,
       resourceType: 'food', // 'food' | 'wood' | 'stone' | 'belief'
@@ -305,7 +305,7 @@ export const Groups = [
   {
     group: 'SaveGame',
     imports: [],
-    params: '++id, gameId -> Game.id, name, timestamp, gameState, isAutoSave, description, [gameId+timestamp]',
+    params: '++id, gameId -> Game.id, name, timestamp, gameState, isAutoSave, description',
     defaultFields: {
       gameId: null,
       name: 'Divine Save',
@@ -318,7 +318,7 @@ export const Groups = [
   {
     group: 'Achievement',
     imports: [],
-    params: '++id, name, description, type, requirement, isUnlocked, unlockedAt, icon, rarity, [type+isUnlocked]',
+    params: '++id, name, description, type, requirement, isUnlocked, unlockedAt, icon, rarity',
     defaultFields: {
       name: 'Divine Achievement',
       description: 'A divine accomplishment',
@@ -333,7 +333,7 @@ export const Groups = [
   {
     group: 'Interaction',
     imports: [],
-    params: '++id, levelId -> Level.id, playerId -> Player.id, type, timestamp, sourceType, sourceId, targetType, targetId, data, [levelId+type], [playerId+timestamp]',
+    params: '++id, levelId -> Level.id, playerId -> Player.id, type, timestamp, sourceType, sourceId, targetType, targetId, data',
     defaultFields: {
       levelId: null,
       playerId: null,

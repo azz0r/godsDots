@@ -5,7 +5,7 @@ import { PathNode } from './PathNode.js'
  * Manages walkable/non-walkable areas and terrain costs
  */
 export class PathfindingGrid {
-  constructor(worldWidth, worldHeight, terrainSystem) {
+  constructor(worldWidth, worldHeight, terrainSystem = null) {
     this.worldWidth = worldWidth
     this.worldHeight = worldHeight
     this.terrainSystem = terrainSystem
@@ -23,7 +23,28 @@ export class PathfindingGrid {
     this.cacheTimeout = 5000 // Cache paths for 5 seconds
     this.maxCacheSize = 100
     
-    this.initializeGrid()
+    // Only initialize grid if we have a terrain system
+    if (this.terrainSystem) {
+      this.initializeGrid()
+    } else {
+      // Initialize with default walkable nodes
+      this.initializeDefaultGrid()
+    }
+  }
+
+  /**
+   * Initialize the grid with default walkable nodes
+   */
+  initializeDefaultGrid() {
+    for (let y = 0; y < this.height; y++) {
+      this.nodes[y] = []
+      for (let x = 0; x < this.width; x++) {
+        // Default to walkable grass terrain
+        const node = new PathNode(x, y, true, 'grass')
+        this.nodes[y][x] = node
+        this.nodeMap.set(`${x},${y}`, node)
+      }
+    }
   }
 
   /**
@@ -176,6 +197,72 @@ export class PathfindingGrid {
     }
 
     this.clearCache()
+  }
+
+  /**
+   * Set the terrain system and reinitialize grid
+   * @param {Object} terrainSystem - The terrain system to use
+   */
+  setTerrainSystem(terrainSystem) {
+    this.terrainSystem = terrainSystem
+    if (terrainSystem) {
+      this.initializeGrid()
+    }
+  }
+
+  /**
+   * Set walkability for a node at grid coordinates
+   * @param {number} x - Grid x coordinate
+   * @param {number} y - Grid y coordinate
+   * @param {boolean} walkable - Whether the node is walkable
+   */
+  setWalkable(x, y, walkable) {
+    const node = this.getNodeAt(x, y)
+    if (node) {
+      node.walkable = walkable
+      this.clearCache() // Clear path cache when walkability changes
+    }
+  }
+
+  /**
+   * Set movement cost for a node at grid coordinates
+   * @param {number} x - Grid x coordinate
+   * @param {number} y - Grid y coordinate
+   * @param {number} cost - Movement cost (1 = normal, higher = slower)
+   */
+  setCost(x, y, cost) {
+    const node = this.getNodeAt(x, y)
+    if (node) {
+      node.cost = cost
+      this.clearCache() // Clear path cache when costs change
+    }
+  }
+
+  /**
+   * Get walkable neighbors of a node
+   * @param {number} x - Grid x coordinate
+   * @param {number} y - Grid y coordinate
+   * @returns {Array<PathNode>} Array of walkable neighbor nodes
+   */
+  getNeighbors(x, y) {
+    const neighbors = []
+    
+    // Check all 8 directions
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue // Skip self
+        
+        const nx = x + dx
+        const ny = y + dy
+        const node = this.getNodeAt(nx, ny)
+        
+        if (node && node.walkable && !node.temporaryObstacle) {
+          neighbors.push(node)
+        }
+      }
+    }
+    
+    return neighbors
   }
 
   /**

@@ -5,6 +5,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
 }
 
 .ui {
@@ -14,4 +15,10 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 10;
+}
+
+/* Allow pointer events on all UI child elements */
+.ui > * {
+  pointer-events: auto;
 }

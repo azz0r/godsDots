@@ -238,13 +238,13 @@ export const useTerrainSystem = (worldSize) => {
   }, [])
 
   const setTerrain = (newTerrain) => {
-    terrain.length = 0
-    terrain.push(...newTerrain)
+    terrainRef.current.length = 0
+    terrainRef.current.push(...newTerrain)
   }
   
   const setSpawnPoints = (newSpawnPoints) => {
-    spawnPoints.length = 0
-    spawnPoints.push(...newSpawnPoints)
+    spawnPointsRef.current.length = 0
+    spawnPointsRef.current.push(...newSpawnPoints)
   }
 
   return {

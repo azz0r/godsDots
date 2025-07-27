@@ -60,11 +60,25 @@ export const useGameEngine = (gameContext = {}) => {
   const initializeGame = useCallback(async () => {
     console.log('🎮 Initializing game with integrated systems...')
     
+    // Ensure pathfindingGrid is initialized
+    let pathfindingGrid = gameContext.pathfindingGrid
+    if (!pathfindingGrid) {
+      console.log('Creating PathfindingGrid...')
+      pathfindingGrid = new PathfindingGrid(
+        worldSize.width,
+        worldSize.height
+      )
+      // Update the context if we have setPathfindingGrid
+      if (gameContext.setPathfindingGrid) {
+        gameContext.setPathfindingGrid(pathfindingGrid)
+      }
+    }
+    
     // Initialize game using the GameInitializer
     const gameInitializer = new GameInitializer({
       mapGenerator: gameContext.mapGenerator,
       landManager: gameContext.landManager,
-      pathfindingGrid: gameContext.pathfindingGrid
+      pathfindingGrid: pathfindingGrid
     })
     
     try {
@@ -108,6 +122,11 @@ export const useGameEngine = (gameContext = {}) => {
         resourceSystem.setResources(initialState.resources)
         terrainSystem.setSpawnPoints(initialState.spawnPoints)
         
+        // Set terrain system on pathfinding grid if needed
+        if (pathfindingGrid && !pathfindingGrid.terrainSystem) {
+          pathfindingGrid.setTerrainSystem(terrainSystem)
+        }
+        
         // Update game state
         setGameState(prev => ({ 
           ...prev, 
@@ -125,6 +144,11 @@ export const useGameEngine = (gameContext = {}) => {
       terrainSystem.setTerrain(initialState.terrain)
       resourceSystem.setResources(initialState.resources)
       terrainSystem.setSpawnPoints(initialState.spawnPoints)
+      
+      // Set terrain system on pathfinding grid if needed
+      if (pathfindingGrid && !pathfindingGrid.terrainSystem) {
+        pathfindingGrid.setTerrainSystem(terrainSystem)
+      }
       await createNewGame(null)
     }
   }, [gameContext, terrainSystem, resourceSystem, playerSystem, gameState.gameId])
@@ -915,60 +939,18 @@ export const useGameEngine = (gameContext = {}) => {
   }
 
   const renderLandBorders = (ctx) => {
+    if (!gameContext.landManager) return
+    
     const plots = gameContext.landManager.getAllPlots()
+    if (!plots || plots.length === 0) return
     
     plots.forEach(plot => {
+      if (!plot) return
+      
+      // Draw simple rectangle border around plot
       ctx.strokeStyle = plot.owner ? gameConfig.land.ownedBorderColor : gameConfig.land.borderColor
       ctx.lineWidth = gameConfig.land.borderWidth
-      
-      // Draw border around plot tiles
-      const tileSize = gameConfig.tileSize
-      const borderTiles = new Set()
-      
-      plot.tiles.forEach(tile => {
-        // Check each direction for border
-        const directions = [
-          { dx: 0, dy: -1 }, // up
-          { dx: 1, dy: 0 },  // right
-          { dx: 0, dy: 1 },  // down
-          { dx: -1, dy: 0 }  // left
-        ]
-        
-        directions.forEach(dir => {
-          const neighborX = tile.x + dir.dx
-          const neighborY = tile.y + dir.dy
-          const isInPlot = plot.tiles.some(t => t.x === neighborX && t.y === neighborY)
-          
-          if (!isInPlot) {
-            // This edge is a border
-            const key = `${tile.x},${tile.y},${dir.dx},${dir.dy}`
-            borderTiles.add(key)
-          }
-        })
-      })
-      
-      // Draw the borders
-      ctx.beginPath()
-      borderTiles.forEach(key => {
-        const [x, y, dx, dy] = key.split(',').map(Number)
-        const px = x * tileSize
-        const py = y * tileSize
-        
-        if (dx === 0 && dy === -1) { // top edge
-          ctx.moveTo(px, py)
-          ctx.lineTo(px + tileSize, py)
-        } else if (dx === 1 && dy === 0) { // right edge
-          ctx.moveTo(px + tileSize, py)
-          ctx.lineTo(px + tileSize, py + tileSize)
-        } else if (dx === 0 && dy === 1) { // bottom edge
-          ctx.moveTo(px, py + tileSize)
-          ctx.lineTo(px + tileSize, py + tileSize)
-        } else if (dx === -1 && dy === 0) { // left edge
-          ctx.moveTo(px, py)
-          ctx.lineTo(px, py + tileSize)
-        }
-      })
-      ctx.stroke()
+      ctx.strokeRect(plot.x, plot.y, plot.width, plot.height)
     })
   }
 

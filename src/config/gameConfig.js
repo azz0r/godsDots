@@ -30,20 +30,34 @@ const gameConfig = {
 
   // Terrain movement costs (for pathfinding)
   terrainCosts: {
-    plains: 1,
-    forest: 2,
+    grassland: 1,
+    forest: 1.5,
+    desert: 2,
+    savanna: 1.2,
+    tundra: 1.8,
+    hills: 2,
     mountain: 3,
+    snow: 2.5,
     water: Infinity, // Impassable
-    desert: 1.5
+    deepWater: Infinity,
+    river: Infinity,
+    plains: 1 // Fallback
   },
 
   // Terrain values (for land pricing)
   terrainValues: {
-    plains: 10,
+    grassland: 10,
     forest: 15,
+    desert: 3,
+    savanna: 8,
+    tundra: 2,
+    hills: 5,
     mountain: 5,
+    snow: 1,
     water: 0,
-    desert: 3
+    deepWater: 0,
+    river: 0,
+    plains: 10 // Fallback
   },
 
   // Land management
