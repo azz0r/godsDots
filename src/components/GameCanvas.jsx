@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import styles from '../styles/GameCanvas.module.css'
 import { usePixelPerfectMovement } from '../hooks/usePixelPerfectMovement'
 
-const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillagerSelect, onVillagerCommand, showPaths, showLandBorders, hoveredEntity }) => {
+const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillagerSelect, onVillagerCommand, showPaths, showLandBorders, hoveredEntity, gestureRecognizer, miracleSystem, onGestureStart, onGestureUpdate, onGestureComplete }) => {
   const pixelPerfect = usePixelPerfectMovement()
   const eventHandlersRef = useRef({})
   const lastClickTimeRef = useRef(0)
   const DOUBLE_CLICK_DELAY = 300 // milliseconds
+  const gestureStartRef = useRef(null)
 
   // Create event handlers that will be attached natively
   useEffect(() => {
@@ -16,6 +17,21 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillag
       const rect = canvas.getBoundingClientRect()
       const clickX = e.clientX - rect.left
       const clickY = e.clientY - rect.top
+      
+      // Convert to world coordinates
+      const worldX = clickX / game.camera.zoom + game.camera.x
+      const worldY = clickY / game.camera.zoom + game.camera.y
+      
+      // Check for gesture mode (Ctrl + left click)
+      if (e.ctrlKey && e.button === 0 && gestureRecognizer && miracleSystem) {
+        gestureStartRef.current = { x: worldX, y: worldY }
+        gestureRecognizer.startRecording(worldX, worldY)
+        miracleSystem.startCasting(null, worldX, worldY)
+        if (onGestureStart) {
+          onGestureStart(worldX, worldY)
+        }
+        return
+      }
       
       // Check for double-click
       const currentTime = Date.now()
@@ -57,6 +73,18 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillag
       // Convert to world coordinates
       const worldX = mouseX / game.camera.zoom + game.camera.x
       const worldY = mouseY / game.camera.zoom + game.camera.y
+      
+      // Check if we were drawing a gesture
+      if (gestureStartRef.current && gestureRecognizer) {
+        const gestureResult = gestureRecognizer.stopRecording()
+        if (gestureResult && miracleSystem) {
+          if (onGestureComplete) {
+            onGestureComplete(gestureResult, worldX, worldY)
+          }
+        }
+        gestureStartRef.current = null
+        return
+      }
       
       if (game.mouse.down) {
         // Check if this was a click or drag
@@ -101,6 +129,22 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillag
       const rect = canvas.getBoundingClientRect()
       game.mouse.x = e.clientX - rect.left
       game.mouse.y = e.clientY - rect.top
+      
+      // Convert to world coordinates
+      const worldX = game.mouse.x / game.camera.zoom + game.camera.x
+      const worldY = game.mouse.y / game.camera.zoom + game.camera.y
+      
+      // If drawing a gesture, record the point
+      if (gestureStartRef.current && gestureRecognizer) {
+        gestureRecognizer.recordPoint(worldX, worldY)
+        if (miracleSystem) {
+          miracleSystem.updateCasting(worldX, worldY)
+        }
+        if (onGestureUpdate) {
+          onGestureUpdate(worldX, worldY)
+        }
+        return
+      }
       
       if (game.mouse.down && !selectedPower) {
         const dragDistance = Math.sqrt(

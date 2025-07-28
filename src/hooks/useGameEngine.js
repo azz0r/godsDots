@@ -24,6 +24,12 @@ import { DayNightSystem } from '../systems/DayNightSystem'
 import { BuildingUpgradeSystem } from '../systems/BuildingUpgradeSystem'
 import { VillageExpansionAI } from '../systems/VillageExpansionAI'
 
+// Import miracle, preacher, and impressiveness systems
+import { miracleSystem } from '../systems/MiracleSystem'
+import { preacherSystem } from '../systems/PreacherSystem'
+import { impressivenessSystem } from '../systems/ImpressivenessSystem'
+import { GestureRecognizer } from '../systems/GestureRecognizer'
+
 export const useGameEngine = (gameContext = {}) => {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
@@ -39,6 +45,12 @@ export const useGameEngine = (gameContext = {}) => {
   const dayNightSystemRef = useRef(new DayNightSystem())
   const buildingUpgradeSystemRef = useRef(new BuildingUpgradeSystem())
   const villageExpansionAIRef = useRef(new VillageExpansionAI())
+  
+  // Initialize miracle, preacher, and impressiveness systems
+  const gestureRecognizerRef = useRef(new GestureRecognizer())
+  const miracleSystemRef = useRef(miracleSystem)
+  const preacherSystemRef = useRef(preacherSystem)
+  const impressivenessSystemRef = useRef(impressivenessSystem)
   
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 })
   const mouseRef = useRef({ x: 0, y: 0, down: false, lastX: 0, lastY: 0 })
@@ -58,7 +70,12 @@ export const useGameEngine = (gameContext = {}) => {
     selectedVillagerIds: [],
     hoveredEntity: null, // Track what's being hovered
     currentTime: 'day', // Track day/night cycle
-    timeOfDay: 0 // 0-1 representing time of day
+    timeOfDay: 0, // 0-1 representing time of day
+    // Gesture and miracle casting state
+    isDrawingGesture: false,
+    gesturePoints: [],
+    currentMiracle: null,
+    miracleCooldowns: {}
   })
 
   // Initialize all systems with integrated pathfinding and land management
@@ -78,6 +95,11 @@ export const useGameEngine = (gameContext = {}) => {
       gameContext.setPathfindingGrid(grid)
     }
   }, [terrainSystem, gameContext, worldSize])
+
+  // Initialize impressiveness grid once
+  useEffect(() => {
+    impressivenessSystemRef.current.initializeGrid(worldSize.width, worldSize.height)
+  }, [worldSize])
 
   const initializeGame = useCallback(async () => {
     console.log('🎮 Initializing game with integrated systems...')
@@ -801,6 +823,31 @@ export const useGameEngine = (gameContext = {}) => {
         }
       })
       
+      // Update impressiveness for buildings
+      player.buildings.forEach(building => {
+        if (!building.isUnderConstruction) {
+          // Add contextual data for impressiveness calculation
+          building.nearWater = terrainSystem.getTerrainAt(building.x, building.y)?.type === 'water_shallow'
+          building.elevation = terrainSystem.getTerrainAt(building.x, building.y)?.elevation || 0
+          building.nearRoads = pathSystem.getNearbyPaths(building.x + building.width/2, building.y + building.height/2, 100).length
+          
+          const influence = impressivenessSystemRef.current.updateBuildingInfluence(building)
+          
+          // Visual feedback for impressive buildings
+          if (influence.impressiveness > 5 && gameTimeRef.current % 120 === 0) {
+            visualEffectsRef.current.createSparkle(
+              building.x + building.width/2, 
+              building.y + building.height/2, 
+              {
+                particleCount: Math.floor(influence.impressiveness),
+                colors: [influence.auraColor, '#ffffff'],
+                duration: 1500
+              }
+            )
+          }
+        }
+      })
+      
       // Update building upgrades
       if (gameTimeRef.current % 180 === 0) { // Every 3 seconds
         player.buildings.forEach(building => {
@@ -877,6 +924,54 @@ export const useGameEngine = (gameContext = {}) => {
         player.beliefPoints = Math.min(2000, player.beliefPoints)
       }
     })
+    
+    // Update preachers
+    preacherSystemRef.current.updatePreachers(deltaTime, {
+      players: playerSystem.players,
+      entities: playerSystem.players.flatMap(p => p.villagers)
+    })
+    
+    // Update miracles
+    miracleSystemRef.current.updateMiracles(deltaTime, {
+      entities: playerSystem.players.flatMap(p => p.villagers),
+      terrain: terrainSystem,
+      buildings: playerSystem.players.flatMap(p => p.buildings)
+    })
+    
+    // Apply impressiveness effects to entities
+    impressivenessSystemRef.current.applyInfluenceEffects(
+      playerSystem.players.flatMap(p => p.villagers),
+      playerSystem.players.flatMap(p => p.buildings),
+      deltaTime
+    )
+    
+    // Check for villager attraction (impressive buildings attract new villagers)
+    if (gameTimeRef.current % 600 === 0) { // Every 10 seconds
+      playerSystem.players.forEach(player => {
+        const attraction = impressivenessSystemRef.current.checkVillagerAttraction(player, deltaTime)
+        if (attraction) {
+          // Create new villager at impressive building
+          const newVillager = {
+            ...villagerNeedsSystemRef.current.initializeVillager(),
+            id: `villager_${player.id}_${Date.now()}`,
+            x: attraction.spawnPoint.x,
+            y: attraction.spawnPoint.y,
+            playerId: player.id,
+            state: 'wandering',
+            happiness: 80 // Happy to join impressive civilization
+          }
+          player.villagers.push(newVillager)
+          player.population++
+          
+          // Visual effect for new villager
+          visualEffectsRef.current.createSparkle(attraction.spawnPoint.x, attraction.spawnPoint.y, {
+            particleCount: 20,
+            colors: ['#ffd700', '#ffffff'],
+            duration: 2000
+          })
+        }
+      })
+    }
     
     // Update AI players
     aiSystem.updateAIPlayers(gameTimeRef.current, playerSystem.players)
@@ -1577,6 +1672,141 @@ export const useGameEngine = (gameContext = {}) => {
       renderBuildingPreview(ctx)
     }
     
+    // Render impressiveness auras
+    const auraEffects = impressivenessSystemRef.current.getAuraEffects()
+    auraEffects.forEach(aura => {
+      const building = playerSystem.players.flatMap(p => p.buildings).find(b => b.id === aura.buildingId)
+      if (building) {
+        ctx.save()
+        ctx.globalAlpha = 0.3 * aura.intensity
+        
+        // Draw pulsing aura
+        const pulse = Math.sin(gameTimeRef.current * 0.001 * aura.pulseSpeed) * 0.2 + 0.8
+        const gradient = ctx.createRadialGradient(
+          building.x + building.width/2, 
+          building.y + building.height/2, 
+          0,
+          building.x + building.width/2, 
+          building.y + building.height/2, 
+          aura.radius * pulse
+        )
+        gradient.addColorStop(0, aura.color)
+        gradient.addColorStop(1, 'transparent')
+        
+        ctx.fillStyle = gradient
+        ctx.beginPath()
+        ctx.arc(
+          building.x + building.width/2, 
+          building.y + building.height/2, 
+          aura.radius * pulse, 
+          0, 
+          Math.PI * 2
+        )
+        ctx.fill()
+        ctx.restore()
+      }
+    })
+    
+    // Render preacher influence fields
+    const influenceFields = preacherSystemRef.current.getInfluenceFields()
+    influenceFields.forEach(field => {
+      ctx.save()
+      ctx.globalAlpha = 0.2
+      
+      const gradient = ctx.createRadialGradient(
+        field.center.x, field.center.y, 0,
+        field.center.x, field.center.y, field.radius
+      )
+      gradient.addColorStop(0, field.color)
+      gradient.addColorStop(1, 'transparent')
+      
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.arc(field.center.x, field.center.y, field.radius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    })
+    
+    // Render conversion beams
+    const conversionBeams = preacherSystemRef.current.getConversionBeams()
+    conversionBeams.forEach(beam => {
+      const fromVillager = playerSystem.players.flatMap(p => p.villagers).find(v => v.id === beam.from)
+      const toVillager = playerSystem.players.flatMap(p => p.villagers).find(v => v.id === beam.to)
+      
+      if (fromVillager && toVillager) {
+        ctx.save()
+        ctx.strokeStyle = beam.color
+        ctx.lineWidth = 3 * beam.intensity
+        ctx.globalAlpha = 0.6 * beam.intensity
+        ctx.setLineDash([5, 5])
+        
+        ctx.beginPath()
+        ctx.moveTo(fromVillager.x, fromVillager.y - 10)
+        ctx.lineTo(toVillager.x, toVillager.y - 10)
+        ctx.stroke()
+        
+        // Draw sparkles along the beam
+        const steps = 5
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps
+          const x = fromVillager.x + (toVillager.x - fromVillager.x) * t
+          const y = (fromVillager.y - 10) + (toVillager.y - 10 - (fromVillager.y - 10)) * t
+          
+          ctx.fillStyle = beam.color
+          ctx.globalAlpha = Math.sin(gameTimeRef.current * 0.01 + i) * 0.5 + 0.5
+          ctx.beginPath()
+          ctx.arc(x, y, 2, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        
+        ctx.restore()
+      }
+    })
+    
+    // Render active miracles
+    const activeMiracles = miracleSystemRef.current.getActiveMiracles()
+    activeMiracles.forEach(miracle => {
+      if (miracle.name === 'Shield of Faith' && miracle.shieldBounds) {
+        ctx.save()
+        ctx.strokeStyle = miracle.particleColor
+        ctx.lineWidth = 3
+        ctx.globalAlpha = 0.6
+        ctx.setLineDash([10, 5])
+        
+        ctx.strokeRect(
+          miracle.shieldBounds.x,
+          miracle.shieldBounds.y,
+          miracle.shieldBounds.width,
+          miracle.shieldBounds.height
+        )
+        ctx.restore()
+      }
+    })
+    
+    // Render miracle preview if casting
+    if (gameState.isDrawingGesture) {
+      const preview = miracleSystemRef.current.getMiraclePreview()
+      if (preview) {
+        ctx.save()
+        ctx.globalAlpha = 0.5
+        ctx.strokeStyle = preview.color
+        ctx.lineWidth = 2
+        ctx.setLineDash([5, 5])
+        
+        if (preview.radius !== 'drawn' && preview.radius !== 'target') {
+          ctx.beginPath()
+          ctx.arc(preview.location.x, preview.location.y, preview.radius, 0, Math.PI * 2)
+          ctx.stroke()
+        }
+        
+        ctx.fillStyle = preview.color
+        ctx.font = 'bold 14px Arial'
+        ctx.textAlign = 'center'
+        ctx.fillText(preview.name, preview.location.x, preview.location.y - preview.radius - 10)
+        ctx.restore()
+      }
+    }
+    
     // Render debug info if enabled
     if (debugModeRef.current || gameContext.debugMode) {
       renderDebugInfo(ctx)
@@ -1816,7 +2046,11 @@ export const useGameEngine = (gameContext = {}) => {
       profession: professionSystemRef.current,
       dayNight: dayNightSystemRef.current,
       buildingUpgrade: buildingUpgradeSystemRef.current,
-      villageExpansion: villageExpansionAIRef.current
+      villageExpansion: villageExpansionAIRef.current,
+      miracle: miracleSystemRef.current,
+      preacher: preacherSystemRef.current,
+      impressiveness: impressivenessSystemRef.current,
+      gestureRecognizer: gestureRecognizerRef.current
     }
   }
 }

@@ -24,7 +24,8 @@ const GameContainer = ({ gameContext }) => {
     hoveredTile,
     selectedTile,
     handleVillagerSelect,
-    handleVillagerCommand
+    handleVillagerCommand,
+    systems
   } = useGameEngine(gameContext)
   
   const {
@@ -48,6 +49,32 @@ const GameContainer = ({ gameContext }) => {
       console.log('Game saved successfully!')
     }
   }
+  
+  // Gesture handling for miracle casting
+  const handleGestureStart = useCallback((x, y) => {
+    // Update game state to show gesture is being drawn
+    // This is handled in the game engine through miracleSystem
+  }, [])
+  
+  const handleGestureUpdate = useCallback((x, y) => {
+    // Update gesture preview
+    // This is handled in the game engine through miracleSystem
+  }, [])
+  
+  const handleGestureComplete = useCallback((gestureResult, x, y) => {
+    // Get the human player
+    const humanPlayer = systems.players.players.find(p => p.id === gameState.humanPlayerId)
+    if (!humanPlayer) return
+    
+    // Complete the miracle casting
+    const result = systems.miracle.completeCasting(humanPlayer, gestureResult)
+    if (!result.success) {
+      console.log('Miracle casting failed:', result.reason)
+      // Could show error message to player
+    } else {
+      console.log('Miracle cast successfully:', result.message)
+    }
+  }, [systems, gameState.humanPlayerId])
   
   const handleTileClick = useCallback((x, y) => {
     if (gameState.selectedPower === 'landManagement') {
@@ -74,6 +101,11 @@ const GameContainer = ({ gameContext }) => {
         showPaths={showPaths}
         landManager={gameContext.landManager}
         hoveredEntity={gameState.hoveredEntity}
+        gestureRecognizer={systems.gestureRecognizer}
+        miracleSystem={systems.miracle}
+        onGestureStart={handleGestureStart}
+        onGestureUpdate={handleGestureUpdate}
+        onGestureComplete={handleGestureComplete}
       />
       
       <div className={styles.ui}>
