@@ -421,6 +421,48 @@ export class ProfessionSystem {
   }
 
   /**
+   * Analyze village needs to determine which professions are needed
+   */
+  analyzeVillageNeeds(player) {
+    const needs = {
+      FARMER: 0,
+      BUILDER: 0,
+      PRIEST: 0,
+      SOLDIER: 0,
+      SCHOLAR: 0
+    }
+
+    // Count existing professions
+    const professionCounts = {}
+    for (const profession of Object.keys(this.PROFESSIONS)) {
+      professionCounts[profession] = player.villagers.filter(v => v.profession === profession).length
+    }
+
+    // Analyze needs based on village state
+    const totalVillagers = player.villagers.length
+    const buildingCount = player.buildings.length
+    const templeCount = player.buildings.filter(b => b.type === 'temple').length
+    
+    // Need farmers based on population
+    needs.FARMER = Math.max(0, Math.ceil(totalVillagers * 0.3) - (professionCounts.FARMER || 0))
+    
+    // Need builders based on construction
+    const underConstruction = player.buildings.filter(b => b.isUnderConstruction).length
+    needs.BUILDER = Math.max(0, Math.ceil(underConstruction * 0.5 + buildingCount * 0.1) - (professionCounts.BUILDER || 0))
+    
+    // Need priests based on temples
+    needs.PRIEST = Math.max(0, templeCount - (professionCounts.PRIEST || 0))
+    
+    // Need soldiers for defense (10% of population)
+    needs.SOLDIER = Math.max(0, Math.ceil(totalVillagers * 0.1) - (professionCounts.SOLDIER || 0))
+    
+    // Need scholars for research (5% of population)
+    needs.SCHOLAR = Math.max(0, Math.ceil(totalVillagers * 0.05) - (professionCounts.SCHOLAR || 0))
+
+    return needs
+  }
+
+  /**
    * Get profession statistics for UI
    */
   getProfessionStats(player) {

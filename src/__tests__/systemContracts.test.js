@@ -163,6 +163,54 @@ describe('System Contracts', () => {
     })
   })
   
+  describe('ProfessionSystem', () => {
+    let system
+    
+    beforeEach(() => {
+      system = new ProfessionSystem()
+    })
+    
+    test('should expose all required methods', () => {
+      // Methods called by useGameEngine
+      expect(typeof system.analyzeVillageNeeds).toBe('function')
+      expect(typeof system.assignProfession).toBe('function')
+      expect(typeof system.updateTraining).toBe('function')
+      expect(typeof system.getProfessionStats).toBe('function')
+      expect(typeof system.gainExperience).toBe('function')
+      expect(typeof system.startTraining).toBe('function')
+    })
+    
+    test('analyzeVillageNeeds should return needs object', () => {
+      const player = {
+        villagers: [
+          { profession: 'FARMER' },
+          { profession: 'FARMER' },
+          { profession: 'BUILDER' }
+        ],
+        buildings: [
+          { type: 'house' },
+          { type: 'temple' },
+          { type: 'farm', isUnderConstruction: true }
+        ]
+      }
+      
+      const needs = system.analyzeVillageNeeds(player)
+      
+      expect(needs).toBeDefined()
+      expect(needs).toHaveProperty('FARMER')
+      expect(needs).toHaveProperty('BUILDER')
+      expect(needs).toHaveProperty('PRIEST')
+      expect(needs).toHaveProperty('SOLDIER')
+      expect(needs).toHaveProperty('SCHOLAR')
+      
+      // All needs should be numbers
+      Object.values(needs).forEach(value => {
+        expect(typeof value).toBe('number')
+        expect(value).toBeGreaterThanOrEqual(0)
+      })
+    })
+  })
+  
   describe('Cross-System Dependencies', () => {
     test('all systems should be instantiable', () => {
       const systems = {

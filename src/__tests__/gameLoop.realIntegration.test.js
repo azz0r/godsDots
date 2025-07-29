@@ -279,6 +279,31 @@ describe('Real Game Loop Integration', () => {
     expect(worshipErrors).toHaveLength(0)
   })
 
+  test('should handle profession system updates without errors', async () => {
+    const hook = renderHook(() => useGameEngine())
+    result = hook.result
+    unmount = hook.unmount
+    
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 500))
+    })
+    
+    // Run for 300+ frames to trigger profession update (happens every 300 frames)
+    await act(async () => {
+      for (let i = 0; i < 310; i++) {
+        result.current.update?.(16)
+        await new Promise(resolve => setTimeout(resolve, 5))
+      }
+    })
+    
+    // No profession system errors
+    const professionErrors = errors.filter(e => 
+      e.some(arg => String(arg).includes('analyzeVillageNeeds') || 
+                    String(arg).includes('assignProfession'))
+    )
+    expect(professionErrors).toHaveLength(0)
+  })
+  
   test('should handle all system interactions without type errors', async () => {
     const hook = renderHook(() => useGameEngine())
     result = hook.result
