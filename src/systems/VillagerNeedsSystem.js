@@ -104,6 +104,9 @@ export class VillagerNeedsSystem {
    * Update all needs for a villager
    */
   updateVillagerNeeds(villager, deltaTime, environment) {
+    // Guard against null/undefined villager
+    if (!villager) return
+    
     // Initialize needs if not present
     if (!villager.needs) {
       const initialized = this.initializeVillager()

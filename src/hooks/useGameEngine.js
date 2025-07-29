@@ -853,7 +853,7 @@ export const useGameEngine = (gameContext = {}) => {
           // Add contextual data for impressiveness calculation
           building.nearWater = terrainSystem.getTerrainAt(building.x, building.y)?.type === 'water_shallow'
           building.elevation = terrainSystem.getTerrainAt(building.x, building.y)?.elevation || 0
-          building.nearRoads = pathSystem.getNearbyPaths(building.x + building.width/2, building.y + building.height/2, 100).length
+          building.nearRoads = 0 // TODO: Implement path detection when pathSystem has getNearbyPaths
           
           const influence = impressivenessSystemRef.current.updateBuildingInfluence(building)
           
