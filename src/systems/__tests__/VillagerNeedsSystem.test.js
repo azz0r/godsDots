@@ -193,6 +193,60 @@ describe('VillagerNeedsSystem', () => {
     })
   })
 
+  describe('getNeedsSatisfaction', () => {
+    test('should calculate overall satisfaction correctly', () => {
+      const villager = {
+        needs: {
+          hunger: 100, // Max
+          rest: 100,   // Max
+          faith: 100,  // Max
+          social: 100  // Max
+        }
+      }
+      
+      const satisfaction = system.getNeedsSatisfaction(villager)
+      expect(satisfaction).toBe(1.0)
+    })
+
+    test('should handle low needs', () => {
+      const villager = {
+        needs: {
+          hunger: 0,
+          rest: 0,
+          faith: 0,
+          social: 0
+        }
+      }
+      
+      const satisfaction = system.getNeedsSatisfaction(villager)
+      expect(satisfaction).toBe(0)
+    })
+
+    test('should handle average needs', () => {
+      const villager = {
+        needs: {
+          hunger: 50,
+          rest: 50,
+          faith: 50,
+          social: 50
+        }
+      }
+      
+      const satisfaction = system.getNeedsSatisfaction(villager)
+      expect(satisfaction).toBe(0.5)
+    })
+
+    test('should handle null villager', () => {
+      const satisfaction = system.getNeedsSatisfaction(null)
+      expect(satisfaction).toBe(0)
+    })
+
+    test('should handle villager without needs', () => {
+      const satisfaction = system.getNeedsSatisfaction({})
+      expect(satisfaction).toBe(0)
+    })
+  })
+
   describe('mood effects', () => {
     test('should increase happiness when all needs are satisfied', () => {
       villager.needs = {

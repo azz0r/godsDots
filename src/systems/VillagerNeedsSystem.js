@@ -361,6 +361,23 @@ export class VillagerNeedsSystem {
     if (value <= config.critical) return 'critical'
     return 'normal'
   }
+
+  /**
+   * Get overall needs satisfaction as a value from 0 to 1
+   */
+  getNeedsSatisfaction(villager) {
+    if (!villager || !villager.needs) return 0
+    
+    const needs = villager.needs
+    const satisfaction = (
+      (needs.hunger / this.NEEDS.HUNGER.max) +
+      (needs.rest / this.NEEDS.REST.max) +
+      (needs.faith / this.NEEDS.FAITH.max) +
+      (needs.social / this.NEEDS.SOCIAL.max)
+    ) / 4
+    
+    return Math.max(0, Math.min(1, satisfaction))
+  }
 }
 
 // Export singleton
