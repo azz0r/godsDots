@@ -71,6 +71,31 @@ export class VillagerNeedsSystem {
     villager.moodModifier = 1.0
   }
 
+  /**
+   * Create a new villager with initialized needs
+   */
+  initializeVillager() {
+    const needs = {
+      hunger: this.randomizeStartingNeed(this.NEEDS.HUNGER),
+      rest: this.randomizeStartingNeed(this.NEEDS.REST),
+      faith: this.randomizeStartingNeed(this.NEEDS.FAITH),
+      social: this.randomizeStartingNeed(this.NEEDS.SOCIAL)
+    }
+
+    return {
+      needs,
+      needPriority: null,
+      seeking: null,
+      moodModifier: 1.0,
+      mood: 'content',
+      happiness: 75,
+      health: 100,
+      energy: 80,
+      hunger: needs.hunger, // Legacy property
+      conversionResistance: 1.0
+    }
+  }
+
   randomizeStartingNeed(needConfig) {
     return needConfig.satisfied + (Math.random() * 20 - 10)
   }
