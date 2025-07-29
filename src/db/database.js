@@ -69,7 +69,7 @@ export const dbService = {
   },
 
   async getActiveLevel(gameId) {
-    return await db.Level.where({ gameId, isActive: true }).first()
+    return await db.Level.where('gameId').equals(gameId).and(level => level.isActive === true).first()
   },
 
   // Player management

@@ -1,5 +1,5 @@
 // God Dots - DexieJS Database Schema
-export const version = 4
+export const version = 5
 
 export const name = `GodDots001`
 const lightStandard = '++id, name'
@@ -42,7 +42,7 @@ export const Groups = [
   {
     group: 'Level',
     imports: [],
-    params: '++id, gameId, levelNumber, name, terrainSeed, isActive, completedAt, [gameId+isActive]',
+    params: '++id, gameId, levelNumber, name, terrainSeed, isActive, completedAt',
     defaultFields: {
       gameId: 1,
       levelNumber: 1,

@@ -258,8 +258,8 @@ export const useBuildingSystemWithLand = (worldSize, terrainSystem, landManager,
     player.buildings.forEach(building => {
       // Get plot information for enhanced rendering
       let plotInfo = null
-      if (landManagement) {
-        const plot = landManagement.getPlotAt(
+      if (landManager) {
+        const plot = landManager.getPlotAt(
           building.x + building.width / 2,
           building.y + building.height / 2
         )

@@ -29,7 +29,7 @@ export async function clearOldDatabase() {
 
 // Check if we need to clear the database
 export async function checkAndClearIfNeeded() {
-  const CLEARED_FLAG_KEY = 'godDots_db_v4_cleared'
+  const CLEARED_FLAG_KEY = 'godDots_db_v5_cleared'
   
   // Check if we've already cleared for v3
   if (localStorage.getItem(CLEARED_FLAG_KEY) === 'true') {
