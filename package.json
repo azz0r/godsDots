@@ -12,7 +12,11 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:visual": "playwright test",
-    "test:visual:update": "playwright test --update-snapshots"
+    "test:visual:update": "playwright test --update-snapshots",
+    "test:runtime": "jest --testNamePattern='Real Game Loop Integration'",
+    "test:contracts": "jest --testNamePattern='System Contracts'",
+    "test:critical": "jest src/__tests__/systemContracts.test.js src/__tests__/gameLoop.realIntegration.test.js src/__tests__/criticalErrors.test.js",
+    "precommit": "npm run test:critical"
   },
   "dependencies": {
     "dexie": "^4.0.11",
