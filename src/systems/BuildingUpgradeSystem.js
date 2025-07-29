@@ -301,6 +301,39 @@ export class BuildingUpgradeSystem {
   }
 
   /**
+   * Check if a building is eligible for upgrade
+   */
+  checkUpgradeEligibility(building, player) {
+    if (!building || building.isUnderConstruction || building.upgrading) {
+      return null
+    }
+
+    const upgradePath = this.UPGRADE_PATHS[building.type]
+    if (!upgradePath) return null
+
+    const nextLevel = building.level + 1
+    const upgrade = upgradePath[`level${nextLevel}`]
+    if (!upgrade) return null
+
+    // Check requirements
+    if (upgrade.requires) {
+      const hasRequirements = upgrade.requires.every(req => 
+        player.technologies?.includes(req) || player.unlockedBuildings?.includes(req)
+      )
+      if (!hasRequirements) return null
+    }
+
+    // Return upgrade info with cost
+    return {
+      level: nextLevel,
+      name: upgrade.name,
+      cost: upgrade.cost.gold || 50, // Simplified cost for belief points
+      benefits: upgrade.benefits,
+      buildTime: upgrade.buildTime
+    }
+  }
+
+  /**
    * Update upgrade progress
    */
   updateUpgrades(buildings, deltaTime) {
