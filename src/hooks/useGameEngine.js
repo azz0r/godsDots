@@ -145,6 +145,10 @@ export const useGameEngine = (gameContext = {}) => {
       if (!level) {
         const levelId = await dbService.createLevel(game.id)
         level = await dbService.getActiveLevel(game.id)
+        
+        if (!level) {
+          throw new Error('Failed to create or retrieve level')
+        }
       }
       
       setGameState(prev => ({ ...prev, levelId: level.id }))
@@ -816,24 +820,32 @@ export const useGameEngine = (gameContext = {}) => {
       
       // Update worship system for temples
       const temples = player.buildings.filter(b => b.type === 'temple' && !b.isUnderConstruction)
-      temples.forEach(temple => {
-        const worshippers = player.villagers.filter(v => {
-          const distance = Math.sqrt((v.x - temple.x) ** 2 + (v.y - temple.y) ** 2)
-          return distance < 100
-        })
-        const worship = worshipSystemRef.current.updateWorship(temple, worshippers, deltaTime)
-        if (worship.beliefGenerated > 0) {
-          player.beliefPoints += worship.beliefGenerated
-          // Create worship effects
-          if (gameTimeRef.current % 60 === 0) {
-            visualEffectsRef.current.createSparkle(temple.x + temple.width/2, temple.y, {
-              particleCount: 5,
-              colors: ['#ffd700', '#ffffff'],
-              duration: 1000
-            })
+      if (temples.length > 0) {
+        // Call updateWorship once with all players and temples
+        worshipSystemRef.current.updateWorship([player], temples, deltaTime)
+        
+        // Handle belief generation for each temple
+        temples.forEach(temple => {
+          const worshippers = player.villagers.filter(v => {
+            const distance = Math.sqrt((v.x - temple.x) ** 2 + (v.y - temple.y) ** 2)
+            return distance < 100
+          })
+          
+          if (worshippers.length > 0) {
+            const beliefGenerated = worshippers.length * 0.1 * (deltaTime / 1000)
+            player.beliefPoints += beliefGenerated
+            
+            // Create worship effects
+            if (gameTimeRef.current % 60 === 0 && beliefGenerated > 0) {
+              visualEffectsRef.current.createSparkle(temple.x + temple.width/2, temple.y, {
+                particleCount: 5,
+                colors: ['#ffd700', '#ffffff'],
+                duration: 1000
+              })
+            }
           }
-        }
-      })
+        })
+      }
       
       // Update impressiveness for buildings
       player.buildings.forEach(building => {
