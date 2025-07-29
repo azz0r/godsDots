@@ -4,20 +4,19 @@ import styles from '../styles/TopBar.module.css'
 const TopBar = ({ beliefPoints, population, timeInfo, onSave, onZoomOut, onTempleView }) => {
   const getTimeEmoji = () => {
     if (!timeInfo) return '🌅'
-    switch (timeInfo.currentPeriod) {
-      case 'dawn': return '🌅'
-      case 'day': return '☀️'
-      case 'dusk': return '🌇'
-      case 'night': return '🌙'
+    switch (timeInfo.period) {
+      case 'DAWN': return '🌅'
+      case 'MORNING': return '☀️'
+      case 'AFTERNOON': return '☀️'
+      case 'DUSK': return '🌇'
+      case 'NIGHT': return '🌙'
       default: return '☀️'
     }
   }
   
   const formatTime = () => {
-    if (!timeInfo) return 'Day'
-    const hours = Math.floor(timeInfo.hour)
-    const minutes = Math.floor((timeInfo.hour - hours) * 60)
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+    if (!timeInfo) return 'Day 1'
+    return `Day ${timeInfo.day} - ${timeInfo.time}`
   }
   
   return (
@@ -29,6 +28,9 @@ const TopBar = ({ beliefPoints, population, timeInfo, onSave, onZoomOut, onTempl
       </div>
       <div className={styles.gameTitle}>God Dots</div>
       <div className={styles.controls}>
+        <span className={styles.helpText} title="Hold Ctrl and drag to draw gestures">
+          ✨ Ctrl+Drag for Miracles
+        </span>
         <button onClick={onZoomOut} className={styles.controlButton}>
           🌍 World View
         </button>
