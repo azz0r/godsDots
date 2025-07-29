@@ -720,12 +720,13 @@ export const useGameEngine = (gameContext = {}) => {
     const deltaTime = 16 // Assuming 60fps
     
     // Update day/night cycle
-    const dayNightState = dayNightSystemRef.current.updateTime(deltaTime)
-    if (dayNightState.timeOfDay !== gameState.timeOfDay || dayNightState.currentPeriod !== gameState.currentTime) {
+    dayNightSystemRef.current.updateTime(deltaTime)
+    const timeDisplay = dayNightSystemRef.current.getTimeDisplay()
+    if (timeDisplay.period !== gameState.currentTime || timeDisplay.lighting !== gameState.timeOfDay) {
       setGameState(prev => ({ 
         ...prev, 
-        timeOfDay: dayNightState.timeOfDay,
-        currentTime: dayNightState.currentPeriod
+        timeOfDay: timeDisplay.lighting,
+        currentTime: timeDisplay.period
       }))
     }
     
@@ -1586,7 +1587,7 @@ export const useGameEngine = (gameContext = {}) => {
   
   // Get current time info for UI
   const getTimeInfo = useCallback(() => {
-    return dayNightSystemRef.current.getTimeInfo()
+    return dayNightSystemRef.current.getTimeDisplay()
   }, [])
   
   const renderGame = useCallback(() => {
