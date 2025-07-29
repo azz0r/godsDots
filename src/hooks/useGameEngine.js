@@ -790,7 +790,18 @@ export const useGameEngine = (gameContext = {}) => {
       
       // Update villager needs
       player.villagers.forEach(villager => {
-        villagerNeedsSystemRef.current.updateVillagerNeeds(villager, deltaTime)
+        // Calculate environment context for this villager
+        const environment = {
+          nearbyVillagers: player.villagers.filter(v => {
+            if (v.id === villager.id) return false
+            const dx = v.x - villager.x
+            const dy = v.y - villager.y
+            return Math.sqrt(dx * dx + dy * dy) < 100
+          }),
+          activeMiracle: miracleSystemRef.current?.hasActiveMiracle?.(villager.x, villager.y),
+          festival: false // TODO: Add festival system
+        }
+        villagerNeedsSystemRef.current.updateVillagerNeeds(villager, deltaTime, environment)
       })
       
       // Update professions based on village needs

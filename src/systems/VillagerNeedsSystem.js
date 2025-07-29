@@ -212,6 +212,9 @@ export class VillagerNeedsSystem {
   }
 
   checkPassiveSatisfaction(villager, environment) {
+    // Guard against undefined environment
+    if (!environment) return
+    
     // Social need satisfied by proximity to other villagers
     if (environment.nearbyVillagers && environment.nearbyVillagers.length > 0) {
       villager.needs.social = Math.min(this.NEEDS.SOCIAL.max,

@@ -655,6 +655,25 @@ export class MiracleSystem {
 
     return result
   }
+
+  /**
+   * Check if there's an active miracle at a location
+   */
+  hasActiveMiracle(x, y) {
+    // Check all active miracles
+    for (const miracle of this.activeMiracles) {
+      const dx = x - miracle.location.x
+      const dy = y - miracle.location.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      // Check if position is within miracle radius
+      if (distance <= miracle.radius) {
+        return true
+      }
+    }
+    
+    return false
+  }
 }
 
 // Export singleton
