@@ -79,6 +79,13 @@ export class VillagerNeedsSystem {
    * Update all needs for a villager
    */
   updateVillagerNeeds(villager, deltaTime, environment) {
+    // Initialize needs if not present
+    if (!villager.needs) {
+      const initialized = this.initializeVillager()
+      villager.needs = initialized.needs
+      villager.mood = initialized.mood
+    }
+    
     // Decay needs over time
     this.decayNeeds(villager, deltaTime)
     

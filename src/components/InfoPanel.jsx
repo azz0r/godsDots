@@ -75,6 +75,21 @@ const InfoPanel = ({ selectedVillager, hoveredEntity }) => {
               <strong>Build (100)</strong> - Create new structures
             </div>
           </div>
+          <h4 style={{marginTop: '15px'}}>✨ Miracles (Ctrl+Drag)</h4>
+          <div className={styles.miracleGuide}>
+            <div className={styles.miracleItem}>
+              <span className={styles.gesture}>○</span> Circle - Healing Rain
+            </div>
+            <div className={styles.miracleItem}>
+              <span className={styles.gesture}>|</span> Line - Divine Light
+            </div>
+            <div className={styles.miracleItem}>
+              <span className={styles.gesture}>⚡</span> Zigzag - Fertile Ground
+            </div>
+            <div className={styles.miracleItem}>
+              <span className={styles.gesture}>★</span> Star - Divine Inspiration
+            </div>
+          </div>
         </>
       )}
     </div>

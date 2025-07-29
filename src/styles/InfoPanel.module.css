@@ -84,6 +84,27 @@
   border-radius: 3px;
 }
 
+.miracleGuide {
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.miracleItem {
+  margin: 5px 0;
+  color: #aaa;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gesture {
+  font-size: 16px;
+  color: #ffd700;
+  font-weight: bold;
+  width: 20px;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .infoPanel {
     width: 200px;
