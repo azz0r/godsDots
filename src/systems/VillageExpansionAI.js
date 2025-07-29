@@ -501,6 +501,66 @@ export class VillageExpansionAI {
   }
 
   /**
+   * Main entry point for expansion planning
+   */
+  planExpansion(player, terrainSystem) {
+    // Analyze current state
+    const needs = this.analyzeVillageNeeds(player)
+    
+    // Determine what action to take
+    if (needs.housing > 5) {
+      return {
+        action: 'build',
+        buildingType: 'house',
+        priority: 'high',
+        reason: 'Housing shortage'
+      }
+    }
+    
+    if (needs.food > 10) {
+      return {
+        action: 'build', 
+        buildingType: 'farm',
+        priority: 'high',
+        reason: 'Food shortage'
+      }
+    }
+    
+    if (needs.defense > 1) {
+      return {
+        action: 'build',
+        buildingType: 'barracks',
+        priority: 'urgent',
+        reason: 'Defense needed'
+      }
+    }
+    
+    if (needs.faith > 0 && player.buildings.filter(b => b.type === 'temple').length === 0) {
+      return {
+        action: 'build',
+        buildingType: 'temple',
+        priority: 'medium',
+        reason: 'Spiritual needs'
+      }
+    }
+    
+    // Default - expand gradually
+    if (player.villagers.length > player.buildings.length * 2) {
+      return {
+        action: 'build',
+        buildingType: 'house',
+        priority: 'low',
+        reason: 'General expansion'
+      }
+    }
+    
+    return {
+      action: null,
+      reason: 'No immediate needs'
+    }
+  }
+
+  /**
    * Generate road network plan
    */
   planRoadNetwork(player) {
