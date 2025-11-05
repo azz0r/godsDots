@@ -889,7 +889,7 @@ export const useGameEngine = (gameContext = {}) => {
       // Village expansion AI for AI players
       if (player.type === 'ai' && gameTimeRef.current % 600 === 0) { // Every 10 seconds
         const expansion = villageExpansionAIRef.current.planExpansion(player, terrainSystem)
-        if (expansion.action) {
+        if (expansion.action && expansion.location) {
           // AI executes expansion plans
           switch (expansion.action) {
             case 'build':
