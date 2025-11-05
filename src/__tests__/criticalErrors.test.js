@@ -10,7 +10,7 @@ import dbService from '../db/database.js'
 
 // Mock all dependencies
 jest.mock('../db/database.js')
-jest.mock('../systems/GameInitializer.js', () => ({
+jest.mock('../utils/GameInitializer.js', () => ({
   GameInitializer: jest.fn().mockImplementation(() => ({
     initializeNewGame: jest.fn().mockResolvedValue({
       players: [{ 
