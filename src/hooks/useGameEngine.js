@@ -1357,6 +1357,44 @@ export const useGameEngine = (gameContext = {}) => {
           }
         }
         break
+
+      case 'seeking':
+        // Villager is seeking to fulfill a need (hunger, rest, faith, social)
+        // For now, make them wander to search for satisfaction sources
+        // TODO: Implement proper pathfinding to nearest satisfaction source based on needPriority
+        if (!villager.path || villager.path.length === 0 || gameTime - villager.pathfinding.lastPathUpdate > 300) {
+          const currentTileX = Math.floor(villager.x / tileSize)
+          const currentTileY = Math.floor(villager.y / tileSize)
+
+          // Random destination within territory to search for needs
+          const radius = player.territory.radius / tileSize
+          const centerX = player.territory.center.x / tileSize
+          const centerY = player.territory.center.y / tileSize
+
+          const targetX = Math.floor(centerX + (Math.random() - 0.5) * radius * 2)
+          const targetY = Math.floor(centerY + (Math.random() - 0.5) * radius * 2)
+
+          if (gameContext.pathfindingGrid) {
+            const path = gameContext.pathfindingGrid.findPath(
+              currentTileX, currentTileY,
+              targetX, targetY
+            )
+
+            if (path && path.length > 0) {
+              villager.path = path.map(node => ({
+                x: node.x * tileSize + tileSize / 2,
+                y: node.y * tileSize + tileSize / 2
+              }))
+              villager.pathIndex = 0
+              villager.pathfinding.lastPathUpdate = gameTime
+
+              if (villager.path.length > 0) {
+                villager.target = villager.path[0]
+              }
+            }
+          }
+        }
+        break
     }
   }
 
