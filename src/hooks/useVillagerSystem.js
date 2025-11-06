@@ -361,13 +361,13 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
       
       // Get direction to current waypoint
       const direction = path.getDirection(villager.x, villager.y)
-      
+
       if (direction.x !== 0 || direction.y !== 0) {
-        const speed = 0.8 // Base speed
-        
+        const speed = 32 // Pixels per second (matches MOVEMENT_SPEEDS.WALKING)
+
         // Speed modifier based on terrain (roads are faster)
         const speedModifier = 1.0 // Base speed for now, can be enhanced later
-        
+
         villager.vx = direction.x * speed * speedModifier
         villager.vy = direction.y * speed * speedModifier
       } else {
@@ -391,7 +391,7 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
       const distance = Math.sqrt(dx * dx + dy * dy)
       
       if (distance > 8) {
-        const speed = 0.8
+        const speed = 32 // Pixels per second
         villager.vx = (dx / distance) * speed
         villager.vy = (dy / distance) * speed
       } else {
@@ -413,7 +413,7 @@ export const useVillagerSystem = (worldSize, terrainSystem, godBoundary, pathSys
       const distance = Math.sqrt(dx * dx + dy * dy)
       
       if (distance > 8) {
-        const speed = 0.8
+        const speed = 32 // Pixels per second
         villager.vx = (dx / distance) * speed
         villager.vy = (dy / distance) * speed
       } else {

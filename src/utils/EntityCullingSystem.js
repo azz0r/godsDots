@@ -26,18 +26,6 @@ export class EntityCullingSystem {
    * Check if entity is visible in camera view
    */
   isVisible(entity, camera) {
-    // Debug: Log camera dimensions once
-    if (!this._loggedCamera) {
-      console.log('[EntityCulling] Camera:', {
-        x: camera.x,
-        y: camera.y,
-        zoom: camera.zoom,
-        width: camera.width,
-        height: camera.height
-      })
-      this._loggedCamera = true
-    }
-
     // Calculate view bounds with zoom
     const viewLeft = camera.x - this.buffer / camera.zoom
     const viewRight = camera.x + (camera.width / camera.zoom) + this.buffer / camera.zoom
@@ -108,18 +96,6 @@ export class EntityCullingSystem {
     this.stats.cullPercentage = entities.length > 0
       ? (this.stats.culledEntities / entities.length) * 100
       : 0
-
-    // Debug: Log culling stats every 60 frames
-    if (!this._frameCount) this._frameCount = 0
-    this._frameCount++
-    if (this._frameCount % 60 === 0 && entities.length > 0) {
-      console.log('[EntityCulling] Stats:', {
-        total: this.stats.totalEntities,
-        visible: this.stats.visibleEntities,
-        culled: this.stats.culledEntities,
-        percentage: Math.round(this.stats.cullPercentage) + '%'
-      })
-    }
 
     return visible
   }
