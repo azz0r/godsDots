@@ -50,18 +50,29 @@ const GameContainer = ({ gameContext }) => {
 
   // Register camera navigation callback
   useEffect(() => {
-    if (systems?.camera) {
-      registerNavigateCallback((x, y) => {
-        systems.camera.panTo(x, y, 0.5) // Pan to entity with 0.5s duration
-      })
-    }
-  }, [systems, registerNavigateCallback])
+    registerNavigateCallback((x, y) => {
+      // Access camera through gameStateRef
+      const camera = gameStateRef?.current?.camera
+      if (camera) {
+        camera.targetX = x
+        camera.targetY = y
+        console.log(`[Camera] Panning to entity at (${x}, ${y})`)
+      }
+    })
+  }, [gameStateRef, registerNavigateCallback])
 
   // Update entity browser with latest game state
   useEffect(() => {
     const interval = setInterval(() => {
       if (systems?.players && systems?.resources && systems?.building) {
         updateEntities(systems.players, systems.resources, systems.building)
+      } else {
+        console.log('[EntityBrowser] Systems not ready:', {
+          hasPlayers: !!systems?.players,
+          hasResources: !!systems?.resources,
+          hasBuilding: !!systems?.building,
+          systems
+        })
       }
     }, 1000) // Update every second
 
