@@ -330,12 +330,13 @@ export const usePlayerSystem = (worldSize, terrainSystem, pathSystem) => {
     })
   }, [])
 
-  const renderPlayerVillagers = useCallback((ctx, player, camera, gameTime) => {
-    // Render all villagers with simplified renderer for better visibility
-    villagerRendererSimple.renderAllVillagers(ctx, player, camera, gameTime)
-    
-    // Render paths for selected villagers
-    player.villagers.forEach(villager => {
+  const renderPlayerVillagers = useCallback((ctx, player, camera, gameTime, visibleVillagers = null) => {
+    // Render villagers - use culled list if provided for performance
+    const villagersToRender = visibleVillagers || player.villagers
+    villagerRendererSimple.renderAllVillagers(ctx, player, camera, gameTime, villagersToRender)
+
+    // Render paths for selected villagers (only visible ones)
+    villagersToRender.forEach(villager => {
       if (villager.selected) {
         villagerRendererSimple.renderVillagerPath(ctx, villager)
       }

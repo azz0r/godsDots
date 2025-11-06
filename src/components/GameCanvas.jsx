@@ -191,53 +191,81 @@ const GameCanvas = ({ canvasRef, gameStateRef, selectedPower, usePower, onVillag
       const game = gameStateRef.current
       const canvas = canvasRef.current
       const rect = canvas.getBoundingClientRect()
-      
+
       // Get mouse position relative to canvas
       const mouseX = e.clientX - rect.left
       const mouseY = e.clientY - rect.top
-      
+
       // Normalize wheel delta for consistent zoom speed across browsers/devices
       const delta = e.deltaY || e.wheelDelta || -e.detail
-      const zoomDirection = delta > 0 ? -1 : 1
-      
-      pixelPerfect.setPixelPerfectZoom(
-        game.camera, 
-        zoomDirection, 
-        mouseX, 
-        mouseY, 
-        canvas.width, 
-        canvas.height,
-        Math.abs(delta)
-      )
+      const zoomFactor = delta > 0 ? 0.9 : 1.1
+
+      // Calculate new zoom level with limits
+      const minZoom = 0.3
+      const maxZoom = 3.0
+      const currentZoom = game.camera.targetZoom || game.camera.zoom
+      const newZoom = Math.max(minZoom, Math.min(maxZoom, currentZoom * zoomFactor))
+
+      // Calculate world position under mouse
+      const worldX = mouseX / game.camera.zoom + game.camera.x
+      const worldY = mouseY / game.camera.zoom + game.camera.y
+
+      // Calculate new camera position to keep mouse over same world point
+      const newX = worldX - mouseX / newZoom
+      const newY = worldY - mouseY / newZoom
+
+      // Set smooth transition targets instead of instant change
+      game.camera.targetZoom = newZoom
+      game.camera.targetX = newX
+      game.camera.targetY = newY
+      game.camera.transitioning = true
     }
     
     eventHandlersRef.current.handleKeyDown = (e) => {
       const game = gameStateRef.current
       const canvas = canvasRef.current
-      
-      // Zoom with + and - keys (including numpad)
+
+      // Zoom with + and - keys (including numpad) with smooth transitions
       if (e.key === '+' || e.key === '=' || e.key === 'Add') {
         e.preventDefault()
-        pixelPerfect.setPixelPerfectZoom(
-          game.camera,
-          1,
-          canvas.width / 2,
-          canvas.height / 2,
-          canvas.width,
-          canvas.height,
-          100
-        )
+        const mouseX = canvas.width / 2
+        const mouseY = canvas.height / 2
+        const zoomFactor = 1.2
+        const minZoom = 0.3
+        const maxZoom = 3.0
+        const currentZoom = game.camera.targetZoom || game.camera.zoom
+        const newZoom = Math.min(maxZoom, currentZoom * zoomFactor)
+
+        // Zoom towards center
+        const worldX = mouseX / game.camera.zoom + game.camera.x
+        const worldY = mouseY / game.camera.zoom + game.camera.y
+        const newX = worldX - mouseX / newZoom
+        const newY = worldY - mouseY / newZoom
+
+        game.camera.targetZoom = newZoom
+        game.camera.targetX = newX
+        game.camera.targetY = newY
+        game.camera.transitioning = true
       } else if (e.key === '-' || e.key === '_' || e.key === 'Subtract') {
         e.preventDefault()
-        pixelPerfect.setPixelPerfectZoom(
-          game.camera,
-          -1,
-          canvas.width / 2,
-          canvas.height / 2,
-          canvas.width,
-          canvas.height,
-          100
-        )
+        const mouseX = canvas.width / 2
+        const mouseY = canvas.height / 2
+        const zoomFactor = 0.8
+        const minZoom = 0.3
+        const maxZoom = 3.0
+        const currentZoom = game.camera.targetZoom || game.camera.zoom
+        const newZoom = Math.max(minZoom, currentZoom * zoomFactor)
+
+        // Zoom towards center
+        const worldX = mouseX / game.camera.zoom + game.camera.x
+        const worldY = mouseY / game.camera.zoom + game.camera.y
+        const newX = worldX - mouseX / newZoom
+        const newY = worldY - mouseY / newZoom
+
+        game.camera.targetZoom = newZoom
+        game.camera.targetX = newX
+        game.camera.targetY = newY
+        game.camera.transitioning = true
       }
     }
     
