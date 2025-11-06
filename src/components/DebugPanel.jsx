@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react'
 import styles from '../styles/DebugPanel.module.css'
 import gameConfig from '../config/gameConfig'
 
-const DebugPanel = ({ 
-  onRegenerateMap, 
-  currentSeed, 
-  showLandBorders, 
+const DebugPanel = ({
+  onRegenerateMap,
+  currentSeed,
+  showLandBorders,
   onToggleLandBorders,
   pathfindingGrid,
   landManager,
   showPaths,
   onTogglePaths
 }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const [showPathfinding, setShowPathfinding] = useState(gameConfig.debug.showPathfinding)
   const [showGrid, setShowGrid] = useState(gameConfig.debug.showGrid)
   const [mapSeed, setMapSeed] = useState('')
@@ -54,9 +55,19 @@ const DebugPanel = ({
   }
 
   return (
-    <div className={styles.debugPanel}>
-      <h4>Debug Options</h4>
-      
+    <div className={`${styles.debugPanel} ${isCollapsed ? styles.collapsed : ''}`}>
+      <div className={styles.debugHeader}>
+        <h4>Debug Options</h4>
+        <button
+          className={styles.collapseButton}
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-label={isCollapsed ? "Expand" : "Collapse"}
+        >
+          {isCollapsed ? '▶' : '▼'}
+        </button>
+      </div>
+
+      {!isCollapsed && (<>
       <div className={styles.mapGeneration}>
         <h5>Map Generation</h5>
         <div className={styles.seedInfo}>
@@ -137,6 +148,7 @@ const DebugPanel = ({
           <li>Integrated building placement</li>
         </ul>
       </div>
+      </>)}
     </div>
   )
 }
