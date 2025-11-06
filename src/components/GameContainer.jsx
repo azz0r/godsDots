@@ -1,12 +1,14 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useGameEngine } from '../hooks/useGameEngine'
 import { useLandManagement } from '../hooks/useLandManagement'
+import { useEntities } from '../contexts/EntityContext'
 import GameCanvas from './GameCanvas'
 import TopBar from './TopBar'
 import PowerBar from './PowerBar'
 import InfoPanel from './InfoPanel'
 import DebugPanel from './DebugPanel'
 import LandManagementPanel from './LandManagementPanel'
+import EntityBrowser from './EntityBrowser'
 import styles from '../styles/GameContainer.module.css'
 
 const GameContainer = ({ gameContext }) => {
@@ -41,6 +43,30 @@ const GameContainer = ({ gameContext }) => {
   const [showLandBorders, setShowLandBorders] = useState(true)
   const [showLandPanel, setShowLandPanel] = useState(false)
   const [showPaths, setShowPaths] = useState(false)
+  const [showEntityBrowser, setShowEntityBrowser] = useState(false)
+
+  // Entity management
+  const { updateEntities, registerNavigateCallback } = useEntities()
+
+  // Register camera navigation callback
+  useEffect(() => {
+    if (systems?.camera) {
+      registerNavigateCallback((x, y) => {
+        systems.camera.panTo(x, y, 0.5) // Pan to entity with 0.5s duration
+      })
+    }
+  }, [systems, registerNavigateCallback])
+
+  // Update entity browser with latest game state
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (systems?.players && systems?.resources && systems?.building) {
+        updateEntities(systems.players, systems.resources, systems.building)
+      }
+    }, 1000) // Update every second
+
+    return () => clearInterval(interval)
+  }, [systems, updateEntities])
 
   const handleSave = async () => {
     const success = await manualSaveGame()
@@ -87,6 +113,71 @@ const GameContainer = ({ gameContext }) => {
       usePower(x, y)
     }
   }, [gameState.selectedPower, gameContext.landManager, selectPlot, usePower])
+
+  const handleDebugAction = useCallback((action, entity) => {
+    console.log('Debug action:', action, entity)
+
+    // Find the actual entity from the game systems
+    const player = systems?.players?.players.find(p => p.id === entity.playerId)
+    if (!player) return
+
+    if (entity.type === 'villager') {
+      const villager = player.villagers.find(v => v.id === entity.id)
+      if (!villager) return
+
+      switch (action) {
+        case 'heal':
+          villager.health = 100
+          console.log(`Healed ${villager.id} to 100%`)
+          break
+        case 'feed':
+          if (villager.needs) {
+            villager.needs.hunger = 100
+          }
+          villager.hunger = 100
+          console.log(`Fed ${villager.id}`)
+          break
+        case 'resetState':
+          villager.state = 'wandering'
+          villager.path = []
+          villager.pathIndex = 0
+          villager.target = null
+          villager.movement.isIdle = false
+          console.log(`Reset ${villager.id} to wandering`)
+          break
+        case 'kill':
+          const index = player.villagers.indexOf(villager)
+          if (index > -1) {
+            player.villagers.splice(index, 1)
+            player.population = player.villagers.length
+            console.log(`Killed ${villager.id}`)
+          }
+          break
+      }
+    } else if (entity.type === 'building') {
+      const building = player.buildings.find(b => b.id === entity.id)
+      if (!building) return
+
+      switch (action) {
+        case 'heal':
+          building.health = 100
+          console.log(`Repaired ${building.id}`)
+          break
+        case 'complete':
+          building.isUnderConstruction = false
+          building.constructionTime = 0
+          console.log(`Completed ${building.id}`)
+          break
+        case 'destroy':
+          const index = player.buildings.indexOf(building)
+          if (index > -1) {
+            player.buildings.splice(index, 1)
+            console.log(`Destroyed ${building.id}`)
+          }
+          break
+      }
+    }
+  }, [systems])
 
   return (
     <div className={styles.gameContainer}>
@@ -149,7 +240,7 @@ const GameContainer = ({ gameContext }) => {
         
         {/* Debug panel for development */}
         {(process.env.NODE_ENV === 'development' || gameContext.debugMode) && (
-          <DebugPanel 
+          <DebugPanel
             onRegenerateMap={regenerateMap}
             currentSeed={mapSeed}
             showLandBorders={showLandBorders}
@@ -160,6 +251,22 @@ const GameContainer = ({ gameContext }) => {
             landManager={gameContext.landManager}
           />
         )}
+
+        {/* Entity Browser */}
+        <EntityBrowser
+          visible={showEntityBrowser}
+          onClose={() => setShowEntityBrowser(false)}
+          onDebugAction={handleDebugAction}
+        />
+
+        {/* Entity Browser Toggle Button */}
+        <button
+          className={styles.entityBrowserToggle}
+          onClick={() => setShowEntityBrowser(!showEntityBrowser)}
+          title="Toggle Entity Browser"
+        >
+          📋
+        </button>
       </div>
     </div>
   )

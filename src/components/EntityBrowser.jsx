@@ -6,7 +6,7 @@ import styles from '../styles/EntityBrowser.module.css'
  * EntityBrowser - Server browser style panel showing all game entities
  * Click to navigate to entity on map
  */
-const EntityBrowser = ({ visible, onClose }) => {
+const EntityBrowser = ({ visible, onClose, onDebugAction }) => {
   const {
     filterType,
     searchQuery,
@@ -66,8 +66,19 @@ const EntityBrowser = ({ visible, onClose }) => {
     }))
   }
 
-  const handleEntityClick = (entityId) => {
+  const handleEntityClick = (entityId, event) => {
+    // Don't navigate if clicking debug buttons
+    if (event?.target.closest('.debug-actions')) {
+      return
+    }
     navigateToEntity(entityId)
+  }
+
+  const handleDebugClick = (action, entity, event) => {
+    event.stopPropagation() // Prevent entity selection
+    if (onDebugAction) {
+      onDebugAction(action, entity)
+    }
   }
 
   const getEntityIcon = (entity) => {
@@ -216,7 +227,7 @@ const EntityBrowser = ({ visible, onClose }) => {
                   <div
                     key={entity.id}
                     className={`${styles.entityItem} ${selectedEntity?.id === entity.id ? styles.selected : ''}`}
-                    onClick={() => handleEntityClick(entity.id)}
+                    onClick={(e) => handleEntityClick(entity.id, e)}
                     style={{ borderLeftColor: entity.playerColor }}
                   >
                     <span className={styles.entityIcon}>{getEntityIcon(entity)}</span>
@@ -235,6 +246,36 @@ const EntityBrowser = ({ visible, onClose }) => {
                           {entity.profession} | {entity.playerName}
                         </div>
                       )}
+                    </div>
+                    <div className={`${styles.debugActions} debug-actions`}>
+                      <button
+                        className={styles.debugButton}
+                        onClick={(e) => handleDebugClick('heal', entity, e)}
+                        title="Heal to 100%"
+                      >
+                        ❤️
+                      </button>
+                      <button
+                        className={styles.debugButton}
+                        onClick={(e) => handleDebugClick('feed', entity, e)}
+                        title="Feed (restore hunger)"
+                      >
+                        🍖
+                      </button>
+                      <button
+                        className={styles.debugButton}
+                        onClick={(e) => handleDebugClick('resetState', entity, e)}
+                        title="Reset to wandering"
+                      >
+                        🔄
+                      </button>
+                      <button
+                        className={styles.debugButton}
+                        onClick={(e) => handleDebugClick('kill', entity, e)}
+                        title="Kill villager"
+                      >
+                        💀
+                      </button>
                     </div>
                   </div>
                 ))}

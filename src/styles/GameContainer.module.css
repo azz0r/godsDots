@@ -28,3 +28,28 @@
 .ui * {
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
+
+.entityBrowserToggle {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  transition: all 0.2s ease;
+}
+
+.entityBrowserToggle:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: #00ff00;
+  transform: scale(1.1);
+}

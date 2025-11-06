@@ -230,6 +230,39 @@
   font-style: italic;
 }
 
+/* Debug actions */
+.debugActions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.debugButton {
+  background: rgba(60, 60, 80, 0.6);
+  border: 1px solid rgba(100, 100, 150, 0.4);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.debugButton:hover {
+  background: rgba(80, 80, 120, 0.8);
+  border-color: #88aaff;
+  transform: scale(1.1);
+}
+
+.debugButton:active {
+  transform: scale(0.95);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .container {

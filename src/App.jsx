@@ -3,6 +3,7 @@ import GameContainer from './components/GameContainer'
 import { LandManager } from './classes/LandManager'
 import { PathfindingGrid } from './utils/pathfinding/PathfindingGrid'
 import { MapGenerator } from './utils/mapGeneration/MapGenerator'
+import { EntityProvider } from './contexts/EntityContext'
 import gameConfig from './config/gameConfig'
 import './styles/App.css'
 
@@ -51,19 +52,21 @@ function App() {
   }
 
   return (
-    <div className="App">
-      {gameState === 'menu' ? (
-        <div className="main-menu">
-          <h1>God Dots</h1>
-          <button onClick={startNewGame}>New Game</button>
-          <button onClick={() => setDebugMode(!debugMode)}>
-            Debug Mode: {debugMode ? 'ON' : 'OFF'}
-          </button>
-        </div>
-      ) : (
-        <GameContainer gameContext={gameContext} />
-      )}
-    </div>
+    <EntityProvider>
+      <div className="App">
+        {gameState === 'menu' ? (
+          <div className="main-menu">
+            <h1>God Dots</h1>
+            <button onClick={startNewGame}>New Game</button>
+            <button onClick={() => setDebugMode(!debugMode)}>
+              Debug Mode: {debugMode ? 'ON' : 'OFF'}
+            </button>
+          </div>
+        ) : (
+          <GameContainer gameContext={gameContext} />
+        )}
+      </div>
+    </EntityProvider>
   )
 }
 
