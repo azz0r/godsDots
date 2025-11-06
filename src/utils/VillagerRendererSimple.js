@@ -156,10 +156,11 @@ export class VillagerRendererSimple {
   }
   
   /**
-   * Render all villagers for a player
+   * Render all villagers for a player (or a subset if provided)
    */
-  renderAllVillagers(ctx, player, camera, gameTime) {
-    player.villagers.forEach(villager => {
+  renderAllVillagers(ctx, player, camera, gameTime, villagersToRender = null) {
+    const villagers = villagersToRender || player.villagers
+    villagers.forEach(villager => {
       this.renderVillager(ctx, villager, player, camera, gameTime)
     })
   }

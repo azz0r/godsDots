@@ -12,6 +12,7 @@ import { useLandManagement } from './useLandManagement'
 import { GameInitializer } from '../utils/GameInitializer'
 import { PathfindingGrid } from '../utils/pathfinding/PathfindingGrid'
 import { VisualEffects } from '../utils/VisualEffects'
+import { EntityCullingSystem } from '../utils/EntityCullingSystem'
 import { dbService } from '../db/database.js'
 import gameConfig from '../config/gameConfig'
 import { debugVillagerMovement } from '../utils/debugVillagerMovement'
@@ -35,6 +36,7 @@ export const useGameEngine = (gameContext = {}) => {
   const animationRef = useRef(null)
   const gameTimeRef = useRef(0)
   const visualEffectsRef = useRef(new VisualEffects())
+  const entityCullingRef = useRef(new EntityCullingSystem({ buffer: 150, throttleMs: 100 }))
   const fpsRef = useRef({ frames: 0, lastTime: 0, current: 60 })
   const debugModeRef = useRef(gameContext.debugMode || false)
   
@@ -1116,8 +1118,9 @@ export const useGameEngine = (gameContext = {}) => {
         }
       }
 
-      // Update AI state less frequently
-      if (gameTime - villager.movement.lastMoveTime > 60) {
+      // Update AI state more frequently to prevent freezing
+      // Update every 30 frames (~0.5s at 60fps) instead of 60 frames
+      if (gameTime - villager.movement.lastMoveTime > 30) {
         updateVillagerAI(villager, player, gameTime)
         villager.movement.lastMoveTime = gameTime
       }
@@ -1358,17 +1361,36 @@ export const useGameEngine = (gameContext = {}) => {
   }
 
   const setupVillagerTarget = (villager) => {
-    // Skip if villager already has a target from path following
+    // If villager has a valid target and isn't stuck, keep it
     if (villager.target) {
-      return
+      // Check if target is reached
+      const dx = villager.target.x - villager.x
+      const dy = villager.target.y - villager.y
+      const distanceToTarget = Math.sqrt(dx * dx + dy * dy)
+
+      if (distanceToTarget > 5) {
+        return // Target still valid, continue
+      }
+
+      // Target reached, clear it
+      villager.target = null
     }
-    
-    // If villager has a path but no current target, set up next waypoint
+
+    // If villager has a path, set up next waypoint
     if (villager.path && villager.path.length > 0 && villager.pathIndex < villager.path.length) {
       villager.target = villager.path[villager.pathIndex]
       return
     }
-    
+
+    // Path exhausted or no path - clear path and let AI decide next move
+    if (villager.path && villager.path.length > 0 && villager.pathIndex >= villager.path.length) {
+      villager.path = []
+      villager.pathIndex = 0
+      villager.target = null
+      // Force AI update on next frame by resetting lastMoveTime
+      villager.movement.lastMoveTime = 0
+    }
+
     // Legacy path system fallback (for roads)
     if (!villager.pathfinding.targetNode) {
       const nearestPath = pathSystem.findNearestPathNode(villager.x, villager.y, 150)
@@ -1376,9 +1398,9 @@ export const useGameEngine = (gameContext = {}) => {
         villager.pathfinding.targetNode = nearestPath
         pathSystem.updatePathUsage(nearestPath)
       } else {
-        // No path available, go idle
+        // No path available, go idle briefly
         villager.movement.isIdle = true
-        villager.movement.idleDuration = 120 + Math.random() * 240
+        villager.movement.idleDuration = 30 + Math.random() * 60 // Shorter idle time
       }
     }
   }
@@ -1647,15 +1669,28 @@ export const useGameEngine = (gameContext = {}) => {
       buildingSystem.renderBuildings(ctx, player)
     })
     
-    // Check for hover before rendering
+    // Check for hover before rendering (with entity culling for performance)
     const worldMouseX = mouseRef.current.x / camera.zoom + camera.x
     const worldMouseY = mouseRef.current.y / camera.zoom + camera.y
     let hoveredEntity = null
-    
+
+    const cameraWithDimensions = {
+      ...camera,
+      width: canvas.width,
+      height: canvas.height
+    }
+
+    const culling = entityCullingRef.current
+    const shouldCull = culling.shouldUpdateCulling(cameraWithDimensions, gameTimeRef.current)
+
     playerSystem.players.forEach(player => {
-      // Check hover on villagers
+      // Cull villagers for performance
+      const visibleVillagers = culling.cullEntities(player.villagers, cameraWithDimensions)
+      const visibleBuildings = culling.cullEntities(player.buildings, cameraWithDimensions)
+
+      // Check hover only on visible villagers and buildings
       if (player.type === 'human' && !hoveredEntity) {
-        player.villagers.forEach(v => {
+        visibleVillagers.forEach(v => {
           const distance = Math.sqrt((v.x - worldMouseX) ** 2 + (v.y - worldMouseY) ** 2)
           if (distance <= 10) {
             hoveredEntity = { type: 'villager', entity: v }
@@ -1664,9 +1699,9 @@ export const useGameEngine = (gameContext = {}) => {
             v.hovered = false
           }
         })
-        
-        // Check hover on buildings
-        player.buildings.forEach(b => {
+
+        // Check hover on visible buildings
+        visibleBuildings.forEach(b => {
           if (worldMouseX >= b.x && worldMouseX <= b.x + b.width &&
               worldMouseY >= b.y && worldMouseY <= b.y + b.height) {
             hoveredEntity = { type: 'building', entity: b }
@@ -1676,13 +1711,9 @@ export const useGameEngine = (gameContext = {}) => {
           }
         })
       }
-      
-      const cameraWithDimensions = {
-        ...camera,
-        width: canvas.width,
-        height: canvas.height
-      }
-      playerSystem.renderPlayerVillagers(ctx, player, cameraWithDimensions, gameTimeRef.current)
+
+      // Render only visible villagers
+      playerSystem.renderPlayerVillagers(ctx, player, cameraWithDimensions, gameTimeRef.current, visibleVillagers)
     })
     
     // Update hover state
@@ -1751,41 +1782,51 @@ export const useGameEngine = (gameContext = {}) => {
       ctx.restore()
     })
     
-    // Render conversion beams
+    // Render conversion beams - FIXED: Skip if no preachers active
     const conversionBeams = preacherSystemRef.current.getConversionBeams()
-    conversionBeams.forEach(beam => {
-      const fromVillager = playerSystem.players.flatMap(p => p.villagers).find(v => v.id === beam.from)
-      const toVillager = playerSystem.players.flatMap(p => p.villagers).find(v => v.id === beam.to)
-      
-      if (fromVillager && toVillager) {
-        ctx.save()
-        ctx.strokeStyle = beam.color
-        ctx.lineWidth = 3 * beam.intensity
-        ctx.globalAlpha = 0.6 * beam.intensity
-        ctx.setLineDash([5, 5])
-        
-        ctx.beginPath()
-        ctx.moveTo(fromVillager.x, fromVillager.y - 10)
-        ctx.lineTo(toVillager.x, toVillager.y - 10)
-        ctx.stroke()
-        
-        // Draw sparkles along the beam
-        const steps = 5
-        for (let i = 0; i <= steps; i++) {
-          const t = i / steps
-          const x = fromVillager.x + (toVillager.x - fromVillager.x) * t
-          const y = (fromVillager.y - 10) + (toVillager.y - 10 - (fromVillager.y - 10)) * t
-          
-          ctx.fillStyle = beam.color
-          ctx.globalAlpha = Math.sin(gameTimeRef.current * 0.01 + i) * 0.5 + 0.5
-          ctx.beginPath()
-          ctx.arc(x, y, 2, 0, Math.PI * 2)
-          ctx.fill()
+    if (conversionBeams && conversionBeams.length > 0) {
+      conversionBeams.forEach(beam => {
+        // Validate beam data before rendering
+        if (!beam.from || !beam.to || !beam.color || !beam.intensity) {
+          return
         }
-        
-        ctx.restore()
-      }
-    })
+
+        const fromVillager = playerSystem.players.flatMap(p => p.villagers).find(v => v.id === beam.from)
+        const toVillager = playerSystem.players.flatMap(p => p.villagers).find(v => v.id === beam.to)
+
+        // Only render if both villagers exist and are valid
+        if (fromVillager && toVillager &&
+            typeof fromVillager.x === 'number' && typeof fromVillager.y === 'number' &&
+            typeof toVillager.x === 'number' && typeof toVillager.y === 'number') {
+          ctx.save()
+          ctx.strokeStyle = beam.color
+          ctx.lineWidth = 3 * beam.intensity
+          ctx.globalAlpha = 0.6 * beam.intensity
+          ctx.setLineDash([5, 5])
+
+          ctx.beginPath()
+          ctx.moveTo(fromVillager.x, fromVillager.y - 10)
+          ctx.lineTo(toVillager.x, toVillager.y - 10)
+          ctx.stroke()
+
+          // Draw sparkles along the beam
+          const steps = 5
+          for (let i = 0; i <= steps; i++) {
+            const t = i / steps
+            const x = fromVillager.x + (toVillager.x - fromVillager.x) * t
+            const y = (fromVillager.y - 10) + (toVillager.y - 10 - (fromVillager.y - 10)) * t
+
+            ctx.fillStyle = beam.color
+            ctx.globalAlpha = Math.sin(gameTimeRef.current * 0.01 + i) * 0.5 + 0.5
+            ctx.beginPath()
+            ctx.arc(x, y, 2, 0, Math.PI * 2)
+            ctx.fill()
+          }
+
+          ctx.restore()
+        }
+      })
+    }
     
     // Render active miracles
     const activeMiracles = miracleSystemRef.current.getActiveMiracles()
