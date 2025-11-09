@@ -16,11 +16,27 @@ export default function TerrainDevPanel({ gameInstance, isVisible, onToggle }) {
    * Regenerate terrain with current seed
    */
   const handleRegenerate = () => {
-    if (!gameInstance) return;
+    console.log('[TerrainDevPanel] Regenerate button clicked');
+    console.log('[TerrainDevPanel] gameInstance:', gameInstance);
 
+    if (!gameInstance) {
+      console.error('[TerrainDevPanel] No game instance available!');
+      return;
+    }
+
+    console.log('[TerrainDevPanel] Getting MainScene...');
     const scene = gameInstance.scene.getScene('MainScene');
+    console.log('[TerrainDevPanel] Scene found:', scene);
+
     if (scene && scene.regenerateTerrain) {
+      console.log('[TerrainDevPanel] Calling scene.regenerateTerrain()...');
       scene.regenerateTerrain();
+      console.log('[TerrainDevPanel] Regeneration complete!');
+    } else {
+      console.error('[TerrainDevPanel] Scene or regenerateTerrain method not found!', {
+        scene,
+        hasMethod: scene ? typeof scene.regenerateTerrain : 'no scene'
+      });
     }
   };
 
@@ -28,14 +44,27 @@ export default function TerrainDevPanel({ gameInstance, isVisible, onToggle }) {
    * Generate terrain with specific seed
    */
   const handleSeedChange = (e) => {
-    if (!gameInstance) return;
+    console.log('[TerrainDevPanel] Seed input changed');
+
+    if (!gameInstance) {
+      console.error('[TerrainDevPanel] No game instance for seed change!');
+      return;
+    }
 
     const seed = parseInt(e.target.value, 10);
-    if (isNaN(seed)) return;
+    console.log('[TerrainDevPanel] Parsed seed:', seed);
+
+    if (isNaN(seed)) {
+      console.warn('[TerrainDevPanel] Invalid seed value');
+      return;
+    }
 
     const scene = gameInstance.scene.getScene('MainScene');
     if (scene && scene.generateTerrain) {
+      console.log('[TerrainDevPanel] Generating terrain with seed:', seed);
       scene.generateTerrain(seed);
+    } else {
+      console.error('[TerrainDevPanel] Cannot generate terrain - scene not found');
     }
   };
 

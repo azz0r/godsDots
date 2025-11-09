@@ -121,22 +121,33 @@ export default class MainScene extends Phaser.Scene {
    * Generate procedural terrain and render as tilemap
    */
   generateTerrain(seed = this.terrainSeed) {
-    console.log(`[Layer 2] Generating terrain with seed: ${seed}`);
+    console.log(`[MainScene] generateTerrain() called with seed: ${seed}`);
+    console.log(`[MainScene] Map dimensions: ${this.mapWidth}x${this.mapHeight}`);
 
     // Create terrain generator with seed
+    console.log(`[MainScene] Creating TerrainGenerator...`);
     this.terrainGenerator = new TerrainGenerator(seed);
+    console.log(`[MainScene] TerrainGenerator created with seed:`, this.terrainGenerator.seed);
 
     // Generate height and moisture maps
+    console.log(`[MainScene] Generating height map...`);
     const heightMap = this.terrainGenerator.generateHeightMap(this.mapWidth, this.mapHeight);
+    console.log(`[MainScene] Height map generated:`, heightMap.length, 'x', heightMap[0]?.length);
+
+    console.log(`[MainScene] Generating moisture map...`);
     const moistureMap = this.terrainGenerator.generateMoistureMap(this.mapWidth, this.mapHeight);
+    console.log(`[MainScene] Moisture map generated:`, moistureMap.length, 'x', moistureMap[0]?.length);
 
     // Create biome map
+    console.log(`[MainScene] Creating biome map...`);
     const biomeMap = BiomeMapper.createBiomeMap(heightMap, moistureMap);
+    console.log(`[MainScene] Biome map created:`, biomeMap.length, 'x', biomeMap[0]?.length);
 
     // Render terrain using Phaser tilemaps
+    console.log(`[MainScene] Rendering terrain...`);
     this.renderTerrain(biomeMap);
 
-    console.log(`[Layer 2] Terrain generated: ${this.mapWidth}x${this.mapHeight} tiles`);
+    console.log(`[MainScene] ✓ Terrain generation complete!`);
   }
 
   /**
@@ -144,17 +155,27 @@ export default class MainScene extends Phaser.Scene {
    * Efficient rendering with proper cleanup for regeneration
    */
   renderTerrain(biomeMap) {
+    console.log('[MainScene] renderTerrain() called');
+    console.log('[MainScene] Existing graphics:', this.terrainGraphics);
+
     // Clear existing terrain graphics
     if (this.terrainGraphics) {
+      console.log('[MainScene] Clearing and destroying existing graphics...');
       this.terrainGraphics.clear();
       this.terrainGraphics.destroy();
       this.terrainGraphics = null;
+      console.log('[MainScene] Old graphics destroyed');
     }
 
     // Create a single graphics object for all terrain
+    console.log('[MainScene] Creating new graphics object...');
     this.terrainGraphics = this.add.graphics();
+    console.log('[MainScene] Graphics object created:', this.terrainGraphics);
 
     // Render each tile
+    console.log(`[MainScene] Rendering ${this.mapWidth}x${this.mapHeight} tiles...`);
+    let tilesRendered = 0;
+
     for (let y = 0; y < this.mapHeight; y++) {
       for (let x = 0; x < this.mapWidth; x++) {
         const biome = biomeMap[y][x];
@@ -178,10 +199,12 @@ export default class MainScene extends Phaser.Scene {
           TERRAIN_CONFIG.TILE_SIZE,
           TERRAIN_CONFIG.TILE_SIZE
         );
+
+        tilesRendered++;
       }
     }
 
-    console.log('[Layer 2] Terrain rendered successfully');
+    console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles successfully`);
   }
 
   /**
@@ -189,9 +212,18 @@ export default class MainScene extends Phaser.Scene {
    * Exposed for dev panel controls
    */
   regenerateTerrain() {
+    console.log('[MainScene] regenerateTerrain() called');
+    console.log('[MainScene] Current seed:', this.terrainSeed);
+
     const newSeed = Date.now();
+    console.log('[MainScene] New seed:', newSeed);
+
     this.terrainSeed = newSeed;
+    console.log('[MainScene] Seed updated, calling generateTerrain...');
+
     this.generateTerrain(newSeed);
+
+    console.log('[MainScene] ✓ regenerateTerrain() complete');
   }
 
   /**
