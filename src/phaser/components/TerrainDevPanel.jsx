@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { BIOME_TYPES } from '../config/terrainConfig';
 import './TerrainDevPanel.css';
 
-export default function TerrainDevPanel({ gameInstance, isVisible, onToggle }) {
+export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [expanded, setExpanded] = useState(false);
 
   /**
@@ -17,15 +17,15 @@ export default function TerrainDevPanel({ gameInstance, isVisible, onToggle }) {
    */
   const handleRegenerate = () => {
     console.log('[TerrainDevPanel] Regenerate button clicked');
-    console.log('[TerrainDevPanel] gameInstance:', gameInstance);
+    console.log('[TerrainDevPanel] gameRef.current:', gameRef.current);
 
-    if (!gameInstance) {
+    if (!gameRef.current) {
       console.error('[TerrainDevPanel] No game instance available!');
       return;
     }
 
     console.log('[TerrainDevPanel] Getting MainScene...');
-    const scene = gameInstance.scene.getScene('MainScene');
+    const scene = gameRef.current.scene.getScene('MainScene');
     console.log('[TerrainDevPanel] Scene found:', scene);
 
     if (scene && scene.regenerateTerrain) {
@@ -46,7 +46,7 @@ export default function TerrainDevPanel({ gameInstance, isVisible, onToggle }) {
   const handleSeedChange = (e) => {
     console.log('[TerrainDevPanel] Seed input changed');
 
-    if (!gameInstance) {
+    if (!gameRef.current) {
       console.error('[TerrainDevPanel] No game instance for seed change!');
       return;
     }
@@ -59,7 +59,7 @@ export default function TerrainDevPanel({ gameInstance, isVisible, onToggle }) {
       return;
     }
 
-    const scene = gameInstance.scene.getScene('MainScene');
+    const scene = gameRef.current.scene.getScene('MainScene');
     if (scene && scene.generateTerrain) {
       console.log('[TerrainDevPanel] Generating terrain with seed:', seed);
       scene.generateTerrain(seed);
@@ -144,8 +144,8 @@ export default function TerrainDevPanel({ gameInstance, isVisible, onToggle }) {
             <div className="stat-item">
               <span>Map Size:</span>
               <span>
-                {gameInstance && gameInstance.scene.getScene('MainScene')?.mapWidth || 0} ×
-                {gameInstance && gameInstance.scene.getScene('MainScene')?.mapHeight || 0} tiles
+                {gameRef.current && gameRef.current.scene.getScene('MainScene')?.mapWidth || 0} ×
+                {gameRef.current && gameRef.current.scene.getScene('MainScene')?.mapHeight || 0} tiles
               </span>
             </div>
             <div className="stat-item">

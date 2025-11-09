@@ -55,9 +55,9 @@ export default function PhaserGame() {
         }}
       />
 
-      {/* Dev Panel Overlay */}
+      {/* Dev Panel Overlay - pass the ref, not the current value */}
       <TerrainDevPanel
-        gameInstance={gameRef.current}
+        gameRef={gameRef}
         isVisible={devPanelVisible}
         onToggle={() => setDevPanelVisible(!devPanelVisible)}
       />
