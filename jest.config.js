@@ -3,7 +3,8 @@ export default {
   setupFilesAfterEnv: ['<rootDir>/src/tests/setup.js'],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    '^@/(.*)$': '<rootDir>/src/$1'
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^phaser3spectorjs$': '<rootDir>/src/tests/mocks/phaser3spectorjs.js'
   },
   transform: {
     '^.+\\.(js|jsx)$': 'babel-jest'
