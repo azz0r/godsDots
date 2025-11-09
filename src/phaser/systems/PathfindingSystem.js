@@ -63,19 +63,37 @@ export default class PathfindingSystem {
    */
   findPath(startX, startY, goalX, goalY) {
     // Validate coordinates
-    if (!this.isInBounds(startX, startY) || !this.isInBounds(goalX, goalY)) {
+    if (!this.isInBounds(startX, startY)) {
+      console.warn(`[PathfindingSystem] Start position (${startX},${startY}) out of bounds. Map size: ${this.width}x${this.height}`);
+      return null;
+    }
+
+    if (!this.isInBounds(goalX, goalY)) {
+      console.warn(`[PathfindingSystem] Goal position (${goalX},${goalY}) out of bounds. Map size: ${this.width}x${this.height}`);
       return null;
     }
 
     // Same start and goal
     if (startX === goalX && startY === goalY) {
+      console.warn(`[PathfindingSystem] Start and goal are the same position (${startX},${startY})`);
       return null;
     }
 
     // Check if start or goal is passable
-    if (!this.isPassable(startX, startY) || !this.isPassable(goalX, goalY)) {
+    const startBiome = this.terrainData[startY][startX];
+    const goalBiome = this.terrainData[goalY][goalX];
+
+    if (!this.isPassable(startX, startY)) {
+      console.warn(`[PathfindingSystem] Start position (${startX},${startY}) is not passable. Biome: ${startBiome.name} (passable: ${startBiome.passable})`);
       return null;
     }
+
+    if (!this.isPassable(goalX, goalY)) {
+      console.warn(`[PathfindingSystem] Goal position (${goalX},${goalY}) is not passable. Biome: ${goalBiome.name} (passable: ${goalBiome.passable})`);
+      return null;
+    }
+
+    console.log(`[PathfindingSystem] Starting A* search from (${startX},${startY}) [${startBiome.name}] to (${goalX},${goalY}) [${goalBiome.name}]`);
 
     const openList = [];
     const closedSet = new Set();
@@ -154,7 +172,8 @@ export default class PathfindingSystem {
       }
     }
 
-    // No path found
+    // No path found - exhausted all possibilities
+    console.warn(`[PathfindingSystem] No path found from (${startX},${startY}) to (${goalX},${goalY}). Checked ${closedSet.size} tiles.`);
     return null;
   }
 

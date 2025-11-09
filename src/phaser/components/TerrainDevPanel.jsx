@@ -12,10 +12,11 @@ import './TerrainDevPanel.css';
 export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [expanded, setExpanded] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(true);
-  const [startX, setStartX] = useState('10');
-  const [startY, setStartY] = useState('10');
-  const [endX, setEndX] = useState('50');
-  const [endY, setEndY] = useState('50');
+  // Default to center of map where land is more likely (map is 250x250)
+  const [startX, setStartX] = useState('100');
+  const [startY, setStartY] = useState('100');
+  const [endX, setEndX] = useState('150');
+  const [endY, setEndY] = useState('150');
 
   /**
    * Regenerate terrain with current seed
@@ -120,6 +121,66 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
     }
   };
 
+  /**
+   * Layer 3: Find random passable tiles and set as start/end
+   */
+  const handleFindRandomPassable = () => {
+    console.log('[TerrainDevPanel] Find Random Passable clicked');
+
+    if (!gameRef.current) {
+      console.error('[TerrainDevPanel] No game instance!');
+      return;
+    }
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.biomeMap) {
+      console.error('[TerrainDevPanel] Scene or biomeMap not available');
+      return;
+    }
+
+    // Find passable tiles in center area where land is most likely
+    const passableTiles = [];
+    const centerX = Math.floor(scene.mapWidth / 2);
+    const centerY = Math.floor(scene.mapHeight / 2);
+    const searchRadius = 75; // Search 75 tiles around center
+
+    for (let y = centerY - searchRadius; y < centerY + searchRadius; y++) {
+      for (let x = centerX - searchRadius; x < centerX + searchRadius; x++) {
+        if (x >= 0 && x < scene.mapWidth && y >= 0 && y < scene.mapHeight) {
+          const biome = scene.getBiomeAt(x, y);
+          if (biome && biome.passable) {
+            passableTiles.push({ x, y, biome: biome.name });
+          }
+        }
+      }
+    }
+
+    console.log(`[TerrainDevPanel] Found ${passableTiles.length} passable tiles`);
+
+    if (passableTiles.length >= 2) {
+      // Pick random start and end
+      const startIdx = Math.floor(Math.random() * passableTiles.length);
+      let endIdx = Math.floor(Math.random() * passableTiles.length);
+
+      // Make sure start and end are different
+      while (endIdx === startIdx && passableTiles.length > 1) {
+        endIdx = Math.floor(Math.random() * passableTiles.length);
+      }
+
+      const start = passableTiles[startIdx];
+      const end = passableTiles[endIdx];
+
+      console.log(`[TerrainDevPanel] Setting start: ${start.biome}(${start.x},${start.y}), end: ${end.biome}(${end.x},${end.y})`);
+
+      setStartX(start.x.toString());
+      setStartY(start.y.toString());
+      setEndX(end.x.toString());
+      setEndY(end.y.toString());
+    } else {
+      console.warn('[TerrainDevPanel] Not enough passable tiles found');
+    }
+  };
+
   if (!isVisible) {
     // Minimized toggle button
     return (
@@ -214,6 +275,9 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
               </div>
 
               <div className="path-buttons">
+                <button onClick={handleFindRandomPassable} className="random-passable-btn" title="Find two random passable tiles">
+                  🎲 Random Passable
+                </button>
                 <button onClick={handleFindPath} className="find-path-btn">
                   🔍 Find Path
                 </button>

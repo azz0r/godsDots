@@ -480,4 +480,158 @@ describe('Layer 3: Pathfinding System', () => {
       expect(path.some(node => terrainData[node.y][node.x] === BIOME_TYPES.SHALLOW_WATER)).toBe(true);
     });
   });
+
+  describe('Chaos/Fuzz Testing', () => {
+    test('should handle random procedural terrain - 50 attempts', () => {
+      // Generate a realistic procedural map
+      const TerrainGenerator = require('../systems/TerrainGenerator').default;
+      const BiomeMapper = require('../systems/BiomeMapper').default;
+
+      const seed = Date.now();
+      const generator = new TerrainGenerator(seed);
+
+      const width = 50;
+      const height = 50;
+
+      const heightMap = generator.generateHeightMap(width, height);
+      const moistureMap = generator.generateMoistureMap(width, height);
+      const biomeMap = BiomeMapper.createBiomeMap(heightMap, moistureMap);
+
+      const pathfinder = new PathfindingSystem(biomeMap);
+
+      let successCount = 0;
+      let failCount = 0;
+      const failures = [];
+
+      // Try 50 random paths
+      for (let i = 0; i < 50; i++) {
+        const startX = Math.floor(Math.random() * width);
+        const startY = Math.floor(Math.random() * height);
+        const endX = Math.floor(Math.random() * width);
+        const endY = Math.floor(Math.random() * height);
+
+        const path = pathfinder.findPath(startX, startY, endX, endY);
+
+        if (path) {
+          successCount++;
+        } else {
+          failCount++;
+          failures.push({
+            start: { x: startX, y: startY, biome: biomeMap[startY][startX].name },
+            end: { x: endX, y: endY, biome: biomeMap[endY][endX].name }
+          });
+        }
+      }
+
+      console.log(`Chaos test results: ${successCount} successful, ${failCount} failed`);
+
+      if (failures.length > 0 && failures.length <= 10) {
+        console.log('Sample failures:', failures.slice(0, 5));
+      }
+
+      // At least some paths should succeed (unless we're incredibly unlucky with ocean)
+      expect(successCount).toBeGreaterThan(0);
+    });
+
+    test('should find path in center of map where land is most likely', () => {
+      const TerrainGenerator = require('../systems/TerrainGenerator').default;
+      const BiomeMapper = require('../systems/BiomeMapper').default;
+
+      const seed = 12345;
+      const generator = new TerrainGenerator(seed);
+
+      const width = 100;
+      const height = 100;
+
+      const heightMap = generator.generateHeightMap(width, height);
+      const moistureMap = generator.generateMoistureMap(width, height);
+      const biomeMap = BiomeMapper.createBiomeMap(heightMap, moistureMap);
+
+      const pathfinder = new PathfindingSystem(biomeMap);
+
+      // Find passable tiles in center
+      const passableTiles = [];
+      for (let y = 40; y < 60; y++) {
+        for (let x = 40; x < 60; x++) {
+          if (biomeMap[y][x].passable) {
+            passableTiles.push({ x, y, biome: biomeMap[y][x].name });
+          }
+        }
+      }
+
+      console.log(`Found ${passableTiles.length} passable tiles in center region`);
+
+      // If we have at least 2 passable tiles, we should be able to find a path
+      if (passableTiles.length >= 2) {
+        const start = passableTiles[0];
+        const end = passableTiles[Math.floor(passableTiles.length / 2)];
+
+        console.log(`Testing path from ${start.biome}(${start.x},${start.y}) to ${end.biome}(${end.x},${end.y})`);
+
+        const path = pathfinder.findPath(start.x, start.y, end.x, end.y);
+
+        expect(path).not.toBeNull();
+        expect(path.length).toBeGreaterThan(0);
+      }
+    });
+
+    test('should identify why pathfinding fails on specific coordinates', () => {
+      const TerrainGenerator = require('../systems/TerrainGenerator').default;
+      const BiomeMapper = require('../systems/BiomeMapper').default;
+
+      const seed = 12345;
+      const generator = new TerrainGenerator(seed);
+
+      const width = 250;
+      const height = 250;
+
+      const heightMap = generator.generateHeightMap(width, height);
+      const moistureMap = generator.generateMoistureMap(width, height);
+      const biomeMap = BiomeMapper.createBiomeMap(heightMap, moistureMap);
+
+      const pathfinder = new PathfindingSystem(biomeMap);
+
+      // Test the exact coordinates from the user's report
+      const startX = 0;
+      const startY = 10;
+      const endX = 50;
+      const endY = 50;
+
+      const startBiome = biomeMap[startY][startX];
+      const endBiome = biomeMap[endY][endX];
+
+      console.log(`Start (${startX},${startY}): ${startBiome.name} - passable: ${startBiome.passable}`);
+      console.log(`End (${endX},${endY}): ${endBiome.name} - passable: ${endBiome.passable}`);
+
+      const path = pathfinder.findPath(startX, startY, endX, endY);
+
+      if (!path) {
+        console.log('Path not found. Analyzing terrain...');
+
+        // Check if either position is impassable
+        if (!startBiome.passable) {
+          console.log(`Start position is impassable (${startBiome.name})`);
+        }
+
+        if (!endBiome.passable) {
+          console.log(`End position is impassable (${endBiome.name})`);
+        }
+
+        // Check if there's any passable path between them
+        let passableCount = 0;
+        for (let y = Math.min(startY, endY); y <= Math.max(startY, endY); y++) {
+          for (let x = Math.min(startX, endX); x <= Math.max(startX, endX); x++) {
+            if (biomeMap[y][x].passable) {
+              passableCount++;
+            }
+          }
+        }
+
+        console.log(`Passable tiles in region: ${passableCount}`);
+      }
+
+      // Don't assert - just diagnostic
+      console.log(`Path result: ${path ? `Found (${path.length} steps)` : 'Not found'}`);
+    });
+  });
 });
