@@ -1,13 +1,14 @@
 /**
- * Layer 1: React-Phaser Integration Component
+ * Layer 2: React-Phaser Integration Component with Dev Panel
  *
  * This component handles mounting and unmounting the Phaser game instance
- * within the React application lifecycle.
+ * within the React application lifecycle, and provides dev UI overlay.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { createGameConfig } from '../config/gameConfig';
+import TerrainDevPanel from './TerrainDevPanel';
 
 /**
  * PhaserGame component - mounts Phaser game instance into React
@@ -16,6 +17,7 @@ import { createGameConfig } from '../config/gameConfig';
 export default function PhaserGame() {
   const gameRef = useRef(null);
   const containerRef = useRef(null);
+  const [devPanelVisible, setDevPanelVisible] = useState(true);
 
   useEffect(() => {
     // Only initialize if we don't have a game instance
@@ -39,17 +41,26 @@ export default function PhaserGame() {
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      id="game-container"
-      style={{
-        width: '100%',
-        height: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#000'
-      }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        id="game-container"
+        style={{
+          width: '100%',
+          height: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#000'
+        }}
+      />
+
+      {/* Dev Panel Overlay */}
+      <TerrainDevPanel
+        gameInstance={gameRef.current}
+        isVisible={devPanelVisible}
+        onToggle={() => setDevPanelVisible(!devPanelVisible)}
+      />
+    </>
   );
 }

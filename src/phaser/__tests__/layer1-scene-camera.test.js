@@ -184,7 +184,7 @@ describe('Layer 1: Scene + Camera System', () => {
       expect(scene.constructor.name).toBe('MainScene');
     });
 
-    test('scene should have graphics object after creation', () => {
+    test('scene should initialize terrain system after creation', () => {
       const scene = new MainScene();
 
       // Mock cameras system
@@ -196,22 +196,14 @@ describe('Layer 1: Scene + Camera System', () => {
         }
       };
 
-      // Mock graphics object with all necessary methods
-      const mockGraphics = {
-        clear: jest.fn(),
-        lineStyle: jest.fn().mockReturnThis(),
-        lineBetween: jest.fn().mockReturnThis(),
-        strokeRect: jest.fn().mockReturnThis()
-      };
-
-      scene.add = {
-        graphics: jest.fn(() => mockGraphics)
-      };
-
       scene.create();
 
-      expect(scene.add.graphics).toHaveBeenCalled();
-      expect(scene.backgroundGraphics).toBe(mockGraphics);
+      // Layer 2: Terrain system should be initialized (properties exist)
+      expect(scene).toHaveProperty('terrainGenerator');
+      expect(scene).toHaveProperty('terrainMap');
+      expect(scene).toHaveProperty('terrainLayer');
+      expect(scene).toHaveProperty('mapWidth');
+      expect(scene).toHaveProperty('mapHeight');
     });
   });
 
