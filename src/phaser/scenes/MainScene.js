@@ -27,6 +27,7 @@ export default class MainScene extends Phaser.Scene {
     this.terrainGenerator = null;
     this.terrainMap = null;
     this.terrainLayer = null;
+    this.terrainGraphics = null; // Single graphics object for all terrain
     this.terrainSeed = Date.now();
 
     // Map dimensions (in tiles)
@@ -139,53 +140,48 @@ export default class MainScene extends Phaser.Scene {
   }
 
   /**
-   * Render terrain using Phaser tilemap system
-   * Uses Graphics objects to draw colored tiles (no sprite sheet needed)
+   * Render terrain using a single Graphics object
+   * Efficient rendering with proper cleanup for regeneration
    */
   renderTerrain(biomeMap) {
-    // Clear existing terrain if present
-    if (this.terrainLayer) {
-      this.terrainLayer.destroy();
+    // Clear existing terrain graphics
+    if (this.terrainGraphics) {
+      this.terrainGraphics.clear();
+      this.terrainGraphics.destroy();
+      this.terrainGraphics = null;
     }
 
-    // Create a tilemap from blank data
-    const map = this.make.tilemap({
-      tileWidth: TERRAIN_CONFIG.TILE_SIZE,
-      tileHeight: TERRAIN_CONFIG.TILE_SIZE,
-      width: this.mapWidth,
-      height: this.mapHeight
-    });
+    // Create a single graphics object for all terrain
+    this.terrainGraphics = this.add.graphics();
 
-    // Create blank layer
-    const layer = map.createBlankLayer('terrain', null, 0, 0,
-      this.mapWidth, this.mapHeight, TERRAIN_CONFIG.TILE_SIZE, TERRAIN_CONFIG.TILE_SIZE);
+    // Render each tile
+    for (let y = 0; y < this.mapHeight; y++) {
+      for (let x = 0; x < this.mapWidth; x++) {
+        const biome = biomeMap[y][x];
+        const pixelX = x * TERRAIN_CONFIG.TILE_SIZE;
+        const pixelY = y * TERRAIN_CONFIG.TILE_SIZE;
 
-    // Render each tile with custom graphics callback
-    layer.forEachTile((tile) => {
-      const biome = biomeMap[tile.y][tile.x];
-      const graphics = this.add.graphics();
+        // Draw filled rectangle for this biome
+        this.terrainGraphics.fillStyle(biome.color, 1);
+        this.terrainGraphics.fillRect(
+          pixelX,
+          pixelY,
+          TERRAIN_CONFIG.TILE_SIZE,
+          TERRAIN_CONFIG.TILE_SIZE
+        );
 
-      // Draw filled rectangle for this biome
-      graphics.fillStyle(biome.color, 1);
-      graphics.fillRect(
-        tile.x * TERRAIN_CONFIG.TILE_SIZE,
-        tile.y * TERRAIN_CONFIG.TILE_SIZE,
-        TERRAIN_CONFIG.TILE_SIZE,
-        TERRAIN_CONFIG.TILE_SIZE
-      );
+        // Optional: Add subtle border for visual clarity
+        this.terrainGraphics.lineStyle(0.5, 0x000000, 0.1);
+        this.terrainGraphics.strokeRect(
+          pixelX,
+          pixelY,
+          TERRAIN_CONFIG.TILE_SIZE,
+          TERRAIN_CONFIG.TILE_SIZE
+        );
+      }
+    }
 
-      // Optional: Add border for visual clarity
-      graphics.lineStyle(0.5, 0x000000, 0.1);
-      graphics.strokeRect(
-        tile.x * TERRAIN_CONFIG.TILE_SIZE,
-        tile.y * TERRAIN_CONFIG.TILE_SIZE,
-        TERRAIN_CONFIG.TILE_SIZE,
-        TERRAIN_CONFIG.TILE_SIZE
-      );
-    });
-
-    this.terrainLayer = layer;
-    this.terrainMap = map;
+    console.log('[Layer 2] Terrain rendered successfully');
   }
 
   /**
