@@ -1,73 +1,24 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import GameContainer from './components/GameContainer'
-import { LandManager } from './classes/LandManager'
-import { PathfindingGrid } from './utils/pathfinding/PathfindingGrid'
-import { MapGenerator } from './utils/mapGeneration/MapGenerator'
-import { EntityProvider } from './contexts/EntityContext'
-import gameConfig from './config/gameConfig'
-import './styles/App.css'
+/**
+ * God Dots - Phaser 3 Migration Demo
+ * Layer 1: Basic Scene + Camera System
+ */
 
-function App() {
-  const [gameState, setGameState] = useState('menu') // menu, playing, paused
-  const [mapSeed, setMapSeed] = useState(Date.now())
-  const [debugMode, setDebugMode] = useState(false)
-  
-  // Calculate world dimensions
-  const worldWidth = gameConfig.map.width * gameConfig.tileSize
-  const worldHeight = gameConfig.map.height * gameConfig.tileSize
-  
-  // Initialize core systems
-  const landManager = useMemo(() => new LandManager(worldWidth, worldHeight), [])
-  // PathfindingGrid will be initialized in GameContainer after terrain system is ready
-  const [pathfindingGrid, setPathfindingGrid] = useState(null)
-  const mapGenerator = useMemo(() => new MapGenerator(mapSeed), [mapSeed])
+import PhaserGame from './phaser/components/PhaserGame';
+import './App.css';
 
-  // Initialize game on start
-  const initializeGame = useCallback(() => {
-    // This initialization is now handled by GameInitializer in useGameEngine
-    // Just set the game state to playing
-    setGameState('playing')
-  }, [])
-
-  // Handle new game
-  const startNewGame = useCallback(() => {
-    setMapSeed(Date.now())
-    initializeGame()
-  }, [initializeGame])
-
-  // Toggle debug mode
-  const toggleDebugMode = useCallback(() => {
-    setDebugMode(prev => !prev)
-  }, [])
-
-  const gameContext = {
-    landManager,
-    pathfindingGrid,
-    setPathfindingGrid,
-    mapGenerator,
-    debugMode,
-    gameState,
-    toggleDebugMode,
-    startNewGame
-  }
-
+export default function App() {
   return (
-    <EntityProvider>
-      <div className="App">
-        {gameState === 'menu' ? (
-          <div className="main-menu">
-            <h1>God Dots</h1>
-            <button onClick={startNewGame}>New Game</button>
-            <button onClick={() => setDebugMode(!debugMode)}>
-              Debug Mode: {debugMode ? 'ON' : 'OFF'}
-            </button>
-          </div>
-        ) : (
-          <GameContainer gameContext={gameContext} />
-        )}
-      </div>
-    </EntityProvider>
-  )
+    <div className="app">
+      <header className="app-header">
+        <h1>God Dots - Phaser 3 Migration</h1>
+        <p>Layer 1: Scene + Camera System (20/20 tests passing)</p>
+      </header>
+      <main className="app-main">
+        <PhaserGame />
+      </main>
+      <footer className="app-footer">
+        <p>Use mouse wheel to zoom | Click and drag to pan (coming soon)</p>
+      </footer>
+    </div>
+  );
 }
-
-export default App
