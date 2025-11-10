@@ -5,6 +5,8 @@
  * Villagers move between destinations, pause, and return.
  */
 
+import { TERRAIN_CONFIG } from '../config/terrainConfig';
+
 export default class Villager {
   /**
    * Create a new villager
@@ -20,7 +22,7 @@ export default class Villager {
     this.graphics = graphics;
 
     // Movement
-    this.speed = 30; // Tiles per second
+    this.speed = 10; // Tiles per second (slower for bigger map)
     this.currentPath = null;
     this.pathIndex = 0;
 
@@ -152,7 +154,7 @@ export default class Villager {
   updateGraphics() {
     if (this.graphics) {
       // Convert tile position to pixel position
-      const TILE_SIZE = 16;
+      const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
       this.graphics.x = this.x * TILE_SIZE + TILE_SIZE / 2;
       this.graphics.y = this.y * TILE_SIZE + TILE_SIZE / 2;
     }

@@ -6,6 +6,7 @@
  */
 
 import Villager from '../entities/Villager';
+import { TERRAIN_CONFIG } from '../config/terrainConfig';
 
 export default class VillagerSystem {
   /**
@@ -62,10 +63,10 @@ export default class VillagerSystem {
     }
 
     // Create Phaser graphics for villager
-    const TILE_SIZE = 16;
+    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
     const graphics = this.scene.add.graphics();
     graphics.fillStyle(0x4a90e2, 1.0); // Blue color
-    graphics.fillCircle(0, 0, 6); // 6 pixel radius
+    graphics.fillCircle(0, 0, 2); // 2 pixel radius (appropriate for 4px tiles)
     graphics.setDepth(100); // Above terrain
 
     // Position at tile center

@@ -252,10 +252,10 @@ describe('Layer 3: Pathfinding System', () => {
 
   describe('Height-Based Navigation', () => {
     test('should respect height differences when enabled', () => {
-      // Can't jump from shallow water (height 1) to hills (height 3)
+      // Can't jump from grassland (height 2) to mountain (height 4)
       const terrainData = [
-        [BIOME_TYPES.SHALLOW_WATER, BIOME_TYPES.HILLS, BIOME_TYPES.GRASSLAND],
-        [BIOME_TYPES.GRASSLAND, BIOME_TYPES.GRASSLAND, BIOME_TYPES.GRASSLAND]
+        [BIOME_TYPES.GRASSLAND, BIOME_TYPES.MOUNTAIN, BIOME_TYPES.GRASSLAND],
+        [BIOME_TYPES.GRASSLAND, BIOME_TYPES.HILLS, BIOME_TYPES.GRASSLAND]
       ];
 
       const pathfinder = new PathfindingSystem(terrainData, {
@@ -265,7 +265,7 @@ describe('Layer 3: Pathfinding System', () => {
 
       const path = pathfinder.findPath(0, 0, 2, 0);
 
-      // Should find a path that goes through grassland to avoid the height jump
+      // Should find a path that goes through hills (row 1) to avoid the height jump
       expect(path).toBeDefined();
 
       // Verify no adjacent tiles have height difference > 1
@@ -279,7 +279,7 @@ describe('Layer 3: Pathfinding System', () => {
 
     test('should allow height traversal when disabled', () => {
       const terrainData = [
-        [BIOME_TYPES.SHALLOW_WATER, BIOME_TYPES.HILLS, BIOME_TYPES.GRASSLAND]
+        [BIOME_TYPES.GRASSLAND, BIOME_TYPES.HILLS, BIOME_TYPES.GRASSLAND]
       ];
 
       const pathfinder = new PathfindingSystem(terrainData, {
@@ -466,18 +466,18 @@ describe('Layer 3: Pathfinding System', () => {
 
     test('should respect passable property from biome config', () => {
       const terrainData = [
-        [BIOME_TYPES.GRASSLAND, BIOME_TYPES.SHALLOW_WATER, BIOME_TYPES.GRASSLAND]
+        [BIOME_TYPES.GRASSLAND, BIOME_TYPES.SHALLOW_WATER, BIOME_TYPES.GRASSLAND],
+        [BIOME_TYPES.GRASSLAND, BIOME_TYPES.GRASSLAND, BIOME_TYPES.GRASSLAND]
       ];
 
       const pathfinder = new PathfindingSystem(terrainData);
       const path = pathfinder.findPath(0, 0, 2, 0);
 
-      // SHALLOW_WATER is passable (movementCost: 3.0)
+      // SHALLOW_WATER is impassable, so path should go around it
       expect(path).toBeDefined();
 
-      // But should prefer to avoid water if possible
-      // In this case, forced to go through water
-      expect(path.some(node => terrainData[node.y][node.x] === BIOME_TYPES.SHALLOW_WATER)).toBe(true);
+      // Path should avoid shallow water
+      expect(path.every(node => terrainData[node.y][node.x] !== BIOME_TYPES.SHALLOW_WATER)).toBe(true);
     });
   });
 

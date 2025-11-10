@@ -32,8 +32,8 @@ export const BIOME_TYPES = {
     name: 'Shallow Water',
     color: 0x2e5c8a,      // Medium blue
     height: HEIGHT_LEVELS.SHALLOW_WATER,
-    passable: true,
-    movementCost: 3.0     // 3x slower than land
+    passable: false,      // Villagers cannot cross water
+    movementCost: Infinity
   },
 
   BEACH: {
@@ -89,13 +89,13 @@ export const TERRAIN_CONFIG = {
 
   // Island generation
   USE_FALLOFF: true,           // Create island-like maps
-  FALLOFF_STRENGTH: 3,         // Higher = steeper edges
-  FALLOFF_OFFSET: 0.2,         // Adjust island size
+  FALLOFF_STRENGTH: 2.5,       // Reduced for more connected landmass
+  FALLOFF_OFFSET: 0.4,         // Increased for larger islands
 
   // Height thresholds (0-1 range, normalized noise)
-  THRESHOLD_DEEP_OCEAN: 0.25,
-  THRESHOLD_SHALLOW_WATER: 0.35,
-  THRESHOLD_LAND: 0.45,
+  THRESHOLD_DEEP_OCEAN: 0.30,  // Less deep ocean
+  THRESHOLD_SHALLOW_WATER: 0.38, // Narrower shallow water band
+  THRESHOLD_LAND: 0.42,        // More land overall
   THRESHOLD_HILLS: 0.70,
   THRESHOLD_MOUNTAIN: 0.85,
 
@@ -104,7 +104,7 @@ export const TERRAIN_CONFIG = {
   THRESHOLD_HIGH_MOISTURE: 0.6,
 
   // Tile size for Phaser rendering
-  TILE_SIZE: 16,               // Each tile is 16x16 pixels
+  TILE_SIZE: 4,                // Each tile is 4x4 pixels (4x bigger map)
 
   // Default map size
   DEFAULT_MAP_WIDTH: 100,      // 100 tiles wide
