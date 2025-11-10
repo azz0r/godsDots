@@ -229,9 +229,14 @@ export default class CameraControlSystem {
     const worldX = villager.x * TILE_SIZE + TILE_SIZE / 2;
     const worldY = villager.y * TILE_SIZE + TILE_SIZE / 2;
 
-    this.zoomToLocation(worldX, worldY, this.defaultZoom);
+    console.log(`[CameraControlSystem] ========== ZOOM TO VILLAGER ==========`);
+    console.log(`[CameraControlSystem] Villager #${villager.id}`);
+    console.log(`[CameraControlSystem] Tile position: (${villager.x}, ${villager.y})`);
+    console.log(`[CameraControlSystem] Tile size: ${TILE_SIZE}px`);
+    console.log(`[CameraControlSystem] World pixel position: (${worldX}, ${worldY})`);
+    console.log(`[CameraControlSystem] Target zoom: ${this.defaultZoom}x`);
 
-    console.log(`[CameraControlSystem] Zooming to villager ${villager.id} at (${villager.x}, ${villager.y})`);
+    this.zoomToLocation(worldX, worldY, this.defaultZoom);
   }
 
   /**

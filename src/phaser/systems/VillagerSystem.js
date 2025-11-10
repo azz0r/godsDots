@@ -221,6 +221,11 @@ export default class VillagerSystem {
       const pixelX = villager.x * TILE_SIZE + TILE_SIZE / 2;
       const pixelY = villager.y * TILE_SIZE + TILE_SIZE / 2;
       this.villagersGraphics.fillCircle(pixelX, pixelY, 2);
+
+      // Debug: log first villager position once
+      if (villager.id === 1 && Math.random() < 0.01) { // 1% of frames
+        console.log(`[VillagerSystem] Villager #${villager.id} at tile (${villager.x}, ${villager.y}) -> pixel (${pixelX}, ${pixelY})`);
+      }
     }
   }
 

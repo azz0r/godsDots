@@ -68,15 +68,26 @@ export default class MainScene extends Phaser.Scene {
    * Sets up camera, world bounds, terrain, and initial rendering
    */
   create() {
+    console.log('[MainScene] ========== CREATE SCENE ==========');
+    console.log(`[MainScene] World: ${this.worldWidth}x${this.worldHeight}px`);
+    console.log(`[MainScene] Map: ${this.mapWidth}x${this.mapHeight} tiles`);
+    console.log(`[MainScene] Tile size: ${TERRAIN_CONFIG.TILE_SIZE}px`);
+
     // Set world bounds (larger than viewport for panning)
     if (this.cameras && this.cameras.main) {
       this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
+      console.log(`[MainScene] Camera bounds: (0,0) to (${this.worldWidth},${this.worldHeight})`);
 
       // Set initial zoom
       this.cameras.main.setZoom(GAME_CONFIG.DEFAULT_ZOOM);
+      console.log(`[MainScene] Zoom: ${GAME_CONFIG.DEFAULT_ZOOM}x`);
 
       // Center camera on middle of world
-      this.cameras.main.centerOn(this.worldWidth / 2, this.worldHeight / 2);
+      const centerX = this.worldWidth / 2;
+      const centerY = this.worldHeight / 2;
+      this.cameras.main.centerOn(centerX, centerY);
+      console.log(`[MainScene] Camera centered on: (${centerX}, ${centerY})`);
+      console.log(`[MainScene] Camera scrollX: ${this.cameras.main.scrollX}, scrollY: ${this.cameras.main.scrollY}`);
     }
 
     // Generate and render terrain (skip if in test mode)
