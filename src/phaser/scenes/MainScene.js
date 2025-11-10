@@ -232,8 +232,8 @@ export default class MainScene extends Phaser.Scene {
     console.log(`[MainScene] Creating RenderTexture (${this.worldWidth}x${this.worldHeight})...`);
     this.terrainRenderTexture = this.add.renderTexture(0, 0, this.worldWidth, this.worldHeight);
 
-    // Create temporary graphics object to draw to RenderTexture
-    const tempGraphics = this.add.graphics();
+    // Create temporary graphics object to draw to RenderTexture (not added to scene)
+    const tempGraphics = this.make.graphics({ add: false });
 
     console.log(`[MainScene] Pre-rendering ${this.mapWidth}x${this.mapHeight} tiles to texture...`);
     const startTime = performance.now();
@@ -283,6 +283,8 @@ export default class MainScene extends Phaser.Scene {
     const endTime = performance.now();
     console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles to texture in ${(endTime - startTime).toFixed(2)}ms`);
     console.log(`[MainScene] ✓ Performance: Reduced from 2M draw calls/frame to 1 sprite render/frame`);
+    console.log(`[MainScene] Terrain sprite positioned at (${this.terrainSprite.x}, ${this.terrainSprite.y})`);
+    console.log(`[MainScene] Terrain sprite size: ${this.terrainSprite.width}x${this.terrainSprite.height}`);
   }
 
   /**
