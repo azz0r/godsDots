@@ -33,7 +33,6 @@ export default class MainScene extends Phaser.Scene {
     this.terrainLayer = null;
     this.terrainGraphics = null; // Single graphics object for all terrain
     this.terrainRenderTexture = null; // RenderTexture for efficient terrain rendering
-    this.terrainSprite = null; // Sprite displaying the RenderTexture
     this.terrainSeed = Date.now();
     this.biomeMap = null; // Store biome map for pathfinding
 
@@ -219,10 +218,6 @@ export default class MainScene extends Phaser.Scene {
     console.log('[MainScene] renderTerrain() called - Using RenderTexture optimization');
 
     // Clean up existing terrain
-    if (this.terrainSprite) {
-      this.terrainSprite.destroy();
-      this.terrainSprite = null;
-    }
     if (this.terrainRenderTexture) {
       this.terrainRenderTexture.destroy();
       this.terrainRenderTexture = null;
@@ -286,16 +281,17 @@ export default class MainScene extends Phaser.Scene {
     // Clean up temporary graphics
     tempGraphics.destroy();
 
-    // Create sprite from RenderTexture
-    this.terrainSprite = this.add.sprite(0, 0, this.terrainRenderTexture);
-    this.terrainSprite.setOrigin(0, 0);
-    this.terrainSprite.setDepth(0); // Below everything else
+    // The RenderTexture itself is already a display object - no need to create a sprite
+    // Just set its properties
+    this.terrainRenderTexture.setPosition(0, 0);
+    this.terrainRenderTexture.setOrigin(0, 0);
+    this.terrainRenderTexture.setDepth(0); // Below everything else
 
     const endTime = performance.now();
     console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles to texture in ${(endTime - startTime).toFixed(2)}ms`);
     console.log(`[MainScene] ✓ Performance: Reduced from 2M draw calls/frame to 1 sprite render/frame`);
-    console.log(`[MainScene] Terrain sprite positioned at (${this.terrainSprite.x}, ${this.terrainSprite.y})`);
-    console.log(`[MainScene] Terrain sprite size: ${this.terrainSprite.width}x${this.terrainSprite.height}`);
+    console.log(`[MainScene] Terrain texture positioned at (${this.terrainRenderTexture.x}, ${this.terrainRenderTexture.y})`);
+    console.log(`[MainScene] Terrain texture size: ${this.terrainRenderTexture.width}x${this.terrainRenderTexture.height}`);
   }
 
   /**
