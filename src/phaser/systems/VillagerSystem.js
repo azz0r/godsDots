@@ -8,6 +8,9 @@
 import Villager from '../entities/Villager';
 import { TERRAIN_CONFIG } from '../config/terrainConfig';
 
+// Maximum number of villagers that can be spawned
+const MAX_VILLAGERS = 1400;
+
 export default class VillagerSystem {
   /**
    * Create a new villager system
@@ -67,6 +70,12 @@ export default class VillagerSystem {
   spawnVillager(x, y) {
     if (!this.scene) {
       console.error('[VillagerSystem] Cannot spawn villager without scene');
+      return null;
+    }
+
+    // Check if we've reached the maximum villager limit
+    if (this.villagers.length >= MAX_VILLAGERS) {
+      console.warn(`[VillagerSystem] Maximum villager limit (${MAX_VILLAGERS}) reached. Cannot spawn more villagers.`);
       return null;
     }
 
@@ -267,6 +276,14 @@ export default class VillagerSystem {
    */
   getCount() {
     return this.villagers.length;
+  }
+
+  /**
+   * Get maximum villager limit
+   * @returns {number} Maximum number of villagers allowed
+   */
+  getMaxVillagers() {
+    return MAX_VILLAGERS;
   }
 
   /**
