@@ -13,6 +13,7 @@ import BiomeMapper from '../systems/BiomeMapper';
 import PathfindingSystem from '../systems/PathfindingSystem';
 import PathVisualizer from '../systems/PathVisualizer';
 import VillagerSystem from '../systems/VillagerSystem';
+import TempleSystem from '../systems/TempleSystem';
 import CameraControlSystem from '../systems/CameraControlSystem';
 import PlayerSystem from '../systems/PlayerSystem';
 import GameInitializer from '../systems/GameInitializer';
@@ -51,6 +52,9 @@ export default class MainScene extends Phaser.Scene {
 
     // Villager system (Layer 4)
     this.villagerSystem = null;
+
+    // Temple system (Layer 6)
+    this.templeSystem = null;
 
     // Camera control system (Layer 5)
     this.cameraControlSystem = null;
@@ -111,6 +115,10 @@ export default class MainScene extends Phaser.Scene {
       this.villagerSystem.setTerrainData(this.biomeMap);
       console.log('[MainScene] Villager system initialized');
 
+      // Initialize temple system (Layer 6)
+      this.templeSystem = new TempleSystem(this);
+      console.log('[MainScene] Temple system initialized');
+
       // Initialize camera control system (Layer 5)
       this.cameraControlSystem = new CameraControlSystem(this);
       console.log('[MainScene] Camera control system initialized');
@@ -139,6 +147,7 @@ export default class MainScene extends Phaser.Scene {
       {
         playerSystem: this.playerSystem,
         villagerSystem: this.villagerSystem,
+        templeSystem: this.templeSystem,
         pathfindingSystem: this.pathfindingSystem
       },
       {
@@ -179,6 +188,11 @@ export default class MainScene extends Phaser.Scene {
     // Update villagers (Layer 4)
     if (this.villagerSystem) {
       this.villagerSystem.update(delta);
+    }
+
+    // Update temples (Layer 6)
+    if (this.templeSystem) {
+      this.templeSystem.update(delta);
     }
 
     // Update camera controls (Layer 5)

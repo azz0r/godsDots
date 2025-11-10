@@ -10,7 +10,7 @@ export default class GameInitializer {
   /**
    * Initialize a new game
    * @param {Phaser.Scene} scene - The Phaser scene
-   * @param {Object} systems - Game systems {playerSystem, villagerSystem, etc.}
+   * @param {Object} systems - Game systems {playerSystem, villagerSystem, templeSystem, etc.}
    * @param {Object} config - Game configuration
    */
   static initializeGame(scene, systems, config = {}) {
@@ -19,6 +19,7 @@ export default class GameInitializer {
     const {
       playerSystem,
       villagerSystem,
+      templeSystem,
       pathfindingSystem
     } = systems;
 
@@ -65,6 +66,12 @@ export default class GameInitializer {
 
     playerSystem.addTemple(humanPlayer.id, humanTemple);
     playerSystem.addTemple(aiPlayer.id, aiTemple);
+
+    // Add temples to temple system for rendering
+    if (templeSystem) {
+      templeSystem.addTemple(humanTemple);
+      templeSystem.addTemple(aiTemple);
+    }
 
     // Spawn initial villagers for each player
     this.spawnInitialVillagers(
@@ -186,6 +193,7 @@ export default class GameInitializer {
       id: `temple_${player.id}`,
       type: 'temple',
       playerId: player.id,
+      playerColor: player.color, // Add player color for rendering
       position: position,
       level: 1,
       health: 100,
@@ -193,9 +201,6 @@ export default class GameInitializer {
     };
 
     console.log(`[GameInitializer] Spawned temple for ${player.name} at (${position.x}, ${position.y})`);
-
-    // TODO: Add visual representation of temple (future layer)
-    // For now, temples exist as data only
 
     return temple;
   }
