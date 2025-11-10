@@ -23,6 +23,7 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
 
   // Villager state
   const [villagerCount, setVillagerCount] = useState(0);
+  const [maxVillagers, setMaxVillagers] = useState(1400);
   const [villagersPaused, setVillagersPaused] = useState(false);
   const [selectedVillagerId, setSelectedVillagerId] = useState('');
 
@@ -41,6 +42,19 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
     }, 100); // Update every 100ms for smooth readings
 
     return () => clearInterval(interval);
+  }, [gameRef]);
+
+  /**
+   * Get max villagers limit from VillagerSystem on mount
+   */
+  useEffect(() => {
+    if (!gameRef.current) return;
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (scene && scene.villagerSystem) {
+      const max = scene.villagerSystem.getMaxVillagers();
+      setMaxVillagers(max);
+    }
   }, [gameRef]);
 
   /**
@@ -508,16 +522,39 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
         {/* Layer 4: Villager Controls */}
         <section className="control-section">
           <h4 onClick={() => setVillagersExpanded(!villagersExpanded)} style={{ cursor: 'pointer' }}>
-            👥 Villagers ({villagerCount}) {villagersExpanded ? '▼' : '▶'}
+            👥 Villagers ({villagerCount} / {maxVillagers}) {villagersExpanded ? '▼' : '▶'}
           </h4>
 
           {villagersExpanded && (
             <div className="controls">
+              {villagerCount >= maxVillagers && (
+                <div style={{
+                  padding: '8px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '4px',
+                  marginBottom: '8px',
+                  color: '#991b1b',
+                  fontSize: '12px'
+                }}>
+                  ⚠️ Maximum villager limit ({maxVillagers}) reached
+                </div>
+              )}
               <div className="villager-buttons">
-                <button onClick={handleSpawnVillager} className="spawn-villager-btn">
+                <button
+                  onClick={handleSpawnVillager}
+                  className="spawn-villager-btn"
+                  disabled={villagerCount >= maxVillagers}
+                  style={{ opacity: villagerCount >= maxVillagers ? 0.5 : 1 }}
+                >
                   ➕ Spawn Villager
                 </button>
-                <button onClick={() => handleSpawnMultipleVillagers(100)} className="spawn-villager-btn">
+                <button
+                  onClick={() => handleSpawnMultipleVillagers(100)}
+                  className="spawn-villager-btn"
+                  disabled={villagerCount >= maxVillagers}
+                  style={{ opacity: villagerCount >= maxVillagers ? 0.5 : 1 }}
+                >
                   ➕➕ Spawn 100
                 </button>
                 <button
