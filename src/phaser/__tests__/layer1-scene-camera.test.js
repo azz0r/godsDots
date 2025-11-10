@@ -150,7 +150,7 @@ describe('Layer 1: Scene + Camera System', () => {
 
       // Should clamp to minimum zoom
       scene.zoomCamera(0.1);
-      expect(scene.cameras.main.setZoom).toHaveBeenCalledWith(0.5);
+      expect(scene.cameras.main.setZoom).toHaveBeenCalledWith(0.25);
 
       // Should clamp to maximum zoom
       scene.zoomCamera(10);

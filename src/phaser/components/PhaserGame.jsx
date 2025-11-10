@@ -29,6 +29,12 @@ export default function PhaserGame() {
 
       // Create game instance
       gameRef.current = new Phaser.Game(config);
+
+      // Expose to window for debugging (dev only)
+      if (import.meta.env.DEV) {
+        window.phaserGame = gameRef.current;
+        console.log('[PhaserGame] Game instance exposed to window.phaserGame for debugging');
+      }
     }
 
     // Cleanup on unmount

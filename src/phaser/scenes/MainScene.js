@@ -1,7 +1,7 @@
 /**
- * Layer 2: Main Game Scene with Terrain
+ * Layer 5: Main Game Scene with Terrain, Pathfinding, Villagers, and Camera Controls
  *
- * Handles core game rendering, camera controls, and terrain generation.
+ * Handles core game rendering, camera controls, terrain generation, pathfinding, and villagers.
  * This is the primary scene where the god simulation gameplay occurs.
  */
 
@@ -10,6 +10,10 @@ import { GAME_CONFIG } from '../config/gameConfig';
 import { TERRAIN_CONFIG, BIOME_TYPES } from '../config/terrainConfig';
 import TerrainGenerator from '../systems/TerrainGenerator';
 import BiomeMapper from '../systems/BiomeMapper';
+import PathfindingSystem from '../systems/PathfindingSystem';
+import PathVisualizer from '../systems/PathVisualizer';
+import VillagerSystem from '../systems/VillagerSystem';
+import CameraControlSystem from '../systems/CameraControlSystem';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -28,11 +32,26 @@ export default class MainScene extends Phaser.Scene {
     this.terrainMap = null;
     this.terrainLayer = null;
     this.terrainGraphics = null; // Single graphics object for all terrain
+    this.terrainRenderTexture = null; // RenderTexture for efficient terrain rendering
     this.terrainSeed = Date.now();
+    this.biomeMap = null; // Store biome map for pathfinding
 
     // Map dimensions (in tiles)
     this.mapWidth = Math.floor(this.worldWidth / TERRAIN_CONFIG.TILE_SIZE);
     this.mapHeight = Math.floor(this.worldHeight / TERRAIN_CONFIG.TILE_SIZE);
+
+    // Pathfinding system (Layer 3)
+    this.pathfindingSystem = null;
+    this.pathVisualizer = null;
+    this.currentPath = null;
+    this.pathStart = null;
+    this.pathEnd = null;
+
+    // Villager system (Layer 4)
+    this.villagerSystem = null;
+
+    // Camera control system (Layer 5)
+    this.cameraControlSystem = null;
   }
 
   /**
@@ -48,20 +67,44 @@ export default class MainScene extends Phaser.Scene {
    * Sets up camera, world bounds, terrain, and initial rendering
    */
   create() {
+    console.log('[MainScene] ========== CREATE SCENE ==========');
+    console.log(`[MainScene] World: ${this.worldWidth}x${this.worldHeight}px`);
+    console.log(`[MainScene] Map: ${this.mapWidth}x${this.mapHeight} tiles`);
+    console.log(`[MainScene] Tile size: ${TERRAIN_CONFIG.TILE_SIZE}px`);
+
     // Set world bounds (larger than viewport for panning)
     if (this.cameras && this.cameras.main) {
       this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
+      console.log(`[MainScene] Camera bounds: (0,0) to (${this.worldWidth},${this.worldHeight})`);
 
       // Set initial zoom
       this.cameras.main.setZoom(GAME_CONFIG.DEFAULT_ZOOM);
+      console.log(`[MainScene] Zoom: ${GAME_CONFIG.DEFAULT_ZOOM}x`);
 
       // Center camera on middle of world
-      this.cameras.main.centerOn(this.worldWidth / 2, this.worldHeight / 2);
+      const centerX = this.worldWidth / 2;
+      const centerY = this.worldHeight / 2;
+      this.cameras.main.centerOn(centerX, centerY);
+      console.log(`[MainScene] Camera centered on: (${centerX}, ${centerY})`);
+      console.log(`[MainScene] Camera scrollX: ${this.cameras.main.scrollX}, scrollY: ${this.cameras.main.scrollY}`);
     }
 
     // Generate and render terrain (skip if in test mode)
     if (this.make && this.make.tilemap) {
       this.generateTerrain();
+
+      // Initialize path visualizer (Layer 3)
+      this.pathVisualizer = new PathVisualizer(this);
+
+      // Initialize villager system (Layer 4)
+      this.villagerSystem = new VillagerSystem(this, this.pathfindingSystem);
+      this.villagerSystem.setMapBounds(this.mapWidth, this.mapHeight);
+      this.villagerSystem.setTerrainData(this.biomeMap);
+      console.log('[MainScene] Villager system initialized');
+
+      // Initialize camera control system (Layer 5)
+      this.cameraControlSystem = new CameraControlSystem(this);
+      console.log('[MainScene] Camera control system initialized');
     }
   }
 
@@ -71,7 +114,15 @@ export default class MainScene extends Phaser.Scene {
    * @param {number} delta - Time elapsed since last frame in ms
    */
   update(time, delta) {
-    // Update logic will go here in future layers
+    // Update villagers (Layer 4)
+    if (this.villagerSystem) {
+      this.villagerSystem.update(delta);
+    }
+
+    // Update camera controls (Layer 5)
+    if (this.cameraControlSystem) {
+      this.cameraControlSystem.update(delta);
+    }
   }
 
   /**
@@ -140,37 +191,118 @@ export default class MainScene extends Phaser.Scene {
 
     // Create biome map
     console.log(`[MainScene] Creating biome map...`);
-    const biomeMap = BiomeMapper.createBiomeMap(heightMap, moistureMap);
-    console.log(`[MainScene] Biome map created:`, biomeMap.length, 'x', biomeMap[0]?.length);
+    this.biomeMap = BiomeMapper.createBiomeMap(heightMap, moistureMap);
+    console.log(`[MainScene] Biome map created:`, this.biomeMap.length, 'x', this.biomeMap[0]?.length);
 
     // Render terrain using Phaser tilemaps
     console.log(`[MainScene] Rendering terrain...`);
-    this.renderTerrain(biomeMap);
+    this.renderTerrain(this.biomeMap);
+
+    // Initialize pathfinding system with biome map
+    console.log(`[MainScene] Initializing pathfinding system...`);
+    this.pathfindingSystem = new PathfindingSystem(this.biomeMap, {
+      allowDiagonal: true,
+      dontCrossCorners: true,
+      respectHeight: false // Can enable later for height-based movement
+    });
+    console.log(`[MainScene] Pathfinding system initialized`);
 
     console.log(`[MainScene] ✓ Terrain generation complete!`);
   }
 
   /**
-   * Render terrain using a single Graphics object
-   * Efficient rendering with proper cleanup for regeneration
+   * Render terrain using RenderTexture for optimal performance
+   * Pre-renders all 1M tiles once to a texture, then displays as a sprite
    */
   renderTerrain(biomeMap) {
-    console.log('[MainScene] renderTerrain() called');
-    console.log('[MainScene] Existing graphics:', this.terrainGraphics);
+    console.log('[MainScene] renderTerrain() called - Using RenderTexture optimization');
 
-    // Clear existing terrain graphics
+    // Clean up existing terrain
+    if (this.terrainRenderTexture) {
+      this.terrainRenderTexture.destroy();
+      this.terrainRenderTexture = null;
+    }
     if (this.terrainGraphics) {
-      console.log('[MainScene] Clearing and destroying existing graphics...');
-      this.terrainGraphics.clear();
       this.terrainGraphics.destroy();
       this.terrainGraphics = null;
-      console.log('[MainScene] Old graphics destroyed');
     }
 
+    // Check if renderTexture is available (not in test mode)
+    if (!this.add.renderTexture) {
+      console.warn('[MainScene] RenderTexture not available (test mode), using fallback Graphics');
+      this.renderTerrainFallback(biomeMap);
+      return;
+    }
+
+    // Create RenderTexture to hold the terrain (rendered once)
+    console.log(`[MainScene] Creating RenderTexture (${this.worldWidth}x${this.worldHeight})...`);
+    this.terrainRenderTexture = this.add.renderTexture(0, 0, this.worldWidth, this.worldHeight);
+
+    // Create temporary graphics object to draw to RenderTexture (not added to scene)
+    const tempGraphics = this.make.graphics({ add: false });
+
+    console.log(`[MainScene] Pre-rendering ${this.mapWidth}x${this.mapHeight} tiles to texture...`);
+    const startTime = performance.now();
+    let tilesRendered = 0;
+
+    // Batch render tiles by color to reduce draw calls
+    const colorBatches = new Map();
+
+    // Group tiles by color
+    for (let y = 0; y < this.mapHeight; y++) {
+      for (let x = 0; x < this.mapWidth; x++) {
+        const biome = biomeMap[y][x];
+        const color = biome.color;
+
+        if (!colorBatches.has(color)) {
+          colorBatches.set(color, []);
+        }
+
+        colorBatches.get(color).push({
+          x: x * TERRAIN_CONFIG.TILE_SIZE,
+          y: y * TERRAIN_CONFIG.TILE_SIZE
+        });
+        tilesRendered++;
+      }
+    }
+
+    // Render all tiles of the same color in one batch
+    console.log(`[MainScene] Rendering ${colorBatches.size} color batches...`);
+    for (const [color, tiles] of colorBatches) {
+      tempGraphics.fillStyle(color, 1);
+      for (const tile of tiles) {
+        tempGraphics.fillRect(tile.x, tile.y, TERRAIN_CONFIG.TILE_SIZE, TERRAIN_CONFIG.TILE_SIZE);
+      }
+    }
+
+    // Draw the graphics to the RenderTexture
+    this.terrainRenderTexture.draw(tempGraphics);
+
+    // Clean up temporary graphics
+    tempGraphics.destroy();
+
+    // The RenderTexture itself is already a display object - no need to create a sprite
+    // Just set its properties
+    this.terrainRenderTexture.setPosition(0, 0);
+    this.terrainRenderTexture.setOrigin(0, 0);
+    this.terrainRenderTexture.setDepth(0); // Below everything else
+
+    const endTime = performance.now();
+    console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles to texture in ${(endTime - startTime).toFixed(2)}ms`);
+    console.log(`[MainScene] ✓ Performance: Reduced from 2M draw calls/frame to 1 sprite render/frame`);
+    console.log(`[MainScene] Terrain texture positioned at (${this.terrainRenderTexture.x}, ${this.terrainRenderTexture.y})`);
+    console.log(`[MainScene] Terrain texture size: ${this.terrainRenderTexture.width}x${this.terrainRenderTexture.height}`);
+  }
+
+  /**
+   * Fallback terrain rendering for test environments
+   * Uses standard Graphics rendering (slower but works in all environments)
+   */
+  renderTerrainFallback(biomeMap) {
+    console.log('[MainScene] Using fallback Graphics rendering');
+
     // Create a single graphics object for all terrain
-    console.log('[MainScene] Creating new graphics object...');
     this.terrainGraphics = this.add.graphics();
-    console.log('[MainScene] Graphics object created:', this.terrainGraphics);
 
     // Render each tile
     console.log(`[MainScene] Rendering ${this.mapWidth}x${this.mapHeight} tiles...`);
@@ -191,20 +323,11 @@ export default class MainScene extends Phaser.Scene {
           TERRAIN_CONFIG.TILE_SIZE
         );
 
-        // Optional: Add subtle border for visual clarity
-        this.terrainGraphics.lineStyle(0.5, 0x000000, 0.1);
-        this.terrainGraphics.strokeRect(
-          pixelX,
-          pixelY,
-          TERRAIN_CONFIG.TILE_SIZE,
-          TERRAIN_CONFIG.TILE_SIZE
-        );
-
         tilesRendered++;
       }
     }
 
-    console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles successfully`);
+    console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles (fallback mode)`);
   }
 
   /**
@@ -234,5 +357,83 @@ export default class MainScene extends Phaser.Scene {
 
     const tile = this.terrainMap.getTileAt(tileX, tileY);
     return tile;
+  }
+
+  /**
+   * Layer 3: Find a path between two points
+   * @param {number} startX - Start tile X
+   * @param {number} startY - Start tile Y
+   * @param {number} endX - End tile X
+   * @param {number} endY - End tile Y
+   * @returns {Array<{x, y}>|null} Path or null if not found
+   */
+  findPath(startX, startY, endX, endY) {
+    if (!this.pathfindingSystem) {
+      console.error('[MainScene] Pathfinding system not initialized');
+      return null;
+    }
+
+    console.log(`[MainScene] Finding path from (${startX},${startY}) to (${endX},${endY})`);
+
+    const path = this.pathfindingSystem.findPath(startX, startY, endX, endY);
+
+    if (path) {
+      const cost = this.pathfindingSystem.getPathCost(path);
+      console.log(`[MainScene] Path found! Length: ${path.length}, Cost: ${cost.toFixed(2)}`);
+      this.currentPath = path;
+
+      // Visualize the path
+      if (this.pathVisualizer) {
+        this.pathVisualizer.clear();
+        this.pathVisualizer.drawPath(path);
+      }
+    } else {
+      console.log('[MainScene] No path found');
+      this.currentPath = null;
+    }
+
+    return path;
+  }
+
+  /**
+   * Clear current path visualization
+   */
+  clearPath() {
+    this.currentPath = null;
+    this.pathStart = null;
+    this.pathEnd = null;
+
+    if (this.pathVisualizer) {
+      this.pathVisualizer.clear();
+    }
+
+    console.log('[MainScene] Path cleared');
+  }
+
+  /**
+   * Set path visualization visibility
+   * @param {boolean} visible - Whether to show path
+   */
+  setPathVisible(visible) {
+    if (this.pathVisualizer) {
+      this.pathVisualizer.setVisible(visible);
+    }
+  }
+
+  /**
+   * Get biome at specific tile coordinates
+   * @param {number} tileX - Tile X coordinate
+   * @param {number} tileY - Tile Y coordinate
+   * @returns {Object|null} Biome object or null
+   */
+  getBiomeAt(tileX, tileY) {
+    if (!this.biomeMap) return null;
+
+    if (tileY < 0 || tileY >= this.biomeMap.length ||
+        tileX < 0 || tileX >= this.biomeMap[0].length) {
+      return null;
+    }
+
+    return this.biomeMap[tileY][tileX];
   }
 }

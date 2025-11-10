@@ -54,7 +54,7 @@ export const GAME_CONFIG = {
   WORLD_HEIGHT: 4000,
   VIEWPORT_WIDTH: 1920,
   VIEWPORT_HEIGHT: 1080,
-  MIN_ZOOM: 0.5,
+  MIN_ZOOM: 0.25,
   MAX_ZOOM: 4,
-  DEFAULT_ZOOM: 1
+  DEFAULT_ZOOM: 0.6 // Start zoomed out to see more of the 4000x4000 world
 };
