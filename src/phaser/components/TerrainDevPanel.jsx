@@ -1,7 +1,7 @@
 /**
- * Layer 3: Terrain Development Panel with Pathfinding
+ * Layer 4: Terrain Development Panel with Pathfinding and Villagers
  *
- * Debug UI for testing terrain generation parameters, visualizing biomes, and pathfinding.
+ * Debug UI for testing terrain generation, pathfinding, and villager spawning.
  * Overlays on top of the Phaser game canvas.
  */
 
@@ -12,11 +12,17 @@ import './TerrainDevPanel.css';
 export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [expanded, setExpanded] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(true);
+  const [villagersExpanded, setVillagersExpanded] = useState(true);
+
   // Default to center of map where land is more likely (map is 250x250)
   const [startX, setStartX] = useState('100');
   const [startY, setStartY] = useState('100');
   const [endX, setEndX] = useState('150');
   const [endY, setEndY] = useState('150');
+
+  // Villager state
+  const [villagerCount, setVillagerCount] = useState(0);
+  const [villagersPaused, setVillagersPaused] = useState(false);
 
   /**
    * Regenerate terrain with current seed
@@ -181,6 +187,101 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
     }
   };
 
+  /**
+   * Layer 4: Spawn a villager at a random passable location
+   */
+  const handleSpawnVillager = () => {
+    console.log('[TerrainDevPanel] Spawn Villager clicked');
+
+    if (!gameRef.current) {
+      console.error('[TerrainDevPanel] No game instance!');
+      return;
+    }
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.villagerSystem || !scene.biomeMap) {
+      console.error('[TerrainDevPanel] Villager system not available');
+      return;
+    }
+
+    // Find a random passable tile in center area
+    const centerX = Math.floor(scene.mapWidth / 2);
+    const centerY = Math.floor(scene.mapHeight / 2);
+    const searchRadius = 75;
+
+    const passableTiles = [];
+    for (let y = centerY - searchRadius; y < centerY + searchRadius; y++) {
+      for (let x = centerX - searchRadius; x < centerX + searchRadius; x++) {
+        if (x >= 0 && x < scene.mapWidth && y >= 0 && y < scene.mapHeight) {
+          const biome = scene.getBiomeAt(x, y);
+          if (biome && biome.passable) {
+            passableTiles.push({ x, y });
+          }
+        }
+      }
+    }
+
+    if (passableTiles.length > 0) {
+      const spawnPos = passableTiles[Math.floor(Math.random() * passableTiles.length)];
+      scene.villagerSystem.spawnVillager(spawnPos.x, spawnPos.y);
+      setVillagerCount(scene.villagerSystem.getCount());
+      console.log(`[TerrainDevPanel] Spawned villager at (${spawnPos.x},${spawnPos.y})`);
+    } else {
+      console.warn('[TerrainDevPanel] No passable tiles found for spawning');
+    }
+  };
+
+  /**
+   * Layer 4: Pause or resume all villagers
+   */
+  const handleTogglePauseVillagers = () => {
+    console.log('[TerrainDevPanel] Toggle Pause Villagers clicked');
+
+    if (!gameRef.current) {
+      console.error('[TerrainDevPanel] No game instance!');
+      return;
+    }
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.villagerSystem) {
+      console.error('[TerrainDevPanel] Villager system not available');
+      return;
+    }
+
+    if (villagersPaused) {
+      scene.villagerSystem.resumeAll();
+      setVillagersPaused(false);
+      console.log('[TerrainDevPanel] Villagers resumed');
+    } else {
+      scene.villagerSystem.pauseAll();
+      setVillagersPaused(true);
+      console.log('[TerrainDevPanel] Villagers paused');
+    }
+  };
+
+  /**
+   * Layer 4: Clear all villagers
+   */
+  const handleClearVillagers = () => {
+    console.log('[TerrainDevPanel] Clear Villagers clicked');
+
+    if (!gameRef.current) {
+      console.error('[TerrainDevPanel] No game instance!');
+      return;
+    }
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.villagerSystem) {
+      console.error('[TerrainDevPanel] Villager system not available');
+      return;
+    }
+
+    scene.villagerSystem.clearAll();
+    setVillagerCount(0);
+    setVillagersPaused(false);
+    console.log('[TerrainDevPanel] All villagers cleared');
+  };
+
   if (!isVisible) {
     // Minimized toggle button
     return (
@@ -284,6 +385,39 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
                 <button onClick={handleClearPath} className="clear-path-btn">
                   🗑️ Clear Path
                 </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Layer 4: Villager Controls */}
+        <section className="control-section">
+          <h4 onClick={() => setVillagersExpanded(!villagersExpanded)} style={{ cursor: 'pointer' }}>
+            👥 Villagers ({villagerCount}) {villagersExpanded ? '▼' : '▶'}
+          </h4>
+
+          {villagersExpanded && (
+            <div className="controls">
+              <div className="villager-buttons">
+                <button onClick={handleSpawnVillager} className="spawn-villager-btn">
+                  ➕ Spawn Villager
+                </button>
+                <button
+                  onClick={handleTogglePauseVillagers}
+                  className={villagersPaused ? "resume-villagers-btn" : "pause-villagers-btn"}
+                >
+                  {villagersPaused ? '▶️ Resume All' : '⏸️ Pause All'}
+                </button>
+                <button onClick={handleClearVillagers} className="clear-villagers-btn">
+                  🗑️ Clear All
+                </button>
+              </div>
+
+              <div className="villager-info">
+                <p>
+                  Villagers automatically pick random destinations, walk there,
+                  pause briefly, then return to origin. Click Spawn to add more!
+                </p>
               </div>
             </div>
           )}
