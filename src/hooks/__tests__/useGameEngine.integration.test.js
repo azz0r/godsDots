@@ -8,9 +8,9 @@ import { MapGenerator } from '../../utils/mapGeneration/MapGenerator';
 // Mock the database service
 jest.mock('../../db/database.js', () => ({
   dbService: {
-    getGame: jest.fn(),
+    getGame: jest.fn(() => Promise.resolve({ id: 1, name: 'Test Game', worldSeed: 12345 })),
     createGame: jest.fn(() => Promise.resolve(1)),
-    getActiveLevel: jest.fn(),
+    getActiveLevel: jest.fn(() => Promise.resolve({ id: 1, gameId: 1, levelNumber: 1, isActive: true })),
     createLevel: jest.fn(() => Promise.resolve(1)),
     loadCompleteGameState: jest.fn(() => Promise.resolve(null)),
     saveCompleteGameState: jest.fn(() => Promise.resolve()),

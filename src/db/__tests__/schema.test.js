@@ -22,7 +22,7 @@ describe('Database Schema', () => {
   })
 
   test('should have valid version number', () => {
-    expect(version).toBe(3)
+    expect(version).toBe(5)
     expect(typeof version).toBe('number')
   })
 
