@@ -1,7 +1,7 @@
 /**
- * Layer 2: Main Game Scene with Terrain
+ * Layer 3: Main Game Scene with Terrain and Pathfinding
  *
- * Handles core game rendering, camera controls, and terrain generation.
+ * Handles core game rendering, camera controls, terrain generation, and pathfinding.
  * This is the primary scene where the god simulation gameplay occurs.
  */
 
@@ -10,6 +10,8 @@ import { GAME_CONFIG } from '../config/gameConfig';
 import { TERRAIN_CONFIG, BIOME_TYPES } from '../config/terrainConfig';
 import TerrainGenerator from '../systems/TerrainGenerator';
 import BiomeMapper from '../systems/BiomeMapper';
+import PathfindingSystem from '../systems/PathfindingSystem';
+import PathVisualizer from '../systems/PathVisualizer';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -29,10 +31,18 @@ export default class MainScene extends Phaser.Scene {
     this.terrainLayer = null;
     this.terrainGraphics = null; // Single graphics object for all terrain
     this.terrainSeed = Date.now();
+    this.biomeMap = null; // Store biome map for pathfinding
 
     // Map dimensions (in tiles)
     this.mapWidth = Math.floor(this.worldWidth / TERRAIN_CONFIG.TILE_SIZE);
     this.mapHeight = Math.floor(this.worldHeight / TERRAIN_CONFIG.TILE_SIZE);
+
+    // Pathfinding system (Layer 3)
+    this.pathfindingSystem = null;
+    this.pathVisualizer = null;
+    this.currentPath = null;
+    this.pathStart = null;
+    this.pathEnd = null;
   }
 
   /**
@@ -62,6 +72,9 @@ export default class MainScene extends Phaser.Scene {
     // Generate and render terrain (skip if in test mode)
     if (this.make && this.make.tilemap) {
       this.generateTerrain();
+
+      // Initialize path visualizer (Layer 3)
+      this.pathVisualizer = new PathVisualizer(this);
     }
   }
 
@@ -140,12 +153,21 @@ export default class MainScene extends Phaser.Scene {
 
     // Create biome map
     console.log(`[MainScene] Creating biome map...`);
-    const biomeMap = BiomeMapper.createBiomeMap(heightMap, moistureMap);
-    console.log(`[MainScene] Biome map created:`, biomeMap.length, 'x', biomeMap[0]?.length);
+    this.biomeMap = BiomeMapper.createBiomeMap(heightMap, moistureMap);
+    console.log(`[MainScene] Biome map created:`, this.biomeMap.length, 'x', this.biomeMap[0]?.length);
 
     // Render terrain using Phaser tilemaps
     console.log(`[MainScene] Rendering terrain...`);
-    this.renderTerrain(biomeMap);
+    this.renderTerrain(this.biomeMap);
+
+    // Initialize pathfinding system with biome map
+    console.log(`[MainScene] Initializing pathfinding system...`);
+    this.pathfindingSystem = new PathfindingSystem(this.biomeMap, {
+      allowDiagonal: true,
+      dontCrossCorners: true,
+      respectHeight: false // Can enable later for height-based movement
+    });
+    console.log(`[MainScene] Pathfinding system initialized`);
 
     console.log(`[MainScene] ✓ Terrain generation complete!`);
   }
@@ -234,5 +256,83 @@ export default class MainScene extends Phaser.Scene {
 
     const tile = this.terrainMap.getTileAt(tileX, tileY);
     return tile;
+  }
+
+  /**
+   * Layer 3: Find a path between two points
+   * @param {number} startX - Start tile X
+   * @param {number} startY - Start tile Y
+   * @param {number} endX - End tile X
+   * @param {number} endY - End tile Y
+   * @returns {Array<{x, y}>|null} Path or null if not found
+   */
+  findPath(startX, startY, endX, endY) {
+    if (!this.pathfindingSystem) {
+      console.error('[MainScene] Pathfinding system not initialized');
+      return null;
+    }
+
+    console.log(`[MainScene] Finding path from (${startX},${startY}) to (${endX},${endY})`);
+
+    const path = this.pathfindingSystem.findPath(startX, startY, endX, endY);
+
+    if (path) {
+      const cost = this.pathfindingSystem.getPathCost(path);
+      console.log(`[MainScene] Path found! Length: ${path.length}, Cost: ${cost.toFixed(2)}`);
+      this.currentPath = path;
+
+      // Visualize the path
+      if (this.pathVisualizer) {
+        this.pathVisualizer.clear();
+        this.pathVisualizer.drawPath(path);
+      }
+    } else {
+      console.log('[MainScene] No path found');
+      this.currentPath = null;
+    }
+
+    return path;
+  }
+
+  /**
+   * Clear current path visualization
+   */
+  clearPath() {
+    this.currentPath = null;
+    this.pathStart = null;
+    this.pathEnd = null;
+
+    if (this.pathVisualizer) {
+      this.pathVisualizer.clear();
+    }
+
+    console.log('[MainScene] Path cleared');
+  }
+
+  /**
+   * Set path visualization visibility
+   * @param {boolean} visible - Whether to show path
+   */
+  setPathVisible(visible) {
+    if (this.pathVisualizer) {
+      this.pathVisualizer.setVisible(visible);
+    }
+  }
+
+  /**
+   * Get biome at specific tile coordinates
+   * @param {number} tileX - Tile X coordinate
+   * @param {number} tileY - Tile Y coordinate
+   * @returns {Object|null} Biome object or null
+   */
+  getBiomeAt(tileX, tileY) {
+    if (!this.biomeMap) return null;
+
+    if (tileY < 0 || tileY >= this.biomeMap.length ||
+        tileX < 0 || tileX >= this.biomeMap[0].length) {
+      return null;
+    }
+
+    return this.biomeMap[tileY][tileX];
   }
 }
