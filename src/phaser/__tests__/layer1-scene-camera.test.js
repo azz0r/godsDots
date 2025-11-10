@@ -38,10 +38,10 @@ describe('Layer 1: Scene + Camera System', () => {
       expect(config.scene).toContain(MainScene);
     });
 
-    test('should use WebGL renderer as default', () => {
+    test('should use Canvas renderer (for Playwright compatibility)', () => {
       const config = createGameConfig();
 
-      expect(config.type).toBe(Phaser.AUTO);
+      expect(config.type).toBe(Phaser.CANVAS);
     });
 
     test('should set correct canvas dimensions', () => {
