@@ -564,4 +564,69 @@ describe('Layer 4: Villager System', () => {
       expect(system.villagers.length).toBe(0);
     });
   });
+
+  describe('Villager Limit', () => {
+    test('should respect maximum villager limit', () => {
+      const mockScene = {
+        add: {
+          graphics: () => ({
+            setDepth: jest.fn(),
+            clear: jest.fn(),
+            fillStyle: jest.fn(),
+            fillCircle: jest.fn()
+          })
+        }
+      };
+
+      const system = new VillagerSystem(mockScene, null);
+      const maxVillagers = system.getMaxVillagers();
+
+      expect(maxVillagers).toBe(1400);
+    });
+
+    test('should not spawn villager when at max limit', () => {
+      const mockScene = {
+        add: {
+          graphics: () => ({
+            setDepth: jest.fn(),
+            clear: jest.fn(),
+            fillStyle: jest.fn(),
+            fillCircle: jest.fn()
+          })
+        }
+      };
+
+      const system = new VillagerSystem(mockScene, null);
+
+      // Mock the villagers array to simulate being at max
+      system.villagers = new Array(1400).fill({ id: 1 });
+
+      // Try to spawn one more - should fail
+      const result = system.spawnVillager(0, 0);
+
+      expect(result).toBeNull();
+      expect(system.villagers.length).toBe(1400);
+    });
+
+    test('should allow spawning when below max limit', () => {
+      const mockScene = {
+        add: {
+          graphics: () => ({
+            setDepth: jest.fn(),
+            clear: jest.fn(),
+            fillStyle: jest.fn(),
+            fillCircle: jest.fn()
+          })
+        }
+      };
+
+      const system = new VillagerSystem(mockScene, null);
+
+      // Spawn one villager (well below limit)
+      const result = system.spawnVillager(0, 0);
+
+      expect(result).not.toBeNull();
+      expect(system.villagers.length).toBe(1);
+    });
+  });
 });

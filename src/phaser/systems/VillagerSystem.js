@@ -8,6 +8,9 @@
 import Villager from '../entities/Villager';
 import { TERRAIN_CONFIG } from '../config/terrainConfig';
 
+// Maximum number of villagers that can be spawned
+const MAX_VILLAGERS = 1400;
+
 export default class VillagerSystem {
   /**
    * Create a new villager system
@@ -67,6 +70,12 @@ export default class VillagerSystem {
   spawnVillager(x, y) {
     if (!this.scene) {
       console.error('[VillagerSystem] Cannot spawn villager without scene');
+      return null;
+    }
+
+    // Check if we've reached the maximum villager limit
+    if (this.villagers.length >= MAX_VILLAGERS) {
+      console.warn(`[VillagerSystem] Maximum villager limit (${MAX_VILLAGERS}) reached. Cannot spawn more villagers.`);
       return null;
     }
 
@@ -198,7 +207,7 @@ export default class VillagerSystem {
 
   /**
    * Batch render all villagers to a single graphics object
-   * Performance optimization: Single draw call instead of N draw calls
+   * Performance optimization: Single draw call per player color instead of N draw calls
    */
   renderVillagers() {
     // Skip rendering in test mode or if no graphics available
@@ -215,16 +224,28 @@ export default class VillagerSystem {
 
     const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
 
-    // Draw all villagers in one batch
-    this.villagersGraphics.fillStyle(0xff0000, 1.0); // Red color for visibility
-    for (const villager of this.villagers) {
-      const pixelX = villager.x * TILE_SIZE + TILE_SIZE / 2;
-      const pixelY = villager.y * TILE_SIZE + TILE_SIZE / 2;
-      this.villagersGraphics.fillCircle(pixelX, pixelY, 2);
+    // Group villagers by color for batch rendering
+    const colorGroups = new Map();
 
-      // Debug: log first villager position once
-      if (villager.id === 1 && Math.random() < 0.01) { // 1% of frames
-        console.log(`[VillagerSystem] Villager #${villager.id} at tile (${villager.x}, ${villager.y}) -> pixel (${pixelX}, ${pixelY})`);
+    for (const villager of this.villagers) {
+      // Use player color if assigned, otherwise default red
+      const color = villager.playerColor || 0xff0000;
+
+      if (!colorGroups.has(color)) {
+        colorGroups.set(color, []);
+      }
+
+      colorGroups.get(color).push(villager);
+    }
+
+    // Draw each color group
+    for (const [color, villagers] of colorGroups) {
+      this.villagersGraphics.fillStyle(color, 1.0);
+
+      for (const villager of villagers) {
+        const pixelX = villager.x * TILE_SIZE + TILE_SIZE / 2;
+        const pixelY = villager.y * TILE_SIZE + TILE_SIZE / 2;
+        this.villagersGraphics.fillCircle(pixelX, pixelY, 2);
       }
     }
   }
@@ -255,6 +276,14 @@ export default class VillagerSystem {
    */
   getCount() {
     return this.villagers.length;
+  }
+
+  /**
+   * Get maximum villager limit
+   * @returns {number} Maximum number of villagers allowed
+   */
+  getMaxVillagers() {
+    return MAX_VILLAGERS;
   }
 
   /**

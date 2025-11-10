@@ -1,5 +1,5 @@
 // God Dots - DexieJS Database Schema
-export const version = 5
+export const version = 6
 
 export const name = `GodDots001`
 const lightStandard = '++id, name'
@@ -346,6 +346,36 @@ export const Groups = [
       data: {} // Interaction-specific data
     },
   },
+  {
+    group: 'VillagerBelief',
+    imports: [],
+    params: '++id, villagerId, playerId, strength, lastInteraction, lastUpdated',
+    defaultFields: {
+      villagerId: null,
+      playerId: null,
+      strength: 0, // 0-100, belief strength in this player/god
+      lastInteraction: new Date(),
+      conversionProgress: 0, // 0-100, progress toward conversion
+      impressionEvents: [], // Array of {type, magnitude, timestamp} - miracles witnessed
+      lastUpdated: new Date(),
+      resistanceModifier: 0 // -50 to +50, affects conversion difficulty
+    },
+  },
+  {
+    group: 'ConversionEvent',
+    imports: [],
+    params: '++id, villagerId, fromPlayerId, toPlayerId, method, timestamp',
+    defaultFields: {
+      villagerId: null,
+      fromPlayerId: null, // null if villager was free
+      toPlayerId: null,
+      method: 'miracle', // 'miracle' | 'preacher' | 'proximity' | 'worship' | 'building_influence'
+      beliefBefore: 0, // Belief strength before conversion
+      beliefAfter: 0, // Belief strength after conversion
+      timestamp: new Date(),
+      context: {} // Additional data about the conversion (miracle type, preacher id, etc)
+    },
+  },
 ]
 
 export const GroupNames = Groups.map(group => group.group)
@@ -405,6 +435,8 @@ export const indexes = [
   'SaveGame: [gameId+timestamp]',
   'Achievement: [type+isUnlocked]',
   'Interaction: [levelId+type], [playerId+timestamp]',
+  'VillagerBelief: [villagerId+playerId], [playerId+strength], villagerId',
+  'ConversionEvent: [villagerId+timestamp], [toPlayerId+timestamp], [method+timestamp]',
 ]
 
 export default {
