@@ -233,6 +233,55 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   };
 
   /**
+   * Spawn multiple villagers at once (for testing)
+   */
+  const handleSpawnMultipleVillagers = (count) => {
+    console.log(`[TerrainDevPanel] Spawning ${count} villagers`);
+
+    if (!gameRef.current) {
+      console.error('[TerrainDevPanel] No game instance!');
+      return;
+    }
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.villagerSystem || !scene.biomeMap) {
+      console.error('[TerrainDevPanel] Villager system not available');
+      return;
+    }
+
+    // Find passable tiles in center area
+    const centerX = Math.floor(scene.mapWidth / 2);
+    const centerY = Math.floor(scene.mapHeight / 2);
+    const searchRadius = 75;
+
+    const passableTiles = [];
+    for (let y = centerY - searchRadius; y < centerY + searchRadius; y++) {
+      for (let x = centerX - searchRadius; x < centerX + searchRadius; x++) {
+        if (x >= 0 && x < scene.mapWidth && y >= 0 && y < scene.mapHeight) {
+          const biome = scene.getBiomeAt(x, y);
+          if (biome && biome.passable) {
+            passableTiles.push({ x, y });
+          }
+        }
+      }
+    }
+
+    if (passableTiles.length === 0) {
+      console.warn('[TerrainDevPanel] No passable tiles found for spawning');
+      return;
+    }
+
+    // Spawn villagers at random passable locations
+    for (let i = 0; i < count; i++) {
+      const spawnPos = passableTiles[Math.floor(Math.random() * passableTiles.length)];
+      scene.villagerSystem.spawnVillager(spawnPos.x, spawnPos.y);
+    }
+
+    setVillagerCount(scene.villagerSystem.getCount());
+    console.log(`[TerrainDevPanel] Spawned ${count} villagers`);
+  };
+
+  /**
    * Layer 4: Pause or resume all villagers
    */
   const handleTogglePauseVillagers = () => {
@@ -449,6 +498,9 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
               <div className="villager-buttons">
                 <button onClick={handleSpawnVillager} className="spawn-villager-btn">
                   ➕ Spawn Villager
+                </button>
+                <button onClick={() => handleSpawnMultipleVillagers(100)} className="spawn-villager-btn">
+                  ➕➕ Spawn 100
                 </button>
                 <button
                   onClick={handleTogglePauseVillagers}
