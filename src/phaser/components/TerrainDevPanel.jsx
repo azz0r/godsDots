@@ -5,7 +5,7 @@
  * Overlays on top of the Phaser game canvas.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BIOME_TYPES } from '../config/terrainConfig';
 import './TerrainDevPanel.css';
 
@@ -13,6 +13,7 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [expanded, setExpanded] = useState(false);
   const [pathExpanded, setPathExpanded] = useState(true);
   const [villagersExpanded, setVillagersExpanded] = useState(true);
+  const [fps, setFps] = useState(0);
 
   // Default to center of map where land is more likely (map is 250x250)
   const [startX, setStartX] = useState('100');
@@ -24,6 +25,23 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [villagerCount, setVillagerCount] = useState(0);
   const [villagersPaused, setVillagersPaused] = useState(false);
   const [selectedVillagerId, setSelectedVillagerId] = useState('');
+
+  /**
+   * Track FPS from Phaser game loop
+   */
+  useEffect(() => {
+    if (!gameRef.current) return;
+
+    const interval = setInterval(() => {
+      if (gameRef.current && gameRef.current.loop) {
+        // Phaser exposes actualFps (actual measured FPS)
+        const currentFps = Math.round(gameRef.current.loop.actualFps || 0);
+        setFps(currentFps);
+      }
+    }, 100); // Update every 100ms for smooth readings
+
+    return () => clearInterval(interval);
+  }, [gameRef]);
 
   /**
    * Regenerate terrain with current seed
@@ -573,6 +591,15 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
           <h4>📊 Stats</h4>
           <div className="stats">
             <div className="stat-item">
+              <span>FPS:</span>
+              <span style={{
+                color: fps >= 55 ? '#4ade80' : fps >= 30 ? '#facc15' : '#ef4444',
+                fontWeight: 'bold'
+              }}>
+                {fps}
+              </span>
+            </div>
+            <div className="stat-item">
               <span>Map Size:</span>
               <span>
                 {gameRef.current && gameRef.current.scene.getScene('MainScene')?.mapWidth || 0} ×
@@ -581,11 +608,11 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
             </div>
             <div className="stat-item">
               <span>Tile Size:</span>
-              <span>16×16 px</span>
+              <span>4×4 px</span>
             </div>
             <div className="stat-item">
               <span>World Size:</span>
-              <span>4000×4000 px</span>
+              <span>1000×1000 px</span>
             </div>
           </div>
         </section>
