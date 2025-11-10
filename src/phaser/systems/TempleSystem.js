@@ -87,11 +87,23 @@ export default class TempleSystem {
     this.templesGraphics.clear();
 
     if (this.temples.length === 0) {
+      console.warn('[TempleSystem] No temples to render!');
       return;
     }
 
     const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
     const TEMPLE_SIZE = 8; // Temple size in pixels (2x villager size)
+
+    // DEBUG: Log once per second
+    if (!this._lastDebugLog || Date.now() - this._lastDebugLog > 1000) {
+      console.log(`[TempleSystem] Rendering ${this.temples.length} temples at depth ${this.templesGraphics.depth}`);
+      this.temples.forEach(t => {
+        const pixelX = t.position.x * TILE_SIZE;
+        const pixelY = t.position.y * TILE_SIZE;
+        console.log(`  - Temple ${t.id} at tile (${t.position.x}, ${t.position.y}), pixel (${pixelX}, ${pixelY}), color: 0x${(t.playerColor || 0xFFD700).toString(16)}`);
+      });
+      this._lastDebugLog = Date.now();
+    }
 
     // Group temples by player color
     const colorGroups = new Map();
