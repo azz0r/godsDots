@@ -32,6 +32,8 @@ export default class MainScene extends Phaser.Scene {
     this.terrainMap = null;
     this.terrainLayer = null;
     this.terrainGraphics = null; // Single graphics object for all terrain
+    this.terrainRenderTexture = null; // RenderTexture for efficient terrain rendering
+    this.terrainSprite = null; // Sprite displaying the RenderTexture
     this.terrainSeed = Date.now();
     this.biomeMap = null; // Store biome map for pathfinding
 
@@ -199,26 +201,99 @@ export default class MainScene extends Phaser.Scene {
   }
 
   /**
-   * Render terrain using a single Graphics object
-   * Efficient rendering with proper cleanup for regeneration
+   * Render terrain using RenderTexture for optimal performance
+   * Pre-renders all 1M tiles once to a texture, then displays as a sprite
    */
   renderTerrain(biomeMap) {
-    console.log('[MainScene] renderTerrain() called');
-    console.log('[MainScene] Existing graphics:', this.terrainGraphics);
+    console.log('[MainScene] renderTerrain() called - Using RenderTexture optimization');
 
-    // Clear existing terrain graphics
+    // Clean up existing terrain
+    if (this.terrainSprite) {
+      this.terrainSprite.destroy();
+      this.terrainSprite = null;
+    }
+    if (this.terrainRenderTexture) {
+      this.terrainRenderTexture.destroy();
+      this.terrainRenderTexture = null;
+    }
     if (this.terrainGraphics) {
-      console.log('[MainScene] Clearing and destroying existing graphics...');
-      this.terrainGraphics.clear();
       this.terrainGraphics.destroy();
       this.terrainGraphics = null;
-      console.log('[MainScene] Old graphics destroyed');
     }
 
+    // Check if renderTexture is available (not in test mode)
+    if (!this.add.renderTexture) {
+      console.warn('[MainScene] RenderTexture not available (test mode), using fallback Graphics');
+      this.renderTerrainFallback(biomeMap);
+      return;
+    }
+
+    // Create RenderTexture to hold the terrain (rendered once)
+    console.log(`[MainScene] Creating RenderTexture (${this.worldWidth}x${this.worldHeight})...`);
+    this.terrainRenderTexture = this.add.renderTexture(0, 0, this.worldWidth, this.worldHeight);
+
+    // Create temporary graphics object to draw to RenderTexture
+    const tempGraphics = this.add.graphics();
+
+    console.log(`[MainScene] Pre-rendering ${this.mapWidth}x${this.mapHeight} tiles to texture...`);
+    const startTime = performance.now();
+    let tilesRendered = 0;
+
+    // Batch render tiles by color to reduce draw calls
+    const colorBatches = new Map();
+
+    // Group tiles by color
+    for (let y = 0; y < this.mapHeight; y++) {
+      for (let x = 0; x < this.mapWidth; x++) {
+        const biome = biomeMap[y][x];
+        const color = biome.color;
+
+        if (!colorBatches.has(color)) {
+          colorBatches.set(color, []);
+        }
+
+        colorBatches.get(color).push({
+          x: x * TERRAIN_CONFIG.TILE_SIZE,
+          y: y * TERRAIN_CONFIG.TILE_SIZE
+        });
+        tilesRendered++;
+      }
+    }
+
+    // Render all tiles of the same color in one batch
+    console.log(`[MainScene] Rendering ${colorBatches.size} color batches...`);
+    for (const [color, tiles] of colorBatches) {
+      tempGraphics.fillStyle(color, 1);
+      for (const tile of tiles) {
+        tempGraphics.fillRect(tile.x, tile.y, TERRAIN_CONFIG.TILE_SIZE, TERRAIN_CONFIG.TILE_SIZE);
+      }
+    }
+
+    // Draw the graphics to the RenderTexture
+    this.terrainRenderTexture.draw(tempGraphics);
+
+    // Clean up temporary graphics
+    tempGraphics.destroy();
+
+    // Create sprite from RenderTexture
+    this.terrainSprite = this.add.sprite(0, 0, this.terrainRenderTexture);
+    this.terrainSprite.setOrigin(0, 0);
+    this.terrainSprite.setDepth(0); // Below everything else
+
+    const endTime = performance.now();
+    console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles to texture in ${(endTime - startTime).toFixed(2)}ms`);
+    console.log(`[MainScene] ✓ Performance: Reduced from 2M draw calls/frame to 1 sprite render/frame`);
+  }
+
+  /**
+   * Fallback terrain rendering for test environments
+   * Uses standard Graphics rendering (slower but works in all environments)
+   */
+  renderTerrainFallback(biomeMap) {
+    console.log('[MainScene] Using fallback Graphics rendering');
+
     // Create a single graphics object for all terrain
-    console.log('[MainScene] Creating new graphics object...');
     this.terrainGraphics = this.add.graphics();
-    console.log('[MainScene] Graphics object created:', this.terrainGraphics);
 
     // Render each tile
     console.log(`[MainScene] Rendering ${this.mapWidth}x${this.mapHeight} tiles...`);
@@ -239,20 +314,11 @@ export default class MainScene extends Phaser.Scene {
           TERRAIN_CONFIG.TILE_SIZE
         );
 
-        // Optional: Add subtle border for visual clarity
-        this.terrainGraphics.lineStyle(0.5, 0x000000, 0.1);
-        this.terrainGraphics.strokeRect(
-          pixelX,
-          pixelY,
-          TERRAIN_CONFIG.TILE_SIZE,
-          TERRAIN_CONFIG.TILE_SIZE
-        );
-
         tilesRendered++;
       }
     }
 
-    console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles successfully`);
+    console.log(`[MainScene] ✓ Rendered ${tilesRendered} tiles (fallback mode)`);
   }
 
   /**

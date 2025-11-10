@@ -364,7 +364,8 @@ describe('Layer 4: Villager System', () => {
           graphics: jest.fn().mockReturnValue({
             fillStyle: jest.fn(),
             fillCircle: jest.fn(),
-            setDepth: jest.fn()
+            setDepth: jest.fn(),
+            clear: jest.fn()
           })
         }
       };
@@ -389,7 +390,8 @@ describe('Layer 4: Villager System', () => {
           graphics: jest.fn().mockReturnValue({
             fillStyle: jest.fn(),
             fillCircle: jest.fn(),
-            setDepth: jest.fn()
+            setDepth: jest.fn(),
+            clear: jest.fn()
           })
         }
       };
@@ -511,12 +513,12 @@ describe('Layer 4: Villager System', () => {
       expect(system.villagers.length).toBe(0);
     });
 
-    test('should destroy graphics when removing villager', () => {
+    test('should properly remove villager from system', () => {
       const mockGraphics = {
         fillStyle: jest.fn(),
         fillCircle: jest.fn(),
         setDepth: jest.fn(),
-        destroy: jest.fn()
+        clear: jest.fn()
       };
 
       const mockScene = {
@@ -527,10 +529,14 @@ describe('Layer 4: Villager System', () => {
 
       const system = new VillagerSystem(mockScene, null);
       const villager = system.spawnVillager(100, 100);
+      const villagerId = villager.id;
 
-      system.removeVillager(villager.id);
+      expect(system.villagers.length).toBe(1);
 
-      expect(mockGraphics.destroy).toHaveBeenCalled();
+      system.removeVillager(villagerId);
+
+      expect(system.villagers.length).toBe(0);
+      expect(system.villagers.find(v => v.id === villagerId)).toBeUndefined();
     });
 
     test('should clear all villagers', () => {

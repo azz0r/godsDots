@@ -135,9 +135,10 @@ describe('Layer 2: Terrain Regeneration', () => {
       const biomeMap2 = createBiomeMap(0x00FF00);
       scene.renderTerrain(biomeMap2);
 
-      // Should have cleared and destroyed old graphics
-      expect(mockGraphics.clear).toHaveBeenCalled();
-      expect(mockGraphics.destroy).toHaveBeenCalled();
+      // Should have destroyed old graphics (new graphics created in fallback mode)
+      const firstGraphics = scene.terrainGraphics;
+      expect(firstGraphics).toBeDefined();
+      expect(firstGraphics.destroy).toHaveBeenCalled();
     });
 
     test('renderTerrain should call fillRect for each tile', () => {
@@ -147,9 +148,7 @@ describe('Layer 2: Terrain Regeneration', () => {
         clear: jest.fn(),
         destroy: jest.fn(),
         fillStyle: jest.fn(),
-        fillRect: jest.fn(),
-        lineStyle: jest.fn(),
-        strokeRect: jest.fn()
+        fillRect: jest.fn()
       };
 
       scene.add = {
@@ -170,7 +169,7 @@ describe('Layer 2: Terrain Regeneration', () => {
 
       // Should have called fillRect 9 times (3x3 tiles)
       expect(mockGraphics.fillRect).toHaveBeenCalledTimes(9);
-      expect(mockGraphics.strokeRect).toHaveBeenCalledTimes(9);
+      // Performance optimization: removed strokeRect calls
     });
   });
 

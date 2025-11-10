@@ -29,7 +29,15 @@ export default class VillagerSystem {
     // Behavior settings
     this.autoAssignDestinations = true;
 
-    console.log('[VillagerSystem] Initialized');
+    // Performance optimization: Single graphics object for all villagers
+    if (scene && scene.add && scene.add.graphics) {
+      this.villagersGraphics = scene.add.graphics();
+      this.villagersGraphics.setDepth(100); // Above terrain
+      console.log('[VillagerSystem] Initialized with batched rendering');
+    } else {
+      this.villagersGraphics = null;
+      console.log('[VillagerSystem] Initialized (test mode - no graphics)');
+    }
   }
 
   /**
@@ -62,19 +70,8 @@ export default class VillagerSystem {
       return null;
     }
 
-    // Create Phaser graphics for villager
-    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
-    const graphics = this.scene.add.graphics();
-    graphics.fillStyle(0xff0000, 1.0); // Red color for visibility
-    graphics.fillCircle(0, 0, 2); // 2 pixel radius (appropriate for 4px tiles)
-    graphics.setDepth(100); // Above terrain
-
-    // Position at tile center
-    graphics.x = x * TILE_SIZE + TILE_SIZE / 2;
-    graphics.y = y * TILE_SIZE + TILE_SIZE / 2;
-
-    // Create villager entity
-    const villager = new Villager(this.nextId++, x, y, graphics);
+    // Create villager entity without individual graphics (batched rendering)
+    const villager = new Villager(this.nextId++, x, y);
     villager.origin = { x, y };
 
     this.villagers.push(villager);
@@ -193,6 +190,37 @@ export default class VillagerSystem {
           this.assignRandomDestination(villager);
         }
       }
+    }
+
+    // Performance optimization: Batch render all villagers in one draw call
+    this.renderVillagers();
+  }
+
+  /**
+   * Batch render all villagers to a single graphics object
+   * Performance optimization: Single draw call instead of N draw calls
+   */
+  renderVillagers() {
+    // Skip rendering in test mode or if no graphics available
+    if (!this.villagersGraphics) {
+      return;
+    }
+
+    // Clear previous frame
+    this.villagersGraphics.clear();
+
+    if (this.villagers.length === 0) {
+      return;
+    }
+
+    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
+
+    // Draw all villagers in one batch
+    this.villagersGraphics.fillStyle(0xff0000, 1.0); // Red color for visibility
+    for (const villager of this.villagers) {
+      const pixelX = villager.x * TILE_SIZE + TILE_SIZE / 2;
+      const pixelY = villager.y * TILE_SIZE + TILE_SIZE / 2;
+      this.villagersGraphics.fillCircle(pixelX, pixelY, 2);
     }
   }
 

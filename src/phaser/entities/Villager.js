@@ -13,13 +13,13 @@ export default class Villager {
    * @param {number} id - Unique villager ID
    * @param {number} x - Starting X position (in tiles)
    * @param {number} y - Starting Y position (in tiles)
-   * @param {Phaser.GameObjects.Graphics} graphics - Phaser graphics object
+   * @param {Phaser.GameObjects.Graphics} graphics - Phaser graphics object (optional, for batched rendering)
    */
-  constructor(id, x, y, graphics) {
+  constructor(id, x, y, graphics = null) {
     this.id = id;
     this.x = x;
     this.y = y;
-    this.graphics = graphics;
+    this.graphics = graphics; // Can be null for batched rendering
 
     // Movement
     this.speed = 10; // Tiles per second (slower for bigger map)
