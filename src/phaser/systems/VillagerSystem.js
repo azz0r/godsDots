@@ -198,7 +198,7 @@ export default class VillagerSystem {
 
   /**
    * Batch render all villagers to a single graphics object
-   * Performance optimization: Single draw call instead of N draw calls
+   * Performance optimization: Single draw call per player color instead of N draw calls
    */
   renderVillagers() {
     // Skip rendering in test mode or if no graphics available
@@ -215,16 +215,28 @@ export default class VillagerSystem {
 
     const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
 
-    // Draw all villagers in one batch
-    this.villagersGraphics.fillStyle(0xff0000, 1.0); // Red color for visibility
-    for (const villager of this.villagers) {
-      const pixelX = villager.x * TILE_SIZE + TILE_SIZE / 2;
-      const pixelY = villager.y * TILE_SIZE + TILE_SIZE / 2;
-      this.villagersGraphics.fillCircle(pixelX, pixelY, 2);
+    // Group villagers by color for batch rendering
+    const colorGroups = new Map();
 
-      // Debug: log first villager position once
-      if (villager.id === 1 && Math.random() < 0.01) { // 1% of frames
-        console.log(`[VillagerSystem] Villager #${villager.id} at tile (${villager.x}, ${villager.y}) -> pixel (${pixelX}, ${pixelY})`);
+    for (const villager of this.villagers) {
+      // Use player color if assigned, otherwise default red
+      const color = villager.playerColor || 0xff0000;
+
+      if (!colorGroups.has(color)) {
+        colorGroups.set(color, []);
+      }
+
+      colorGroups.get(color).push(villager);
+    }
+
+    // Draw each color group
+    for (const [color, villagers] of colorGroups) {
+      this.villagersGraphics.fillStyle(color, 1.0);
+
+      for (const villager of villagers) {
+        const pixelX = villager.x * TILE_SIZE + TILE_SIZE / 2;
+        const pixelY = villager.y * TILE_SIZE + TILE_SIZE / 2;
+        this.villagersGraphics.fillCircle(pixelX, pixelY, 2);
       }
     }
   }

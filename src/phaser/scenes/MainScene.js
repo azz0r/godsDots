@@ -14,6 +14,8 @@ import PathfindingSystem from '../systems/PathfindingSystem';
 import PathVisualizer from '../systems/PathVisualizer';
 import VillagerSystem from '../systems/VillagerSystem';
 import CameraControlSystem from '../systems/CameraControlSystem';
+import PlayerSystem from '../systems/PlayerSystem';
+import GameInitializer from '../systems/GameInitializer';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -52,6 +54,13 @@ export default class MainScene extends Phaser.Scene {
 
     // Camera control system (Layer 5)
     this.cameraControlSystem = null;
+
+    // Player system (Layer 6)
+    this.playerSystem = null;
+
+    // Game state (Layer 6)
+    this.gameStarted = false;
+    this.gameEnded = false;
   }
 
   /**
@@ -105,7 +114,60 @@ export default class MainScene extends Phaser.Scene {
       // Initialize camera control system (Layer 5)
       this.cameraControlSystem = new CameraControlSystem(this);
       console.log('[MainScene] Camera control system initialized');
+
+      // Initialize player system (Layer 6)
+      this.playerSystem = new PlayerSystem(this);
+      console.log('[MainScene] Player system initialized');
+
+      // Start the game (spawn players, temples, villagers)
+      this.startGame();
     }
+  }
+
+  /**
+   * Start the game - spawn players and initial entities
+   */
+  startGame() {
+    if (this.gameStarted) {
+      return;
+    }
+
+    console.log('[MainScene] Starting game...');
+
+    const result = GameInitializer.initializeGame(
+      this,
+      {
+        playerSystem: this.playerSystem,
+        villagerSystem: this.villagerSystem,
+        pathfindingSystem: this.pathfindingSystem
+      },
+      {
+        mapWidth: this.mapWidth,
+        mapHeight: this.mapHeight,
+        villagersPerPlayer: 3
+      }
+    );
+
+    if (result) {
+      this.gameStarted = true;
+      GameInitializer.showGameStartMessage(this);
+
+      // Listen for game end events
+      this.events.on('game_end', this.handleGameEnd, this);
+    }
+  }
+
+  /**
+   * Handle game end
+   * @param {Object} result - {winner, reason}
+   */
+  handleGameEnd(result) {
+    if (this.gameEnded) {
+      return;
+    }
+
+    this.gameEnded = true;
+    GameInitializer.showGameEndMessage(this, result);
   }
 
   /**
@@ -122,6 +184,11 @@ export default class MainScene extends Phaser.Scene {
     // Update camera controls (Layer 5)
     if (this.cameraControlSystem) {
       this.cameraControlSystem.update(delta);
+    }
+
+    // Update player system (Layer 6)
+    if (this.playerSystem && this.gameStarted && !this.gameEnded) {
+      this.playerSystem.update(time, delta);
     }
   }
 
