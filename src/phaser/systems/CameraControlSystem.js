@@ -40,12 +40,12 @@ export default class CameraControlSystem {
     this.targetZoom = null;
     this.targetCameraX = null;
     this.targetCameraY = null;
-    this.transitionSpeed = 0.1; // Lerp factor (0-1)
+    this.transitionSpeed = 0.2; // Lerp factor (0-1) - increased from 0.1 for faster transitions
     this.transitionThreshold = 0.5; // Stop transitioning when this close
 
     // Zoom behavior
-    this.zoomSpeed = 0.001; // How fast to zoom per wheel delta
-    this.zoomStep = 0.1; // Discrete zoom step
+    this.zoomSpeed = 0.0025; // How fast to zoom per wheel delta - increased from 0.001 for quicker zoom
+    this.zoomStep = 0.15; // Discrete zoom step - increased from 0.1 for bigger steps
 
     // Bind event handlers
     this.handlePointerDown = this.handlePointerDown.bind(this);
