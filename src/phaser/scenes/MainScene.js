@@ -1,5 +1,5 @@
 /**
- * Layer 4: Main Game Scene with Terrain, Pathfinding, and Villagers
+ * Layer 5: Main Game Scene with Terrain, Pathfinding, Villagers, and Camera Controls
  *
  * Handles core game rendering, camera controls, terrain generation, pathfinding, and villagers.
  * This is the primary scene where the god simulation gameplay occurs.
@@ -13,6 +13,7 @@ import BiomeMapper from '../systems/BiomeMapper';
 import PathfindingSystem from '../systems/PathfindingSystem';
 import PathVisualizer from '../systems/PathVisualizer';
 import VillagerSystem from '../systems/VillagerSystem';
+import CameraControlSystem from '../systems/CameraControlSystem';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -47,6 +48,9 @@ export default class MainScene extends Phaser.Scene {
 
     // Villager system (Layer 4)
     this.villagerSystem = null;
+
+    // Camera control system (Layer 5)
+    this.cameraControlSystem = null;
   }
 
   /**
@@ -85,6 +89,10 @@ export default class MainScene extends Phaser.Scene {
       this.villagerSystem.setMapBounds(this.mapWidth, this.mapHeight);
       this.villagerSystem.setTerrainData(this.biomeMap);
       console.log('[MainScene] Villager system initialized');
+
+      // Initialize camera control system (Layer 5)
+      this.cameraControlSystem = new CameraControlSystem(this);
+      console.log('[MainScene] Camera control system initialized');
     }
   }
 
@@ -97,6 +105,11 @@ export default class MainScene extends Phaser.Scene {
     // Update villagers (Layer 4)
     if (this.villagerSystem) {
       this.villagerSystem.update(delta);
+    }
+
+    // Update camera controls (Layer 5)
+    if (this.cameraControlSystem) {
+      this.cameraControlSystem.update(delta);
     }
   }
 

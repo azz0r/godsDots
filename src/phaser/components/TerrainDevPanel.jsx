@@ -1,7 +1,7 @@
 /**
- * Layer 4: Terrain Development Panel with Pathfinding and Villagers
+ * Layer 5: Terrain Development Panel with Pathfinding, Villagers, and Camera Controls
  *
- * Debug UI for testing terrain generation, pathfinding, and villager spawning.
+ * Debug UI for testing terrain generation, pathfinding, villager spawning, and camera controls.
  * Overlays on top of the Phaser game canvas.
  */
 
@@ -23,6 +23,7 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   // Villager state
   const [villagerCount, setVillagerCount] = useState(0);
   const [villagersPaused, setVillagersPaused] = useState(false);
+  const [selectedVillagerId, setSelectedVillagerId] = useState('');
 
   /**
    * Regenerate terrain with current seed
@@ -279,7 +280,54 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
     scene.villagerSystem.clearAll();
     setVillagerCount(0);
     setVillagersPaused(false);
+    setSelectedVillagerId('');
     console.log('[TerrainDevPanel] All villagers cleared');
+  };
+
+  /**
+   * Layer 5: Zoom to selected villager
+   */
+  const handleZoomToVillager = (e) => {
+    const villagerId = parseInt(e.target.value, 10);
+    console.log('[TerrainDevPanel] Zoom to villager:', villagerId);
+
+    if (!villagerId || isNaN(villagerId)) {
+      setSelectedVillagerId('');
+      return;
+    }
+
+    setSelectedVillagerId(villagerId.toString());
+
+    if (!gameRef.current) {
+      console.error('[TerrainDevPanel] No game instance!');
+      return;
+    }
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.villagerSystem || !scene.cameraControlSystem) {
+      console.error('[TerrainDevPanel] Villager or camera system not available');
+      return;
+    }
+
+    const villager = scene.villagerSystem.getVillager(villagerId);
+    if (villager) {
+      scene.cameraControlSystem.zoomToVillager(villager);
+      console.log(`[TerrainDevPanel] Zooming to villager ${villagerId}`);
+    } else {
+      console.warn(`[TerrainDevPanel] Villager ${villagerId} not found`);
+    }
+  };
+
+  /**
+   * Get list of all villagers for dropdown
+   */
+  const getVillagerList = () => {
+    if (!gameRef.current) return [];
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.villagerSystem) return [];
+
+    return scene.villagerSystem.villagers || [];
   };
 
   if (!isVisible) {
@@ -413,10 +461,33 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
                 </button>
               </div>
 
+              {/* Layer 5: Villager Selector Dropdown */}
+              {villagerCount > 0 && (
+                <div className="villager-selector">
+                  <label htmlFor="villager-select">🔍 Zoom to Villager:</label>
+                  <select
+                    id="villager-select"
+                    value={selectedVillagerId}
+                    onChange={handleZoomToVillager}
+                    className="villager-dropdown"
+                  >
+                    <option value="">-- Select a villager --</option>
+                    {getVillagerList().map((villager) => (
+                      <option key={villager.id} value={villager.id}>
+                        Villager #{villager.id} at ({Math.floor(villager.x)}, {Math.floor(villager.y)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="villager-info">
                 <p>
                   Villagers automatically pick random destinations, walk there,
                   pause briefly, then return to origin. Click Spawn to add more!
+                </p>
+                <p>
+                  🎮 Camera: Drag to pan, mouse wheel to zoom, double-click to zoom in
                 </p>
               </div>
             </div>

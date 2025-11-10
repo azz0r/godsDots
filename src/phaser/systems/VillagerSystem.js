@@ -65,7 +65,7 @@ export default class VillagerSystem {
     // Create Phaser graphics for villager
     const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
     const graphics = this.scene.add.graphics();
-    graphics.fillStyle(0x4a90e2, 1.0); // Blue color
+    graphics.fillStyle(0xff0000, 1.0); // Red color for visibility
     graphics.fillCircle(0, 0, 2); // 2 pixel radius (appropriate for 4px tiles)
     graphics.setDepth(100); // Above terrain
 
