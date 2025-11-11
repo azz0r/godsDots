@@ -74,14 +74,18 @@ export default class GameInitializer {
       console.log(`[GameInitializer] Added ${templeSystem.getCount()} temples to TempleSystem`);
     }
 
-    // DEBUG: Camera position vs temple positions
+    // CENTER CAMERA ON HUMAN TEMPLE SO YOU CAN ACTUALLY SEE IT
     if (scene.cameras && scene.cameras.main) {
       const camera = scene.cameras.main;
       const TILE_SIZE = 4;
-      console.log(`[GameInitializer] Camera: scrollX=${camera.scrollX}, scrollY=${camera.scrollY}, zoom=${camera.zoom}`);
-      console.log(`[GameInitializer] Camera center: (${camera.scrollX + camera.width/2}, ${camera.scrollY + camera.height/2})`);
-      console.log(`[GameInitializer] Human temple pixel pos: (${humanTemple.position.x * TILE_SIZE}, ${humanTemple.position.y * TILE_SIZE})`);
-      console.log(`[GameInitializer] AI temple pixel pos: (${aiTemple.position.x * TILE_SIZE}, ${aiTemple.position.y * TILE_SIZE})`);
+      const humanTemplePixelX = humanTemple.position.x * TILE_SIZE;
+      const humanTemplePixelY = humanTemple.position.y * TILE_SIZE;
+
+      camera.centerOn(humanTemplePixelX, humanTemplePixelY);
+      camera.setZoom(2); // Zoom in so temple is clearly visible
+
+      console.log(`[GameInitializer] ✓ Camera centered on human temple at pixel (${humanTemplePixelX}, ${humanTemplePixelY}), zoom: 2x`);
+      console.log(`[GameInitializer] AI temple at pixel (${aiTemple.position.x * TILE_SIZE}, ${aiTemple.position.y * TILE_SIZE})`);
     }
 
     // Spawn initial villagers for each player

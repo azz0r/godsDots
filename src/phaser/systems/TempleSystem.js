@@ -92,7 +92,7 @@ export default class TempleSystem {
     }
 
     const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
-    const TEMPLE_SIZE = 8; // Temple size in pixels (2x villager size)
+    const TEMPLE_SIZE = 32; // Temple size in pixels - MUCH BIGGER so you can actually see it
 
     // DEBUG: Log once per second
     if (!this._lastDebugLog || Date.now() - this._lastDebugLog > 1000) {
