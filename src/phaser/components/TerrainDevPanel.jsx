@@ -26,6 +26,8 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [maxVillagers, setMaxVillagers] = useState(1400);
   const [villagersPaused, setVillagersPaused] = useState(false);
   const [selectedVillagerId, setSelectedVillagerId] = useState('');
+  const [currentVillagerIndex, setCurrentVillagerIndex] = useState(0);
+  const [currentTempleIndex, setCurrentTempleIndex] = useState(0);
 
   /**
    * Track FPS from Phaser game loop
@@ -400,6 +402,68 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   };
 
   /**
+   * Cycle to next villager
+   */
+  const handleCycleVillager = () => {
+    if (!gameRef.current) {
+      console.error('[TerrainDevPanel] No game instance!');
+      return;
+    }
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.villagerSystem || !scene.cameraControlSystem) {
+      console.error('[TerrainDevPanel] Systems not available');
+      return;
+    }
+
+    const villagers = scene.villagerSystem.villagers;
+    if (villagers.length === 0) {
+      console.warn('[TerrainDevPanel] No villagers to cycle through');
+      return;
+    }
+
+    const nextIndex = (currentVillagerIndex + 1) % villagers.length;
+    setCurrentVillagerIndex(nextIndex);
+
+    const villager = villagers[nextIndex];
+    scene.cameraControlSystem.zoomToVillager(villager);
+    console.log(`[TerrainDevPanel] Cycled to villager ${nextIndex + 1}/${villagers.length} (ID: ${villager.id})`);
+  };
+
+  /**
+   * Cycle to next temple
+   */
+  const handleCycleTemple = () => {
+    if (!gameRef.current) {
+      console.error('[TerrainDevPanel] No game instance!');
+      return;
+    }
+
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.templeSystem || !scene.cameraControlSystem) {
+      console.error('[TerrainDevPanel] Systems not available');
+      return;
+    }
+
+    const temples = scene.templeSystem.temples;
+    if (temples.length === 0) {
+      console.warn('[TerrainDevPanel] No temples to cycle through');
+      return;
+    }
+
+    const nextIndex = (currentTempleIndex + 1) % temples.length;
+    setCurrentTempleIndex(nextIndex);
+
+    const temple = temples[nextIndex];
+    const TILE_SIZE = 4;
+    const worldX = temple.position.x * TILE_SIZE;
+    const worldY = temple.position.y * TILE_SIZE;
+
+    scene.cameraControlSystem.zoomToLocation(worldX, worldY, 2);
+    console.log(`[TerrainDevPanel] Cycled to temple ${nextIndex + 1}/${temples.length} (ID: ${temple.id}) at (${worldX}, ${worldY})`);
+  };
+
+  /**
    * Get list of all villagers for dropdown
    */
   const getVillagerList = () => {
@@ -567,6 +631,18 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
                   🗑️ Clear All
                 </button>
               </div>
+
+              {/* Navigation Buttons */}
+              {villagerCount > 0 && (
+                <div className="villager-buttons" style={{ marginTop: '8px' }}>
+                  <button onClick={handleCycleVillager} className="find-path-btn">
+                    ⏭️ Cycle Villager
+                  </button>
+                  <button onClick={handleCycleTemple} className="find-path-btn">
+                    🏛️ Cycle Temple
+                  </button>
+                </div>
+              )}
 
               {/* Layer 5: Villager Selector Dropdown */}
               {villagerCount > 0 && (
