@@ -6,6 +6,7 @@
  */
 
 import Phaser from 'phaser';
+import MainMenuScene from '../scenes/MainMenuScene';
 import MainScene from '../scenes/MainScene';
 
 /**
@@ -19,7 +20,7 @@ export function createGameConfig() {
     height: 1080,
     parent: 'game-container',
     backgroundColor: '#1a1a2e',
-    scene: [MainScene],
+    scene: [MainMenuScene, MainScene], // MainMenu first, then game
     physics: {
       default: 'arcade',
       arcade: {

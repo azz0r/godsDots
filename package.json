@@ -21,6 +21,7 @@
   "dependencies": {
     "dexie": "^4.0.11",
     "phaser": "^3.90.0",
+    "phaser3-rex-plugins": "^1.80.17",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "simplex-noise": "^4.0.3"
