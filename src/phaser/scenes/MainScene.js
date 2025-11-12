@@ -65,6 +65,10 @@ export default class MainScene extends Phaser.Scene {
     // Game state (Layer 6)
     this.gameStarted = false;
     this.gameEnded = false;
+
+    // Pause state (Story 3)
+    this.isPaused = false;
+    this.pauseOverlay = null;
   }
 
   /**
@@ -130,6 +134,14 @@ export default class MainScene extends Phaser.Scene {
       // Start the game (spawn players, temples, villagers)
       this.startGame();
     }
+
+    // Story 3: ESC key handler for pause menu
+    if (this.input && this.input.keyboard) {
+      this.input.keyboard.on('keydown-ESC', () => {
+        this.togglePause();
+      });
+      console.log('[MainScene] ESC key handler registered');
+    }
   }
 
   /**
@@ -185,6 +197,15 @@ export default class MainScene extends Phaser.Scene {
    * @param {number} delta - Time elapsed since last frame in ms
    */
   update(time, delta) {
+    // Story 3: Skip updates if game is paused
+    if (this.isPaused) {
+      // Still allow camera controls when paused
+      if (this.cameraControlSystem) {
+        this.cameraControlSystem.update(delta);
+      }
+      return;
+    }
+
     // Update villagers (Layer 4)
     if (this.villagerSystem) {
       this.villagerSystem.update(delta);
@@ -516,5 +537,217 @@ export default class MainScene extends Phaser.Scene {
     }
 
     return this.biomeMap[tileY][tileX];
+  }
+
+  /**
+   * Story 3: Toggle pause state
+   */
+  togglePause() {
+    if (this.isPaused) {
+      this.resumeGame();
+    } else {
+      this.pauseGame();
+    }
+  }
+
+  /**
+   * Story 3: Pause the game
+   */
+  pauseGame() {
+    if (this.isPaused) return;
+
+    this.isPaused = true;
+    console.log('[MainScene] Game paused');
+
+    // Create pause overlay
+    this.createPauseOverlay();
+  }
+
+  /**
+   * Story 3: Resume the game
+   */
+  resumeGame() {
+    if (!this.isPaused) return;
+
+    this.isPaused = false;
+    console.log('[MainScene] Game resumed');
+
+    // Remove pause overlay
+    this.removePauseOverlay();
+  }
+
+  /**
+   * Story 3: Create pause menu overlay
+   */
+  createPauseOverlay() {
+    const { width, height } = this.cameras.main;
+
+    // Semi-transparent black overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.8);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setScrollFactor(0); // Fixed to camera
+    overlay.setDepth(10000); // Above everything
+
+    // Pause panel background
+    const panelWidth = 500;
+    const panelHeight = 600;
+    const panelX = (width - panelWidth) / 2;
+    const panelY = (height - panelHeight) / 2;
+
+    const panel = this.add.graphics();
+    panel.fillStyle(0x1a1a2e);
+    panel.fillRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
+    panel.lineStyle(4, 0x4a4a8e);
+    panel.strokeRoundedRect(panelX, panelY, panelWidth, panelHeight, 20);
+    panel.setScrollFactor(0);
+    panel.setDepth(10001);
+
+    // "PAUSED" title
+    const title = this.add.text(width / 2, panelY + 80, 'PAUSED', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '64px',
+      fontStyle: 'bold',
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 6
+    });
+    title.setOrigin(0.5);
+    title.setScrollFactor(0);
+    title.setDepth(10002);
+
+    // Buttons
+    const buttonConfigs = [
+      { text: 'RESUME', y: panelY + 220, action: () => this.resumeGame() },
+      { text: 'RESTART', y: panelY + 320, action: () => this.restartGame() },
+      { text: 'MAIN MENU', y: panelY + 420, action: () => this.returnToMainMenu() }
+    ];
+
+    const buttons = buttonConfigs.map((config) => {
+      return this.createPauseButton(width / 2, config.y, config.text, config.action);
+    });
+
+    // Store overlay elements for cleanup
+    this.pauseOverlay = {
+      overlay,
+      panel,
+      title,
+      buttons
+    };
+  }
+
+  /**
+   * Story 3: Create a pause menu button
+   */
+  createPauseButton(x, y, text, onClick) {
+    const buttonWidth = 350;
+    const buttonHeight = 70;
+
+    // Button background
+    const bg = this.add.graphics();
+    const normalColor = 0x2a2a4e;
+    const hoverColor = 0x3a3a6e;
+
+    bg.fillStyle(normalColor);
+    bg.fillRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 12);
+    bg.lineStyle(3, 0x4a4a8e);
+    bg.strokeRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 12);
+    bg.setScrollFactor(0);
+    bg.setDepth(10002);
+
+    // Button text
+    const textObj = this.add.text(x, y, text, {
+      fontFamily: 'Georgia, serif',
+      fontSize: '32px',
+      fontStyle: 'bold',
+      color: '#FFFFFF'
+    });
+    textObj.setOrigin(0.5);
+    textObj.setScrollFactor(0);
+    textObj.setDepth(10003);
+
+    // Make interactive
+    const hitArea = new Phaser.Geom.Rectangle(
+      x - buttonWidth / 2,
+      y - buttonHeight / 2,
+      buttonWidth,
+      buttonHeight
+    );
+
+    bg.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
+
+    bg.on('pointerover', () => {
+      bg.clear();
+      bg.fillStyle(hoverColor);
+      bg.fillRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 12);
+      bg.lineStyle(4, 0xFFD700);
+      bg.strokeRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 12);
+      textObj.setColor('#FFD700');
+    });
+
+    bg.on('pointerout', () => {
+      bg.clear();
+      bg.fillStyle(normalColor);
+      bg.fillRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 12);
+      bg.lineStyle(3, 0x4a4a8e);
+      bg.strokeRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 12);
+      textObj.setColor('#FFFFFF');
+    });
+
+    bg.on('pointerdown', () => {
+      onClick();
+    });
+
+    return { bg, text: textObj };
+  }
+
+  /**
+   * Story 3: Remove pause overlay
+   */
+  removePauseOverlay() {
+    if (!this.pauseOverlay) return;
+
+    // Destroy overlay elements
+    this.pauseOverlay.overlay.destroy();
+    this.pauseOverlay.panel.destroy();
+    this.pauseOverlay.title.destroy();
+
+    this.pauseOverlay.buttons.forEach((button) => {
+      button.bg.destroy();
+      button.text.destroy();
+    });
+
+    this.pauseOverlay = null;
+  }
+
+  /**
+   * Story 3: Restart the current game
+   */
+  restartGame() {
+    console.log('[MainScene] Restarting game...');
+
+    // Remove pause overlay first
+    this.removePauseOverlay();
+    this.isPaused = false;
+
+    // Restart the scene (fresh start)
+    this.scene.restart();
+  }
+
+  /**
+   * Story 3: Return to main menu
+   */
+  returnToMainMenu() {
+    console.log('[MainScene] Returning to main menu...');
+
+    // Remove pause overlay
+    this.removePauseOverlay();
+    this.isPaused = false;
+
+    // Transition to main menu with fade
+    this.cameras.main.fadeOut(500, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start('MainMenuScene');
+    });
   }
 }
