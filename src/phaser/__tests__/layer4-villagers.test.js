@@ -458,7 +458,7 @@ describe('Layer 4: Villager System', () => {
   });
 
   describe('Random Destinations', () => {
-    test('should assign random passable destination', () => {
+    test('should assign destination and path to villager', () => {
       const terrainData = [
         [BIOME_TYPES.GRASSLAND, BIOME_TYPES.GRASSLAND, BIOME_TYPES.GRASSLAND],
         [BIOME_TYPES.GRASSLAND, BIOME_TYPES.GRASSLAND, BIOME_TYPES.GRASSLAND],
@@ -482,7 +482,8 @@ describe('Layer 4: Villager System', () => {
 
       const villager = system.spawnVillager(0, 0);
 
-      system.assignRandomDestination(villager);
+      // Use explicit destination since random picks from center +/- radius
+      system.assignRandomDestination(villager, 2, 2);
 
       // Should have been assigned a path
       expect(villager.currentPath).not.toBeNull();

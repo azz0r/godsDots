@@ -1,0 +1,399 @@
+{
+  "version": "0.1",
+  "generated": "2026-02-01",
+  "epics": [
+    {
+      "id": 1,
+      "name": "Stabilisation & Cleanup"
+    },
+    {
+      "id": 2,
+      "name": "Menu & UI Shell"
+    },
+    {
+      "id": 3,
+      "name": "Resource System"
+    },
+    {
+      "id": 4,
+      "name": "Temple & Worship"
+    },
+    {
+      "id": 5,
+      "name": "Villager AI"
+    },
+    {
+      "id": 6,
+      "name": "Divine Powers"
+    },
+    {
+      "id": 7,
+      "name": "Building System"
+    },
+    {
+      "id": 8,
+      "name": "Land & Territory"
+    },
+    {
+      "id": 9,
+      "name": "Save & Load"
+    },
+    {
+      "id": 10,
+      "name": "Rival Gods & Conflict"
+    },
+    {
+      "id": 11,
+      "name": "Polish & Juice"
+    },
+    {
+      "id": 12,
+      "name": "Audio & Atmosphere"
+    }
+  ],
+  "columns": [
+    {
+      "id": "backlog",
+      "title": "Backlog"
+    },
+    {
+      "id": "in_progress",
+      "title": "In Progress"
+    },
+    {
+      "id": "review",
+      "title": "Review"
+    },
+    {
+      "id": "done",
+      "title": "Done",
+      "color": "success"
+    }
+  ],
+  "tickets": [
+    {
+      "id": "GD-001",
+      "title": "Delete or fix 30 failing legacy test suites",
+      "description": "63 tests fail across 30 suites. Most are from the pre-Phaser legacy code (hooks/useGameEngine, hooks/useTerrainSystem, hooks/useVillagerSystem, systems/GestureRecognizer, systems/MiracleSystem, utils/AStar, utils/TerrainGenerator, utils/ZoomControl, etc). These legacy systems have been replaced by Phaser equivalents in src/phaser/. Audit each failing suite: if the system it tests has been replaced by a working Phaser system, delete the legacy test file AND the legacy source file. If the system is still needed (e.g. MiracleSystem, GestureRecognizer), fix the failing tests. Target: 0 failing tests on main.",
+      "priority": "P0",
+      "category": "Testing",
+      "status": "backlog",
+      "epic": 1
+    },
+    {
+      "id": "GD-002",
+      "title": "Delete dead legacy code (pre-Phaser systems)",
+      "description": "The codebase has two parallel implementations: legacy custom canvas (src/systems/, src/hooks/, src/utils/mapGeneration/, src/utils/pathfinding/) and the new Phaser 3 systems (src/phaser/systems/). After GD-001 identifies which legacy files are replaced, delete all dead code. Key candidates: src/hooks/useGameEngine.js, src/hooks/useTerrainSystem.js, src/hooks/useVillagerSystem.js, src/utils/mapGeneration/TerrainGenerator.js (replaced by src/phaser/systems/TerrainGenerator.js), src/utils/pathfinding/AStar.js (replaced by src/phaser/systems/PathfindingSystem.js), src/utils/ZoomControl.js (replaced by CameraControlSystem). Keep only code that is actively used.",
+      "priority": "P0",
+      "category": "Cleanup",
+      "status": "backlog",
+      "epic": 1
+    },
+    {
+      "id": "GD-003",
+      "title": "Merge dev branch features (Menu + Pause) to main",
+      "description": "Branch claude/dev-011CUxRHQfCE91YcqkRwkE4p has Story 2 (MainMenuScene) and Story 3 (Pause Menu) completed with passing tests. These need to be merged to main. Resolve any yarn.lock conflicts. Verify all tests pass after merge. Features: MainMenuScene with New Game/Continue/Settings/Credits, pause overlay with ESC toggle, Resume/Restart/Main Menu buttons.",
+      "priority": "P0",
+      "category": "Integration",
+      "status": "backlog",
+      "epic": 2
+    },
+    {
+      "id": "GD-004",
+      "title": "Fix GameContainer to use Phaser scenes for game flow",
+      "description": "GameContainer.jsx currently coordinates the old canvas-based game. Rewire it to launch PhaserGame with MainMenuScene as the boot scene. Game flow: MainMenuScene -> 'New Game' -> MainScene (gameplay). 'Continue' should load saved game then start MainScene. Settings/Credits can be placeholder scenes for now. Remove references to legacy game loop hooks.",
+      "priority": "P1",
+      "category": "Architecture",
+      "status": "backlog",
+      "epic": 2
+    },
+    {
+      "id": "GD-005",
+      "title": "Wire up TopBar to Phaser scene events",
+      "description": "TopBar.jsx displays Belief, Population, Day/Time but currently uses legacy hooks. Connect it to Phaser MainScene via scene events. MainScene should emit 'updateResources' with {belief, population, day, time} on each game tick. TopBar listens via PhaserGame ref. This establishes the React<->Phaser bridge pattern for all future UI.",
+      "priority": "P1",
+      "category": "UI",
+      "status": "backlog",
+      "epic": 3
+    },
+    {
+      "id": "GD-006",
+      "title": "Implement belief point resource system",
+      "description": "Core resource: belief points. Create BeliefSystem in src/phaser/systems/. Belief generates passively from villagers worshipping at temples. Base rate: 1 belief/second per worshipping villager. Store current belief on scene. Emit events when belief changes. Belief is spent to cast divine powers and place buildings. Add to MainScene.create() and MainScene.update().",
+      "priority": "P0",
+      "category": "System",
+      "status": "backlog",
+      "epic": 3
+    },
+    {
+      "id": "GD-007",
+      "title": "Implement population tracking and food system",
+      "description": "Track total villager count as Population. Add simple food resource: each villager consumes 0.5 food/day. Food generates from farms (future) or gathering. If food reaches 0, villagers become unhappy (slower movement). No starvation death yet - keep it simple. Display food in TopBar alongside belief.",
+      "priority": "P1",
+      "category": "System",
+      "status": "backlog",
+      "epic": 3
+    },
+    {
+      "id": "GD-008",
+      "title": "Implement day/night cycle with game clock",
+      "description": "Add GameClock to MainScene. One game day = 60 real seconds (configurable). Track current day, hour (0-23). Emit 'hourChanged' and 'dayChanged' events. Visual: tint the terrain darker at night (simple multiply blend). Villagers should return to temple area at night. TopBar shows Day X and time-of-day icon.",
+      "priority": "P1",
+      "category": "System",
+      "status": "backlog",
+      "epic": 3
+    },
+    {
+      "id": "GD-009",
+      "title": "Create TempleSystem with placement and rendering",
+      "description": "Temples are the core building. TempleSystem manages temple entities. Each player starts with one temple placed on grassland. Temple renders as a simple colored rectangle (32x32 initially) with the player's color. Temple has: position (tile coords), level (1-5), health (100), ownerId. Temples generate an 'influence aura' circle (visual only for now). Add to MainScene.",
+      "priority": "P0",
+      "category": "System",
+      "status": "backlog",
+      "epic": 4
+    },
+    {
+      "id": "GD-010",
+      "title": "Implement villager worship behaviour",
+      "description": "Villagers need a 'worship' state. When idle and near a temple (within 10 tiles), villager pathfinds to temple and enters worship state. Worshipping villagers stand near temple for 5-10 seconds, generating belief points. After worshipping, they return to idle/wander. VillagerSystem.update() checks for worship opportunities. This creates the core gameplay loop: more villagers -> more worship -> more belief.",
+      "priority": "P0",
+      "category": "AI",
+      "status": "backlog",
+      "epic": 4
+    },
+    {
+      "id": "GD-011",
+      "title": "Add villager state machine (idle, wander, worship, work, flee)",
+      "description": "Replace simple wander-only behaviour with a state machine. States: IDLE (standing still, 2s), WANDER (random nearby destination), WORSHIP (pathfind to temple, generate belief), WORK (future: gather, build), FLEE (run from danger). Transitions: IDLE->WANDER (random), IDLE->WORSHIP (if near temple, 30% chance), any->FLEE (if threatened). Render state as tiny colored dot above villager for debug.",
+      "priority": "P1",
+      "category": "AI",
+      "status": "backlog",
+      "epic": 5
+    },
+    {
+      "id": "GD-012",
+      "title": "Villager spawning from temples",
+      "description": "Temples periodically spawn new villagers. Base rate: 1 villager per 30 seconds per temple. Requires 10 food per spawn. Villager spawns at temple position with a random grassland destination. Cap villagers per temple at temple.level * 10. Total population cap: 200 (performance). Spawn creates a small particle effect.",
+      "priority": "P1",
+      "category": "System",
+      "status": "backlog",
+      "epic": 5
+    },
+    {
+      "id": "GD-013",
+      "title": "Implement Heal divine power",
+      "description": "First divine power. Player clicks Heal in PowerBar, then clicks on the map. Area of effect: 5 tile radius. All owned villagers in radius get healed (future: when health system exists). Cost: 20 belief. Visual: green circle expanding outward, particles rising. For now, the visual effect is the main thing - actual healing requires health system (GD-024). Establishes the power casting pattern for all future powers.",
+      "priority": "P1",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 6
+    },
+    {
+      "id": "GD-014",
+      "title": "Implement Storm divine power",
+      "description": "Offensive power. Player selects Storm, clicks target area. 8 tile radius. Damages buildings and scatters villagers (sets state to FLEE). Cost: 50 belief. Visual: dark circle on ground, lightning bolt sprites (simple lines), screen shake. Villagers in radius flee outward. Buildings in radius take 20 damage. Cooldown: 30 seconds.",
+      "priority": "P2",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 6
+    },
+    {
+      "id": "GD-015",
+      "title": "Implement Food Blessing divine power",
+      "description": "Utility power. Player selects Food, clicks target area. 10 tile radius. Generates +50 food instantly. Visual: golden particles falling from sky, green glow on ground. Cost: 30 belief. Also speeds up nearby villager movement by 50% for 10 seconds (well-fed bonus). Cooldown: 20 seconds.",
+      "priority": "P2",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 6
+    },
+    {
+      "id": "GD-016",
+      "title": "Wire up PowerBar to divine power system",
+      "description": "PowerBar.jsx has buttons for Heal/Storm/Food/Build but they do nothing. Connect each button to set a 'selectedPower' state on the Phaser scene. When a power is selected, change cursor to targeting mode. Click on map triggers the power at that location. ESC or right-click cancels. Show power cost and cooldown on each button. Grey out buttons when insufficient belief or on cooldown.",
+      "priority": "P1",
+      "category": "UI",
+      "status": "backlog",
+      "epic": 6
+    },
+    {
+      "id": "GD-017",
+      "title": "Create BuildingSystem with placement mode",
+      "description": "BuildingSystem manages all non-temple buildings. Buildings: Farm (generates food), House (increases pop cap), Wall (blocks pathfinding), Watchtower (reveals fog). Player enters build mode via PowerBar 'Build' button. Shows ghost preview at cursor. Click to place if valid (on grassland, not overlapping). Each building type has: size (tiles), cost (belief), buildTime (seconds), health. Store in scene registry.",
+      "priority": "P1",
+      "category": "System",
+      "status": "backlog",
+      "epic": 7
+    },
+    {
+      "id": "GD-018",
+      "title": "Implement Farm building",
+      "description": "First building type. Farm: 2x2 tiles, costs 30 belief, generates 2 food/second when worked by a villager. Renders as brown rectangle with green dots (crops). Villagers with WORK state can be assigned to farms. One villager per farm. Farm has growth cycle: planted -> growing -> harvestable (30s each). Harvesting gives burst of +20 food, then cycle restarts.",
+      "priority": "P1",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 7
+    },
+    {
+      "id": "GD-019",
+      "title": "Implement House building",
+      "description": "House: 2x2 tiles, costs 20 belief. Increases population cap by +5 per house. Renders as small tan rectangle. No villager assignment needed. Houses should be placed near temples for visual clustering. Add population cap display to TopBar: 'Pop: 12/25'.",
+      "priority": "P2",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 7
+    },
+    {
+      "id": "GD-020",
+      "title": "Implement land influence and territory system",
+      "description": "Each temple projects influence in a radius (level * 15 tiles). Influence is visualized as a subtle colored overlay on the terrain (player's color at 10% opacity). Buildings can only be placed within your influence. Influence areas of different players don't overlap - first to claim wins. Display influence boundaries as dashed circles. This creates the territorial expansion core loop.",
+      "priority": "P1",
+      "category": "System",
+      "status": "backlog",
+      "epic": 8
+    },
+    {
+      "id": "GD-021",
+      "title": "Temple upgrade system",
+      "description": "Temples can be upgraded from level 1 to 5. Each level costs increasing belief: L2=100, L3=250, L4=500, L5=1000. Benefits per level: +5 pop cap, +15 tile influence radius, +1 belief/sec passive, temple sprite grows larger. Player clicks temple and sees upgrade button in InfoPanel. Upgrade takes 30 seconds (progress bar on temple).",
+      "priority": "P2",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 4
+    },
+    {
+      "id": "GD-022",
+      "title": "InfoPanel shows entity details on click",
+      "description": "InfoPanel.jsx exists but is disconnected. When player clicks a villager: show name, state, health. When player clicks a temple: show level, belief generated, villager count, upgrade button. When player clicks a building: show type, health, worker assigned. Click empty terrain: show biome type, tile coords. Phaser scene emits 'entitySelected' event with entity data.",
+      "priority": "P1",
+      "category": "UI",
+      "status": "backlog",
+      "epic": 2
+    },
+    {
+      "id": "GD-023",
+      "title": "Implement basic save game with Dexie",
+      "description": "Save current game state to IndexedDB via Dexie. Save data: terrain seed (not full map), temple positions/levels, building positions/types, villager positions/states, resources (belief, food, day). Save on pause menu 'Save' button and auto-save every 60 seconds. Load reconstructs terrain from seed, then places entities. Schema already exists in src/db/ but needs updating for Phaser data model.",
+      "priority": "P2",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 9
+    },
+    {
+      "id": "GD-024",
+      "title": "Add health to villagers and buildings",
+      "description": "All entities get a health property. Villagers: 100 HP. Temples: 500 HP * level. Buildings: 100-200 HP by type. Health bar renders above entity when damaged (small red/green bar). Entities at 0 HP are destroyed. Villagers respawn at temple after 10s. Buildings leave rubble (visual only). This enables combat and divine power damage.",
+      "priority": "P2",
+      "category": "System",
+      "status": "backlog",
+      "epic": 5
+    },
+    {
+      "id": "GD-025",
+      "title": "Add rival AI god (basic)",
+      "description": "Create AIGodSystem. One AI opponent with their own temple, villagers, and territory. AI behaviour: expand influence, spawn villagers, build farms/houses. AI gets passive belief income. No combat yet - just peaceful expansion. AI temple spawns on opposite side of the island from the player. AI villagers use same pathfinding and state machine as player villagers.",
+      "priority": "P2",
+      "category": "AI",
+      "status": "backlog",
+      "epic": 10
+    },
+    {
+      "id": "GD-026",
+      "title": "Implement combat between rival villagers",
+      "description": "When villagers from opposing players are within 3 tiles, they enter FIGHT state. Combat: each villager deals 5 damage/second to nearest enemy. Villagers with < 20% HP flee toward their temple. Winning side claims the area. Visual: red flashes on hit, tiny particle effects. No player input needed - combat is automatic. This creates territorial conflict.",
+      "priority": "P3",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 10
+    },
+    {
+      "id": "GD-027",
+      "title": "Add minimap",
+      "description": "Small 200x200 pixel minimap in bottom-right corner. Shows terrain colors, temple positions (colored dots), villager clusters (smaller dots), current camera viewport (white rectangle). Click minimap to move camera. Uses a separate RenderTexture updated every 2 seconds (not every frame). Toggle with M key.",
+      "priority": "P2",
+      "category": "UI",
+      "status": "backlog",
+      "epic": 11
+    },
+    {
+      "id": "GD-028",
+      "title": "Add particle effects for key events",
+      "description": "Use Phaser 3 particle system for: temple worship (golden sparkles rising), villager spawn (white poof), building placed (dust cloud), building destroyed (explosion), divine power casting (per-power effects from GD-013/14/15). Keep particle counts low (max 20 per emitter) for performance.",
+      "priority": "P3",
+      "category": "Polish",
+      "status": "backlog",
+      "epic": 11
+    },
+    {
+      "id": "GD-029",
+      "title": "Add ambient sound and music hooks",
+      "description": "Add Phaser audio manager integration. Background ambient: wind, birds (biome-dependent). Event sounds: villager spawn (chime), worship (choir note), building placed (thud), divine power (whoosh/thunder). Music: single ambient track that varies with game state (peaceful/conflict). Use Web Audio API through Phaser. Volume controls in Settings scene.",
+      "priority": "P3",
+      "category": "Audio",
+      "status": "backlog",
+      "epic": 12
+    },
+    {
+      "id": "GD-030",
+      "title": "Settings scene with game options",
+      "description": "MainMenuScene 'Settings' button currently does nothing. Create SettingsScene with: Volume sliders (Master, Music, SFX), Game speed (0.5x, 1x, 2x), Camera sensitivity, Show debug info toggle, Reset tutorial, Back button. Save settings to localStorage. Load on boot.",
+      "priority": "P2",
+      "category": "UI",
+      "status": "backlog",
+      "epic": 2
+    },
+    {
+      "id": "GD-031",
+      "title": "Add villager names and basic identity",
+      "description": "Each villager gets a randomly generated name (from a pool of 200 names). Show name on hover/click in InfoPanel. Villagers also get a 'loyalty' stat (0-100) representing devotion to their god. High loyalty = faster worship, more belief generated. Low loyalty = might defect to rival god. Names make villagers feel like individuals, not dots.",
+      "priority": "P3",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 5
+    },
+    {
+      "id": "GD-032",
+      "title": "Fog of war",
+      "description": "Terrain outside player influence is hidden by fog (dark overlay). Explored but unowned areas show terrain but not enemy units (explored fog). Active influence area is fully visible. Fog renders as a semi-transparent black layer with holes cut for visible areas. Update fog when influence changes. This adds strategic depth and discovery.",
+      "priority": "P3",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 8
+    },
+    {
+      "id": "GD-033",
+      "title": "Win/lose conditions and game over screen",
+      "description": "Win condition: destroy all rival temples (no rival temples remain). Lose condition: your last temple is destroyed. On win: show victory screen with stats (days survived, peak population, belief earned, buildings built). On lose: show defeat screen with same stats plus 'Retry' button. GameOverScene with appropriate messaging.",
+      "priority": "P3",
+      "category": "Feature",
+      "status": "backlog",
+      "epic": 10
+    },
+    {
+      "id": "GD-034",
+      "title": "Performance: entity pooling and viewport culling",
+      "description": "Currently villagers are created/destroyed as Phaser GameObjects. Implement object pooling for villagers (pre-create 200, reuse). Add viewport culling: only update/render entities within camera view + 100px margin. Profile with 200 villagers + 50 buildings and ensure 60fps. The RenderTexture terrain is already optimised; focus on entity rendering.",
+      "priority": "P2",
+      "category": "Performance",
+      "status": "backlog",
+      "epic": 1
+    },
+    {
+      "id": "GD-035",
+      "title": "Add dev harness for testing game systems",
+      "description": "Expand TerrainDevPanel with buttons: spawn 10/50/100 villagers, place temple at camera center, add 1000 belief, add 100 food, toggle AI, skip to day N, set game speed, kill all enemy villagers, destroy all enemy buildings. This accelerates manual testing of all systems. Only visible in dev mode (import.meta.env.DEV).",
+      "priority": "P1",
+      "category": "Developer Tooling",
+      "status": "backlog",
+      "epic": 1
+    },
+    {
+      "id": "GD-036",
+      "title": "Villager visual improvements: sprites or shapes by state",
+      "description": "Currently all villagers render as identical colored circles via batched Graphics. Differentiate by state: wandering (circle), worshipping (triangle pointing up), working (square), fighting (diamond), fleeing (circle moving fast with trail). Each player's villagers use their god color. Idle villagers are slightly transparent. This makes the game readable at a glance.",
+      "priority": "P2",
+      "category": "Visual",
+      "status": "backlog",
+      "epic": 11
+    }
+  ]
+}
