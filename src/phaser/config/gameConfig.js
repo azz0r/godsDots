@@ -6,6 +6,7 @@
  */
 
 import Phaser from 'phaser';
+import MainMenuScene from '../scenes/MainMenuScene';
 import MainScene from '../scenes/MainScene';
 
 /**
@@ -14,12 +15,12 @@ import MainScene from '../scenes/MainScene';
  */
 export function createGameConfig() {
   return {
-    type: Phaser.AUTO, // Automatically choose WebGL or Canvas
+    type: Phaser.CANVAS, // Force Canvas renderer (fixes Playwright WebGL crashes)
     width: 1920,
     height: 1080,
     parent: 'game-container',
     backgroundColor: '#1a1a2e',
-    scene: [MainScene],
+    scene: [MainMenuScene, MainScene], // MainMenu first, then game
     physics: {
       default: 'arcade',
       arcade: {

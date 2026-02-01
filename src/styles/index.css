@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Roboto:wght@400;500;700&display=swap');
+/* Google Fonts disabled for Playwright testing - causes ERR_NAME_NOT_RESOLVED crashes */
+/* @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Roboto:wght@400;500;700&display=swap'); */
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Roboto', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   background: #0a0a0a;
   color: #fff;
   overflow: hidden;
@@ -15,9 +16,9 @@ body {
   box-sizing: border-box;
 }
 
-/* Use Cinzel for game title and important headers */
+/* Use system serif fonts for game title and important headers */
 h1, h2 {
-  font-family: 'Cinzel', serif;
+  font-family: Georgia, 'Times New Roman', serif;
 }
 
 /* Smooth transitions globally */
