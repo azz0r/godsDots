@@ -146,9 +146,9 @@ describe('Story 3: Pause Menu', () => {
       expect(scene.pauseOverlay.buttons).toBeDefined();
     });
 
-    test('should create three buttons (Resume, Restart, Main Menu)', () => {
+    test('should create four buttons (Resume, Save, Restart, Main Menu)', () => {
       scene.pauseGame();
-      expect(scene.pauseOverlay.buttons.length).toBe(3);
+      expect(scene.pauseOverlay.buttons.length).toBe(4);
     });
 
     test('should destroy overlay when resumeGame() called', () => {

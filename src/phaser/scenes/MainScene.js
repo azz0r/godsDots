@@ -21,6 +21,7 @@ import GameClock from '../systems/GameClock';
 import DivinePowerSystem from '../systems/DivinePowerSystem';
 import BuildingSystem, { BUILDING_TYPES } from '../systems/BuildingSystem';
 import AIGodSystem from '../systems/AIGodSystem';
+import SaveSystem from '../systems/SaveSystem';
 import { loadSettings } from './SettingsScene';
 
 export default class MainScene extends Phaser.Scene {
@@ -86,6 +87,9 @@ export default class MainScene extends Phaser.Scene {
     // Pause state (Story 3)
     this.isPaused = false;
     this.pauseOverlay = null;
+
+    // Auto-save
+    this.autoSaveTimer = 60000; // Auto-save every 60 seconds
 
     // Minimap
     this.minimapVisible = true;
@@ -482,6 +486,13 @@ export default class MainScene extends Phaser.Scene {
     // Update HUD and minimap
     this.updateHUD();
     this.updateMinimap();
+
+    // Auto-save
+    this.autoSaveTimer -= delta;
+    if (this.autoSaveTimer <= 0) {
+      this.autoSaveTimer = 60000;
+      SaveSystem.saveGame(this, true);
+    }
   }
 
   /**
@@ -1284,9 +1295,10 @@ export default class MainScene extends Phaser.Scene {
 
     // Buttons
     const buttonConfigs = [
-      { text: 'RESUME', y: panelY + 220, action: () => this.resumeGame() },
-      { text: 'RESTART', y: panelY + 320, action: () => this.restartGame() },
-      { text: 'MAIN MENU', y: panelY + 420, action: () => this.returnToMainMenu() }
+      { text: 'RESUME', y: panelY + 180, action: () => this.resumeGame() },
+      { text: 'SAVE GAME', y: panelY + 270, action: () => { SaveSystem.saveGame(this); this.resumeGame(); } },
+      { text: 'RESTART', y: panelY + 360, action: () => this.restartGame() },
+      { text: 'MAIN MENU', y: panelY + 450, action: () => this.returnToMainMenu() }
     ];
 
     const buttons = buttonConfigs.map((config) => {
