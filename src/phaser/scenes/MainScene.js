@@ -177,12 +177,29 @@ export default class MainScene extends Phaser.Scene {
       });
     }
 
-    // Story 3: ESC key handler for pause menu
+    // Keyboard handlers
     if (this.input && this.input.keyboard) {
+      // ESC: cancel power targeting or toggle pause
       this.input.keyboard.on('keydown-ESC', () => {
-        this.togglePause();
+        if (this.divinePowerSystem && this.divinePowerSystem.selectedPower) {
+          this.divinePowerSystem.cancelPower();
+        } else {
+          this.togglePause();
+        }
       });
-      console.log('[MainScene] ESC key handler registered');
+
+      // Number keys for divine powers
+      this.input.keyboard.on('keydown-ONE', () => {
+        if (this.divinePowerSystem) this.divinePowerSystem.selectPower('heal');
+      });
+      this.input.keyboard.on('keydown-TWO', () => {
+        if (this.divinePowerSystem) this.divinePowerSystem.selectPower('storm');
+      });
+      this.input.keyboard.on('keydown-THREE', () => {
+        if (this.divinePowerSystem) this.divinePowerSystem.selectPower('food');
+      });
+
+      console.log('[MainScene] Keyboard handlers registered');
     }
   }
 
@@ -300,6 +317,20 @@ export default class MainScene extends Phaser.Scene {
     this.hudText = this.add.text(10, 10, '', style);
     this.hudText.setScrollFactor(0);
     this.hudText.setDepth(5000);
+
+    // Power hints at bottom of screen
+    const hintStyle = {
+      fontSize: '16px',
+      fontFamily: 'monospace',
+      color: '#AAAAAA',
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      padding: { x: 8, y: 4 },
+    };
+
+    this.powerHintText = this.add.text(10, this.cameras.main.height - 40,
+      '[1] Heal  [2] Storm  [3] Food  [ESC] Pause', hintStyle);
+    this.powerHintText.setScrollFactor(0);
+    this.powerHintText.setDepth(5000);
   }
 
   /**
@@ -320,6 +351,12 @@ export default class MainScene extends Phaser.Scene {
     let statusParts = [`${timeStr}`, `Belief: ${belief}`, `Pop: ${pop}`];
     if (worshipping > 0) statusParts.push(`Worshipping: ${worshipping}`);
     if (sleeping > 0) statusParts.push(`Sleeping: ${sleeping}`);
+
+    // Show targeting mode
+    if (this.divinePowerSystem && this.divinePowerSystem.selectedPower) {
+      const info = this.divinePowerSystem.getPowerInfo(this.divinePowerSystem.selectedPower);
+      if (info) statusParts.push(`CASTING: ${info.name}`);
+    }
 
     this.hudText.setText(statusParts.join('  |  '));
   }
