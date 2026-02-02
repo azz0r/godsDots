@@ -731,8 +731,9 @@ export default class MainScene extends Phaser.Scene {
     let lines = [];
 
     if (type === 'villager') {
-      lines.push(`Villager #${e.id}`);
+      lines.push(`${e.name || 'Villager'} (#${e.id})`);
       lines.push(`State: ${e.state}`);
+      lines.push(`Health: ${e.health}/${e.maxHealth}`);
       lines.push(`Position: (${Math.floor(e.x)}, ${Math.floor(e.y)})`);
       lines.push(`Speed: ${e.speed} (x${e.speedMultiplier.toFixed(1)})`);
       if (e.worshipTempleId) lines.push(`Worshipping: ${e.worshipTempleId}`);

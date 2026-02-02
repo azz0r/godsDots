@@ -21,6 +21,13 @@ export default class Villager {
     this.state = 'idle';
     this.isPaused = false;
 
+    // Health
+    this.health = 100;
+    this.maxHealth = 100;
+
+    // Identity
+    this.name = null; // Set by VillagerSystem
+
     // Player ownership
     this.playerId = null;
     this.playerColor = null;
@@ -95,6 +102,19 @@ export default class Villager {
   wakeUp() {
     this.state = 'idle';
     this.pauseTimer = 1000; // Brief pause after waking
+  }
+
+  takeDamage(amount) {
+    this.health = Math.max(0, this.health - amount);
+    return this.health <= 0;
+  }
+
+  heal(amount) {
+    this.health = Math.min(this.maxHealth, this.health + amount);
+  }
+
+  isDead() {
+    return this.health <= 0;
   }
 
   pause() {

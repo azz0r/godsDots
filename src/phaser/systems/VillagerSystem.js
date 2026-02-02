@@ -7,6 +7,7 @@
 
 import Villager from '../entities/Villager';
 import { TERRAIN_CONFIG } from '../config/terrainConfig';
+import { getRandomName } from '../config/villagerNames';
 
 const MAX_VILLAGERS = 1400;
 const VILLAGER_RADIUS = 10;
@@ -54,6 +55,7 @@ export default class VillagerSystem {
 
     const villager = new Villager(this.nextId++, x, y);
     villager.origin = { x, y };
+    villager.name = getRandomName();
 
     if (this.scene.add) {
       const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;

@@ -130,7 +130,7 @@ export default class DivinePowerSystem {
 
     switch (powerId) {
       case 'heal': {
-        // Heal all owned villagers in radius (visual only for now)
+        // Heal all owned villagers in radius
         const human = this.playerSystem?.getHumanPlayer();
         if (!human) break;
 
@@ -142,6 +142,7 @@ export default class DivinePowerSystem {
           const dy = villager.y - tileY;
           if (dx * dx + dy * dy <= radiusSq) {
             healed++;
+            villager.heal(50); // Restore 50 HP
             // Flash the villager green briefly
             if (villager._circle) {
               villager._circle.setFillStyle(0x00FF00);
@@ -153,7 +154,7 @@ export default class DivinePowerSystem {
             }
           }
         }
-        console.log(`[DivinePower] Heal: ${healed} villagers affected`);
+        console.log(`[DivinePower] Heal: ${healed} villagers healed`);
         break;
       }
 
@@ -165,9 +166,10 @@ export default class DivinePowerSystem {
           const dy = villager.y - tileY;
           if (dx * dx + dy * dy <= radiusSq) {
             scattered++;
-            // Interrupt current state and flee outward
+            // Deal 30 damage and interrupt current state
+            villager.takeDamage(30);
             villager.clearPath();
-            villager.endWorship?.();
+            if (villager.state === 'worshipping') villager.endWorship();
             villager.pauseTimer = 0;
 
             // Flash red
