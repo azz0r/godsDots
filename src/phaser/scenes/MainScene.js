@@ -19,7 +19,7 @@ import PlayerSystem from '../systems/PlayerSystem';
 import GameInitializer from '../systems/GameInitializer';
 import GameClock from '../systems/GameClock';
 import DivinePowerSystem from '../systems/DivinePowerSystem';
-import BuildingSystem from '../systems/BuildingSystem';
+import BuildingSystem, { BUILDING_TYPES } from '../systems/BuildingSystem';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -163,8 +163,9 @@ export default class MainScene extends Phaser.Scene {
       this.buildingSystem.pathfindingSystem = this.pathfindingSystem;
       this.buildingSystem.templeSystem = this.templeSystem;
 
-      // Create in-game HUD
+      // Create in-game HUD and info panel
       this.createHUD();
+      this.createInfoPanel();
 
       // Initialize game clock (day/night cycle)
       this.gameClock = new GameClock(this);
@@ -188,6 +189,8 @@ export default class MainScene extends Phaser.Scene {
             this.divinePowerSystem.castAtWorld(worldX, worldY);
           } else if (this.buildingSystem?.placementMode) {
             this.buildingSystem.placeAtWorld(worldX, worldY);
+          } else {
+            this.selectEntityAt(worldX, worldY);
           }
         }
       });
@@ -398,6 +401,204 @@ export default class MainScene extends Phaser.Scene {
     }
 
     this.hudText.setText(statusParts.join('  |  '));
+
+    // Update selection ring to follow moving entities
+    if (this.selectedEntity && this.selectedEntityType === 'villager' && this.selectionRing?.visible) {
+      const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
+      this.selectionRing.setPosition(
+        this.selectedEntity.x * TILE_SIZE + TILE_SIZE / 2,
+        this.selectedEntity.y * TILE_SIZE + TILE_SIZE / 2
+      );
+      this.updateInfoPanel();
+    }
+  }
+
+  /**
+   * Create the info panel for entity details (bottom-right)
+   */
+  createInfoPanel() {
+    const panelStyle = {
+      fontSize: '16px',
+      fontFamily: 'monospace',
+      color: '#FFFFFF',
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      padding: { x: 12, y: 8 },
+      wordWrap: { width: 280 },
+    };
+
+    this.infoPanelText = this.add.text(
+      this.cameras.main.width - 300,
+      this.cameras.main.height - 200,
+      '', panelStyle
+    );
+    this.infoPanelText.setScrollFactor(0);
+    this.infoPanelText.setDepth(5000);
+    this.infoPanelText.setVisible(false);
+
+    // Selection highlight ring
+    this.selectionRing = this.add.circle(0, 0, 16, 0xFFFFFF, 0);
+    this.selectionRing.setStrokeStyle(2, 0xFFFFFF, 0.8);
+    this.selectionRing.setDepth(200);
+    this.selectionRing.setVisible(false);
+
+    this.selectedEntity = null;
+    this.selectedEntityType = null;
+  }
+
+  /**
+   * Select the entity nearest to world coordinates
+   */
+  selectEntityAt(worldX, worldY) {
+    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
+    const tileX = worldX / TILE_SIZE;
+    const tileY = worldY / TILE_SIZE;
+    const clickRadius = 5; // tiles
+
+    let best = null;
+    let bestDist = clickRadius;
+    let bestType = null;
+
+    // Check villagers
+    if (this.villagerSystem) {
+      for (const v of this.villagerSystem.villagers) {
+        const dx = v.x - tileX;
+        const dy = v.y - tileY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < bestDist) {
+          best = v;
+          bestDist = dist;
+          bestType = 'villager';
+        }
+      }
+    }
+
+    // Check temples (larger click target)
+    if (this.templeSystem) {
+      for (const t of this.templeSystem.temples) {
+        const dx = t.position.x - tileX;
+        const dy = t.position.y - tileY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < Math.max(bestDist, 12)) {
+          best = t;
+          bestDist = dist;
+          bestType = 'temple';
+        }
+      }
+    }
+
+    // Check buildings
+    if (this.buildingSystem) {
+      for (const b of this.buildingSystem.buildings) {
+        const cx = b.tileX + b.size / 2;
+        const cy = b.tileY + b.size / 2;
+        const dx = cx - tileX;
+        const dy = cy - tileY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < bestDist) {
+          best = b;
+          bestDist = dist;
+          bestType = 'building';
+        }
+      }
+    }
+
+    if (best) {
+      this.selectedEntity = best;
+      this.selectedEntityType = bestType;
+      this.showSelectionRing(best, bestType);
+      this.updateInfoPanel();
+    } else {
+      // Clicked empty terrain - show biome info
+      const itx = Math.floor(tileX);
+      const ity = Math.floor(tileY);
+      const biome = this.getBiomeAt(itx, ity);
+      if (biome) {
+        this.selectedEntity = { tileX: itx, tileY: ity, biome };
+        this.selectedEntityType = 'terrain';
+        this.hideSelectionRing();
+        this.updateInfoPanel();
+      } else {
+        this.clearSelection();
+      }
+    }
+  }
+
+  /**
+   * Show selection ring around entity
+   */
+  showSelectionRing(entity, type) {
+    if (!this.selectionRing) return;
+    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
+
+    let px, py, radius;
+    if (type === 'villager') {
+      px = entity.x * TILE_SIZE + TILE_SIZE / 2;
+      py = entity.y * TILE_SIZE + TILE_SIZE / 2;
+      radius = 14;
+    } else if (type === 'temple') {
+      px = entity.position.x * TILE_SIZE + TILE_SIZE / 2;
+      py = entity.position.y * TILE_SIZE + TILE_SIZE / 2;
+      radius = 50;
+    } else if (type === 'building') {
+      px = entity.tileX * TILE_SIZE + (entity.size * TILE_SIZE) / 2;
+      py = entity.tileY * TILE_SIZE + (entity.size * TILE_SIZE) / 2;
+      radius = entity.size * TILE_SIZE / 2 + 4;
+    }
+
+    this.selectionRing.setPosition(px, py);
+    this.selectionRing.setRadius(radius);
+    this.selectionRing.setVisible(true);
+  }
+
+  hideSelectionRing() {
+    if (this.selectionRing) this.selectionRing.setVisible(false);
+  }
+
+  clearSelection() {
+    this.selectedEntity = null;
+    this.selectedEntityType = null;
+    this.hideSelectionRing();
+    if (this.infoPanelText) this.infoPanelText.setVisible(false);
+  }
+
+  /**
+   * Update info panel text based on selected entity
+   */
+  updateInfoPanel() {
+    if (!this.infoPanelText || !this.selectedEntity) return;
+
+    const e = this.selectedEntity;
+    const type = this.selectedEntityType;
+    let lines = [];
+
+    if (type === 'villager') {
+      lines.push(`Villager #${e.id}`);
+      lines.push(`State: ${e.state}`);
+      lines.push(`Position: (${Math.floor(e.x)}, ${Math.floor(e.y)})`);
+      lines.push(`Speed: ${e.speed} (x${e.speedMultiplier.toFixed(1)})`);
+      if (e.worshipTempleId) lines.push(`Worshipping: ${e.worshipTempleId}`);
+    } else if (type === 'temple') {
+      lines.push(`Temple: ${e.id}`);
+      lines.push(`Level: ${e.level || 1}`);
+      lines.push(`Position: (${e.position.x}, ${e.position.y})`);
+      const pop = this.templeSystem.getPlayerVillagerCount(e.playerId);
+      lines.push(`Villagers: ${pop}`);
+    } else if (type === 'building') {
+      const bType = BUILDING_TYPES[e.type];
+      lines.push(`${bType.name}`);
+      lines.push(`Type: ${e.type}`);
+      lines.push(`Position: (${e.tileX}, ${e.tileY})`);
+      if (e.type === 'farm') lines.push(`Food: +${bType.foodPerSecond}/sec`);
+      if (e.type === 'house') lines.push(`Pop bonus: +${bType.popBonus}`);
+    } else if (type === 'terrain') {
+      lines.push(`Terrain`);
+      lines.push(`Tile: (${e.tileX}, ${e.tileY})`);
+      lines.push(`Biome: ${e.biome.name || 'Unknown'}`);
+      lines.push(`Passable: ${e.biome.passable ? 'Yes' : 'No'}`);
+    }
+
+    this.infoPanelText.setText(lines.join('\n'));
+    this.infoPanelText.setVisible(true);
   }
 
   /**
