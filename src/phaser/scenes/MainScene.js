@@ -22,6 +22,7 @@ import DivinePowerSystem from '../systems/DivinePowerSystem';
 import BuildingSystem, { BUILDING_TYPES } from '../systems/BuildingSystem';
 import AIGodSystem from '../systems/AIGodSystem';
 import SaveSystem from '../systems/SaveSystem';
+import FogOfWarSystem from '../systems/FogOfWarSystem';
 import { loadSettings } from './SettingsScene';
 
 export default class MainScene extends Phaser.Scene {
@@ -80,6 +81,9 @@ export default class MainScene extends Phaser.Scene {
 
     // AI system
     this.aiGodSystem = null;
+
+    // Fog of war
+    this.fogOfWarSystem = null;
 
     // Game speed multiplier (1 = normal, 2 = double, etc.)
     this.gameSpeed = 1;
@@ -184,6 +188,11 @@ export default class MainScene extends Phaser.Scene {
       this.aiGodSystem.playerSystem = this.playerSystem;
       this.aiGodSystem.buildingSystem = this.buildingSystem;
       this.aiGodSystem.templeSystem = this.templeSystem;
+
+      // Initialize fog of war system
+      this.fogOfWarSystem = new FogOfWarSystem(this);
+      this.fogOfWarSystem.templeSystem = this.templeSystem;
+      this.fogOfWarSystem.playerSystem = this.playerSystem;
 
       // Create in-game HUD, info panel, and minimap
       this.createHUD();
@@ -481,6 +490,11 @@ export default class MainScene extends Phaser.Scene {
     // Update AI system
     if (this.aiGodSystem) {
       this.aiGodSystem.update(scaledDelta);
+    }
+
+    // Update fog of war
+    if (this.fogOfWarSystem) {
+      this.fogOfWarSystem.update(delta);
     }
 
     // Update HUD and minimap
