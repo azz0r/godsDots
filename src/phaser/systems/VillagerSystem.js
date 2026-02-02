@@ -253,10 +253,33 @@ export default class VillagerSystem {
         if (villager.state === 'worshipping') {
           const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 300);
           villager._circle.setAlpha(pulse);
+          if (villager._lastVisualState !== 'worshipping') {
+            villager._circle.setStrokeStyle(2, 0xFFD700, 0.9); // Gold stroke
+            villager._circle.setScale(1.2); // Slightly larger
+            villager._lastVisualState = 'worshipping';
+          }
         } else if (villager.state === 'sleeping') {
-          villager._circle.setAlpha(0.4); // Dim when sleeping
-        } else if (villager._circle.alpha !== 1) {
-          villager._circle.setAlpha(1);
+          villager._circle.setAlpha(0.3);
+          if (villager._lastVisualState !== 'sleeping') {
+            villager._circle.setStrokeStyle(1, 0x4444FF, 0.5); // Blue stroke
+            villager._circle.setScale(0.8); // Smaller when sleeping
+            villager._lastVisualState = 'sleeping';
+          }
+        } else if (villager.state === 'moving') {
+          if (villager._lastVisualState !== 'moving') {
+            villager._circle.setAlpha(1);
+            villager._circle.setStrokeStyle(1, 0x00FFFF, 0.7); // Cyan stroke
+            villager._circle.setScale(1.0);
+            villager._lastVisualState = 'moving';
+          }
+        } else {
+          // idle
+          if (villager._lastVisualState !== 'idle') {
+            villager._circle.setAlpha(0.7);
+            villager._circle.setStrokeStyle(1, 0xFFFFFF, 0.5); // White stroke
+            villager._circle.setScale(0.9);
+            villager._lastVisualState = 'idle';
+          }
         }
       }
 

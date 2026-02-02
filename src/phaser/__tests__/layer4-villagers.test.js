@@ -19,6 +19,7 @@ function createMockScene() {
         setStrokeStyle: jest.fn(),
         setFillStyle: jest.fn(),
         setAlpha: jest.fn(),
+        setScale: jest.fn(),
         destroy: jest.fn(),
         x: 0,
         y: 0,
