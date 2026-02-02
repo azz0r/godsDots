@@ -322,6 +322,103 @@ export default class MainScene extends Phaser.Scene {
 
     this.gameEnded = true;
     GameInitializer.showGameEndMessage(this, result);
+    this.showGameOverScreen(result);
+  }
+
+  /**
+   * Show game over screen with stats
+   */
+  showGameOverScreen(result) {
+    const { width, height } = this.cameras.main;
+
+    // Overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.85);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setScrollFactor(0);
+    overlay.setDepth(11000);
+
+    const isVictory = result.winner && result.winner.type === 'human';
+    const titleText = isVictory ? 'VICTORY' : (result.winner ? 'DEFEAT' : 'DRAW');
+    const titleColor = isVictory ? '#FFD700' : '#FF4444';
+
+    const title = this.add.text(width / 2, 150, titleText, {
+      fontFamily: 'Georgia, serif',
+      fontSize: '72px',
+      fontStyle: 'bold',
+      color: titleColor,
+      stroke: '#000000',
+      strokeThickness: 8,
+    });
+    title.setOrigin(0.5);
+    title.setScrollFactor(0);
+    title.setDepth(11001);
+
+    // Stats
+    const human = this.playerSystem?.getHumanPlayer();
+    const day = this.gameClock ? this.gameClock.getDay() : 1;
+    const belief = human ? Math.floor(human.beliefPoints) : 0;
+    const pop = human ? human.population : 0;
+    const buildings = this.buildingSystem ? this.buildingSystem.getPlayerBuildings(human?.id || '').length : 0;
+
+    const statsLines = [
+      `Days Survived: ${day}`,
+      `Final Population: ${pop}`,
+      `Belief Earned: ${belief}`,
+      `Buildings Built: ${buildings}`,
+    ];
+
+    const stats = this.add.text(width / 2, 320, statsLines.join('\n'), {
+      fontFamily: 'monospace',
+      fontSize: '24px',
+      color: '#FFFFFF',
+      align: 'center',
+      lineSpacing: 10,
+    });
+    stats.setOrigin(0.5);
+    stats.setScrollFactor(0);
+    stats.setDepth(11001);
+
+    // Buttons
+    const retryBtn = this.createGameOverButton(width / 2, height - 200, 'RETRY', () => {
+      this.scene.restart();
+    });
+
+    const menuBtn = this.createGameOverButton(width / 2, height - 120, 'MAIN MENU', () => {
+      this.scene.start('MainMenuScene');
+    });
+
+    // Store for cleanup
+    this.gameOverElements = [overlay, title, stats, ...retryBtn, ...menuBtn];
+  }
+
+  createGameOverButton(x, y, text, onClick) {
+    const w = 300, h = 55;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x2a2a4e);
+    bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+    bg.lineStyle(2, 0x4a4a8e);
+    bg.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+    bg.setScrollFactor(0);
+    bg.setDepth(11002);
+
+    const t = this.add.text(x, y, text, {
+      fontFamily: 'Georgia, serif',
+      fontSize: '28px',
+      fontStyle: 'bold',
+      color: '#FFFFFF',
+    });
+    t.setOrigin(0.5);
+    t.setScrollFactor(0);
+    t.setDepth(11003);
+
+    const hitArea = new Phaser.Geom.Rectangle(x - w / 2, y - h / 2, w, h);
+    bg.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
+    bg.on('pointerover', () => t.setColor('#FFD700'));
+    bg.on('pointerout', () => t.setColor('#FFFFFF'));
+    bg.on('pointerdown', onClick);
+
+    return [bg, t];
   }
 
   /**
