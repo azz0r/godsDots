@@ -317,19 +317,19 @@
     {
       "id": "GD-028",
       "title": "Add particle effects for key events",
-      "description": "Use Phaser 3 particle system for: temple worship (golden sparkles rising), villager spawn (white poof), building placed (dust cloud), building destroyed (explosion), divine power casting (per-power effects from GD-013/14/15). Keep particle counts low (max 20 per emitter) for performance.",
+      "description": "Done. ParticleSystem with runtime-generated circle texture. Effects: worship (golden sparkles), villager spawn (white poof), building placed (dust cloud), divine power cast (colored burst per power), villager death (red burst). Max 20 particles per emitter. Auto-listens for powerCast events.",
       "priority": "P3",
       "category": "Polish",
-      "status": "backlog",
+      "status": "done",
       "epic": 11
     },
     {
       "id": "GD-029",
       "title": "Add ambient sound and music hooks",
-      "description": "Add Phaser audio manager integration. Background ambient: wind, birds (biome-dependent). Event sounds: villager spawn (chime), worship (choir note), building placed (thud), divine power (whoosh/thunder). Music: single ambient track that varies with game state (peaceful/conflict). Use Web Audio API through Phaser. Volume controls in Settings scene.",
+      "description": "Done. AudioSystem with procedural Web Audio API sounds (no asset files). SFX: spawn chime, worship choir, build thud, combat impact, death tone, per-power sounds (heal arpeggio, storm thunder, food chime). Ambient: low drone on musicGain channel. Volume controlled via SettingsScene master/music/SFX sliders.",
       "priority": "P3",
       "category": "Audio",
-      "status": "backlog",
+      "status": "done",
       "epic": 12
     },
     {
@@ -353,10 +353,10 @@
     {
       "id": "GD-032",
       "title": "Fog of war",
-      "description": "Terrain outside player influence is hidden by fog (dark overlay). Explored but unowned areas show terrain but not enemy units (explored fog). Active influence area is fully visible. Fog renders as a semi-transparent black layer with holes cut for visible areas. Update fog when influence changes. This adds strategic depth and discovery.",
+      "description": "Done. FogOfWarSystem with low-res RenderTexture overlay. Unexplored areas: 85% dark fog. Explored but unowned: 45% fog (terrain visible, enemies hidden). Active influence: fully visible. Enemy villagers, buildings, and temples hidden in fog. Updates every 1 second. Toggle via fogOfWarSystem.setEnabled().",
       "priority": "P3",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 8
     },
     {
