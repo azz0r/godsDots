@@ -290,10 +290,10 @@
     {
       "id": "GD-025",
       "title": "Add rival AI god (basic)",
-      "description": "Create AIGodSystem. One AI opponent with their own temple, villagers, and territory. AI behaviour: expand influence, spawn villagers, build farms/houses. AI gets passive belief income. No combat yet - just peaceful expansion. AI temple spawns on opposite side of the island from the player. AI villagers use same pathfinding and state machine as player villagers.",
+      "description": "Done. AIGodSystem with passive belief income (2/sec), building decisions (farms/houses near temple), temple upgrades. AI uses same pathfinding and villager systems. Buildings placed within AI influence radius.",
       "priority": "P2",
       "category": "AI",
-      "status": "backlog",
+      "status": "done",
       "epic": 10
     },
     {
