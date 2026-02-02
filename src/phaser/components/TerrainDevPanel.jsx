@@ -29,6 +29,14 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [currentVillagerIndex, setCurrentVillagerIndex] = useState(0);
   const [currentTempleIndex, setCurrentTempleIndex] = useState(0);
 
+  // Game state
+  const [gameSpeed, setGameSpeed] = useState(1);
+  const [belief, setBelief] = useState(0);
+  const [population, setPopulation] = useState(0);
+  const [worshipping, setWorshipping] = useState(0);
+  const [dayTime, setDayTime] = useState('');
+  const [gameExpanded, setGameExpanded] = useState(true);
+
   /**
    * Track FPS and villager count from Phaser game loop
    */
@@ -40,11 +48,24 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
         const currentFps = Math.round(gameRef.current.loop.actualFps || 0);
         setFps(currentFps);
       }
-      // Sync villager count from scene
+      // Sync game state from scene
       if (gameRef.current) {
         const scene = gameRef.current.scene.getScene('MainScene');
-        if (scene && scene.villagerSystem) {
-          setVillagerCount(scene.villagerSystem.getCount());
+        if (scene) {
+          if (scene.villagerSystem) {
+            setVillagerCount(scene.villagerSystem.getCount());
+            setWorshipping(scene.villagerSystem.getWorshippingCount());
+          }
+          if (scene.playerSystem) {
+            const human = scene.playerSystem.getHumanPlayer();
+            if (human) {
+              setBelief(Math.floor(human.beliefPoints));
+              setPopulation(human.population);
+            }
+          }
+          if (scene.gameClock) {
+            setDayTime(scene.gameClock.getTimeString());
+          }
         }
       }
     }, 250);
@@ -470,6 +491,62 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   };
 
   /**
+   * Add belief points to human player
+   */
+  const handleAddBelief = (amount) => {
+    if (!gameRef.current) return;
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.playerSystem) return;
+    const human = scene.playerSystem.getHumanPlayer();
+    if (human) {
+      scene.playerSystem.addBeliefPoints(human.id, amount);
+    }
+  };
+
+  /**
+   * Set game speed
+   */
+  const handleSetGameSpeed = (speed) => {
+    if (!gameRef.current) return;
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (scene) {
+      scene.gameSpeed = speed;
+      setGameSpeed(speed);
+    }
+  };
+
+  /**
+   * Skip to next day
+   */
+  const handleSkipDay = () => {
+    if (!gameRef.current) return;
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (scene && scene.gameClock) {
+      // Advance time by one full day
+      scene.gameClock.update(60000);
+    }
+  };
+
+  /**
+   * Spawn villagers at temple for human player
+   */
+  const handleSpawnAtTemple = (count) => {
+    if (!gameRef.current) return;
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.templeSystem || !scene.playerSystem) return;
+
+    const human = scene.playerSystem.getHumanPlayer();
+    if (!human) return;
+
+    const temples = scene.templeSystem.getPlayerTemples(human.id);
+    if (temples.length === 0) return;
+
+    for (let i = 0; i < count; i++) {
+      scene.templeSystem.spawnVillagerAtTemple(temples[0]);
+    }
+  };
+
+  /**
    * Get list of all villagers for dropdown
    */
   const getVillagerList = () => {
@@ -502,6 +579,71 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
       </div>
 
       <div className="dev-panel-content">
+        {/* Game State Controls */}
+        <section className="control-section">
+          <h4 onClick={() => setGameExpanded(!gameExpanded)} style={{ cursor: 'pointer' }}>
+            Game State {gameExpanded ? '▼' : '▶'}
+          </h4>
+
+          {gameExpanded && (
+            <div className="controls">
+              <div className="stats">
+                <div className="stat-item">
+                  <span>Time:</span>
+                  <span style={{ fontWeight: 'bold' }}>{dayTime || 'Loading...'}</span>
+                </div>
+                <div className="stat-item">
+                  <span>Belief:</span>
+                  <span style={{ fontWeight: 'bold', color: '#FFD700' }}>{belief}</span>
+                </div>
+                <div className="stat-item">
+                  <span>Population:</span>
+                  <span style={{ fontWeight: 'bold' }}>{population}</span>
+                </div>
+                <div className="stat-item">
+                  <span>Worshipping:</span>
+                  <span style={{ fontWeight: 'bold', color: '#4ade80' }}>{worshipping}</span>
+                </div>
+              </div>
+
+              <div className="villager-buttons" style={{ marginTop: '8px' }}>
+                <button onClick={() => handleAddBelief(100)} className="find-path-btn">+100 Belief</button>
+                <button onClick={() => handleAddBelief(1000)} className="find-path-btn">+1000 Belief</button>
+              </div>
+
+              <div className="villager-buttons" style={{ marginTop: '4px' }}>
+                <button onClick={() => handleSpawnAtTemple(10)} className="spawn-villager-btn">+10 Villagers</button>
+                <button onClick={() => handleSpawnAtTemple(50)} className="spawn-villager-btn">+50 Villagers</button>
+              </div>
+
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ fontSize: '12px', marginBottom: '4px', display: 'block' }}>
+                  Game Speed: {gameSpeed}x
+                </label>
+                <div className="villager-buttons">
+                  {[0.5, 1, 2, 5, 10].map(speed => (
+                    <button
+                      key={speed}
+                      onClick={() => handleSetGameSpeed(speed)}
+                      className={gameSpeed === speed ? "find-path-btn" : "clear-path-btn"}
+                      style={{
+                        fontWeight: gameSpeed === speed ? 'bold' : 'normal',
+                        minWidth: '40px'
+                      }}
+                    >
+                      {speed}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="villager-buttons" style={{ marginTop: '4px' }}>
+                <button onClick={handleSkipDay} className="random-passable-btn">Skip Day</button>
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* Terrain Controls */}
         <section className="control-section">
           <h4 onClick={() => setExpanded(!expanded)} style={{ cursor: 'pointer' }}>
@@ -731,7 +873,7 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
             </div>
             <div className="stat-item">
               <span>World Size:</span>
-              <span>1000×1000 px</span>
+              <span>4000×4000 px</span>
             </div>
           </div>
         </section>

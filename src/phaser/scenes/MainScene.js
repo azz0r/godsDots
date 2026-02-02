@@ -67,6 +67,9 @@ export default class MainScene extends Phaser.Scene {
     this.gameStarted = false;
     this.gameEnded = false;
 
+    // Game speed multiplier (1 = normal, 2 = double, etc.)
+    this.gameSpeed = 1;
+
     // Pause state (Story 3)
     this.isPaused = false;
     this.pauseOverlay = null;
@@ -219,29 +222,32 @@ export default class MainScene extends Phaser.Scene {
       return;
     }
 
+    // Apply game speed multiplier
+    const scaledDelta = delta * this.gameSpeed;
+
     // Update villagers (Layer 4)
     if (this.villagerSystem) {
-      this.villagerSystem.update(delta);
+      this.villagerSystem.update(scaledDelta);
     }
 
     // Update temples (Layer 6)
     if (this.templeSystem) {
-      this.templeSystem.update(delta);
+      this.templeSystem.update(scaledDelta);
     }
 
-    // Update camera controls (Layer 5)
+    // Update camera controls (Layer 5) - not scaled by game speed
     if (this.cameraControlSystem) {
       this.cameraControlSystem.update(delta);
     }
 
     // Update player system (Layer 6)
     if (this.playerSystem && this.gameStarted && !this.gameEnded) {
-      this.playerSystem.update(time, delta);
+      this.playerSystem.update(time, scaledDelta);
     }
 
     // Update game clock
     if (this.gameClock) {
-      this.gameClock.update(delta);
+      this.gameClock.update(scaledDelta);
     }
 
     // Update HUD
