@@ -20,6 +20,7 @@ import GameInitializer from '../systems/GameInitializer';
 import GameClock from '../systems/GameClock';
 import DivinePowerSystem from '../systems/DivinePowerSystem';
 import BuildingSystem, { BUILDING_TYPES } from '../systems/BuildingSystem';
+import { loadSettings } from './SettingsScene';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -169,6 +170,10 @@ export default class MainScene extends Phaser.Scene {
 
       // Initialize game clock (day/night cycle)
       this.gameClock = new GameClock(this);
+
+      // Apply saved settings
+      const savedSettings = loadSettings();
+      this.gameSpeed = savedSettings.gameSpeed || 1;
 
       // Register click handlers for divine power targeting and building placement
       this.input.on('pointerdown', (pointer) => {

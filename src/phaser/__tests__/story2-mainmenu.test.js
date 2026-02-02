@@ -106,14 +106,11 @@ describe('Story 2: MainMenuScene', () => {
     test('should handle settings button click', () => {
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-      scene.showPlaceholderDialog = jest.fn();
+      scene.scene = { start: jest.fn() };
       scene.openSettings();
 
       expect(consoleSpy).toHaveBeenCalledWith('[MainMenuScene] Opening settings...');
-      expect(scene.showPlaceholderDialog).toHaveBeenCalledWith(
-        'Settings',
-        expect.stringContaining('Settings panel coming soon')
-      );
+      expect(scene.scene.start).toHaveBeenCalledWith('SettingsScene');
 
       consoleSpy.mockRestore();
     });

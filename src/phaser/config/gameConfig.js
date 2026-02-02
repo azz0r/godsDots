@@ -8,6 +8,7 @@
 import Phaser from 'phaser';
 import MainMenuScene from '../scenes/MainMenuScene';
 import MainScene from '../scenes/MainScene';
+import SettingsScene from '../scenes/SettingsScene';
 
 /**
  * Creates the base Phaser game configuration
@@ -20,7 +21,7 @@ export function createGameConfig() {
     height: 1080,
     parent: 'game-container',
     backgroundColor: '#1a1a2e',
-    scene: [MainMenuScene, MainScene], // MainMenu first, then game
+    scene: [MainMenuScene, MainScene, SettingsScene],
     physics: {
       default: 'arcade',
       arcade: {

@@ -273,8 +273,7 @@ export default class MainMenuScene extends Phaser.Scene {
 
   openSettings() {
     console.log('[MainMenuScene] Opening settings...');
-    // TODO: Create settings panel with RexUI dialog
-    this.showPlaceholderDialog('Settings', 'Settings panel coming soon!\n\nVolume controls\nGraphics quality\nKeybindings');
+    this.scene.start('SettingsScene');
   }
 
   showCredits() {
