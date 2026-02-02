@@ -24,6 +24,7 @@ import AIGodSystem from '../systems/AIGodSystem';
 import SaveSystem from '../systems/SaveSystem';
 import FogOfWarSystem from '../systems/FogOfWarSystem';
 import ParticleSystem from '../systems/ParticleSystem';
+import AudioSystem from '../systems/AudioSystem';
 import { loadSettings } from './SettingsScene';
 
 export default class MainScene extends Phaser.Scene {
@@ -88,6 +89,9 @@ export default class MainScene extends Phaser.Scene {
 
     // Particle effects
     this.particleSystem = null;
+
+    // Audio
+    this.audioSystem = null;
 
     // Game speed multiplier (1 = normal, 2 = double, etc.)
     this.gameSpeed = 1;
@@ -193,8 +197,10 @@ export default class MainScene extends Phaser.Scene {
       this.aiGodSystem.buildingSystem = this.buildingSystem;
       this.aiGodSystem.templeSystem = this.templeSystem;
 
-      // Initialize particle system
+      // Initialize particle system and audio
       this.particleSystem = new ParticleSystem(this);
+      this.audioSystem = new AudioSystem(this);
+      this.audioSystem.startAmbient();
 
       // Initialize fog of war system
       this.fogOfWarSystem = new FogOfWarSystem(this);

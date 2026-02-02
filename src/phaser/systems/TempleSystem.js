@@ -170,7 +170,8 @@ export default class TempleSystem {
         if (villager) {
           this.playerSystem.addVillager(temple.playerId, villager);
           temple.spawnedCount++;
-          // Spawn particle effect
+          // Spawn effects
+          if (this.scene.audioSystem) this.scene.audioSystem.playSpawnSound();
           if (this.scene.particleSystem) {
             const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
             this.scene.particleSystem.emitSpawn(

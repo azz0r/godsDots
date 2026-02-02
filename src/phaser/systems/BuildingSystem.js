@@ -244,7 +244,8 @@ export default class BuildingSystem {
 
     this.buildings.push(building);
 
-    // Dust cloud particle effect
+    // Placement effects
+    if (this.scene.audioSystem) this.scene.audioSystem.playBuildSound();
     if (this.scene.particleSystem) {
       const pixelX = tileX * TILE_SIZE + (type.size * TILE_SIZE) / 2;
       const pixelY = tileY * TILE_SIZE + (type.size * TILE_SIZE) / 2;
