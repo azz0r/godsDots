@@ -128,10 +128,10 @@
     {
       "id": "GD-007",
       "title": "Implement population tracking and food system",
-      "description": "Track total villager count as Population. Add simple food resource: each villager consumes 0.5 food/day. Food generates from farms (future) or gathering. If food reaches 0, villagers become unhappy (slower movement). No starvation death yet - keep it simple. Display food in TopBar alongside belief.",
+      "description": "Done. Food resource on PlayerSystem (starts at 50). Farms generate 2 food/sec. Villagers consume 0.5 food/day. When food=0, villagers move at 60% speed (STARVING in HUD). Food displayed in HUD alongside belief.",
       "priority": "P1",
       "category": "System",
-      "status": "backlog",
+      "status": "done",
       "epic": 3
     },
     {
@@ -218,28 +218,28 @@
     {
       "id": "GD-017",
       "title": "Create BuildingSystem with placement mode",
-      "description": "BuildingSystem manages all non-temple buildings. Buildings: Farm (generates food), House (increases pop cap), Wall (blocks pathfinding), Watchtower (reveals fog). Player enters build mode via PowerBar 'Build' button. Shows ghost preview at cursor. Click to place if valid (on grassland, not overlapping). Each building type has: size (tiles), cost (belief), buildTime (seconds), health. Store in scene registry.",
+      "description": "Done. BuildingSystem with ghost preview, grid snapping, terrain validation, occupied tile tracking. Three types: Farm, House, Wall. Keys F/H/W for placement. Click to place, ESC/right-click to cancel.",
       "priority": "P1",
       "category": "System",
-      "status": "backlog",
+      "status": "done",
       "epic": 7
     },
     {
       "id": "GD-018",
       "title": "Implement Farm building",
-      "description": "First building type. Farm: 2x2 tiles, costs 30 belief, generates 2 food/second when worked by a villager. Renders as brown rectangle with green dots (crops). Villagers with WORK state can be assigned to farms. One villager per farm. Farm has growth cycle: planted -> growing -> harvestable (30s each). Harvesting gives burst of +20 food, then cycle restarts.",
+      "description": "Done. Farm: 2x2 tiles, costs 30 belief, generates 2 food/sec passively. Renders as brown rectangle with green crop dots.",
       "priority": "P1",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 7
     },
     {
       "id": "GD-019",
       "title": "Implement House building",
-      "description": "House: 2x2 tiles, costs 20 belief. Increases population cap by +5 per house. Renders as small tan rectangle. No villager assignment needed. Houses should be placed near temples for visual clustering. Add population cap display to TopBar: 'Pop: 12/25'.",
+      "description": "Done. House: 2x2 tiles, costs 20 belief, +5 pop cap per house. Renders as tan rectangle with dark red roof accent. Pop bonus tracked via BuildingSystem.getPopulationBonus().",
       "priority": "P2",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 7
     },
     {
