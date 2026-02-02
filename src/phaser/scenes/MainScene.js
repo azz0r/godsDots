@@ -161,6 +161,7 @@ export default class MainScene extends Phaser.Scene {
       this.buildingSystem = new BuildingSystem(this);
       this.buildingSystem.playerSystem = this.playerSystem;
       this.buildingSystem.pathfindingSystem = this.pathfindingSystem;
+      this.buildingSystem.templeSystem = this.templeSystem;
 
       // Create in-game HUD
       this.createHUD();
@@ -382,7 +383,8 @@ export default class MainScene extends Phaser.Scene {
     const sleeping = this.villagerSystem ? this.villagerSystem.getSleepingCount() : 0;
     const timeStr = this.gameClock ? this.gameClock.getTimeString() : '';
 
-    let statusParts = [`${timeStr}`, `Belief: ${belief}`, `Food: ${food}`, `Pop: ${pop}`];
+    const popCap = this.getPopulationCap(human);
+    let statusParts = [`${timeStr}`, `Belief: ${belief}`, `Food: ${food}`, `Pop: ${pop}/${popCap}`];
     if (worshipping > 0) statusParts.push(`Worshipping: ${worshipping}`);
     if (sleeping > 0) statusParts.push(`Sleeping: ${sleeping}`);
     if (food === 0) statusParts.push('STARVING');
@@ -396,6 +398,20 @@ export default class MainScene extends Phaser.Scene {
     }
 
     this.hudText.setText(statusParts.join('  |  '));
+  }
+
+  /**
+   * Get population cap for a player (temple base + house bonus)
+   */
+  getPopulationCap(player) {
+    if (!player) return 0;
+    const templeBase = this.templeSystem
+      ? this.templeSystem.getPlayerTemples(player.id).reduce((sum, t) => sum + (t.level || 1) * 20, 0)
+      : 20;
+    const houseBonus = this.buildingSystem
+      ? this.buildingSystem.getPopulationBonus(player.id)
+      : 0;
+    return templeBase + houseBonus;
   }
 
   /**

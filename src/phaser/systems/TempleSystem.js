@@ -127,9 +127,11 @@ export default class TempleSystem {
       if (temple.spawnTimer <= 0) {
         temple.spawnTimer = SPAWN_INTERVAL;
 
-        // Check if under population cap
+        // Check if under population cap (uses scene's full cap calculation if available)
         const currentPop = this.getPlayerVillagerCount(temple.playerId);
-        const maxPop = (temple.level || 1) * MAX_VILLAGERS_PER_TEMPLE;
+        const maxPop = this.scene.getPopulationCap
+          ? this.scene.getPopulationCap(this.playerSystem?.getPlayer(temple.playerId))
+          : (temple.level || 1) * MAX_VILLAGERS_PER_TEMPLE;
 
         if (currentPop < maxPop) {
           this.spawnVillagerAtTemple(temple);

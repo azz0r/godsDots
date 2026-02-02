@@ -52,6 +52,7 @@ export default class BuildingSystem {
     // References
     this.playerSystem = null;
     this.pathfindingSystem = null;
+    this.templeSystem = null;
 
     // Occupied tiles lookup (for collision)
     this.occupiedTiles = new Set();
@@ -119,11 +120,40 @@ export default class BuildingSystem {
   }
 
   /**
+   * Check if a tile is within the player's temple influence radius
+   */
+  isWithinInfluence(tileX, tileY) {
+    if (!this.templeSystem || !this.playerSystem) return true; // No check if no systems
+
+    const human = this.playerSystem.getHumanPlayer();
+    if (!human) return true;
+
+    const playerTemples = this.templeSystem.getPlayerTemples(human.id);
+    const influenceRadius = 60; // Matches INFLUENCE_RADIUS in TempleSystem
+
+    for (const temple of playerTemples) {
+      const dx = tileX - temple.position.x;
+      const dy = tileY - temple.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= influenceRadius * (temple.level || 1)) return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Check if a building can be placed at tile coordinates
    */
   canPlace(tileX, tileY, size) {
     const biomeMap = this.scene.biomeMap;
     if (!biomeMap) return false;
+
+    // Must be within temple influence
+    const centerX = tileX + Math.floor(size / 2);
+    const centerY = tileY + Math.floor(size / 2);
+    if (!this.isWithinInfluence(centerX, centerY)) {
+      return false;
+    }
 
     for (let dy = 0; dy < size; dy++) {
       for (let dx = 0; dx < size; dx++) {
