@@ -18,9 +18,11 @@ function createMockScene() {
         setDepth: jest.fn(),
         setStrokeStyle: jest.fn(),
         setFillStyle: jest.fn(),
+        setAlpha: jest.fn(),
         destroy: jest.fn(),
         x: 0,
         y: 0,
+        alpha: 1,
       }),
     },
   };
@@ -137,6 +139,55 @@ describe('Layer 4: Villager System', () => {
       villager.pause();
       villager.resume();
       expect(villager.isPaused).toBe(false);
+    });
+
+    test('should enter worship state', () => {
+      const villager = new Villager(1, 100, 100);
+      villager.startWorship('temple_1');
+      expect(villager.state).toBe('worshipping');
+      expect(villager.worshipTempleId).toBe('temple_1');
+      expect(villager.worshipTimer).toBeGreaterThan(0);
+    });
+
+    test('should end worship and return to idle', () => {
+      const villager = new Villager(1, 100, 100);
+      villager.startWorship('temple_1');
+      villager.endWorship();
+      expect(villager.state).toBe('idle');
+      expect(villager.worshipTempleId).toBeNull();
+      expect(villager.pauseTimer).toBeGreaterThan(0);
+    });
+
+    test('should count down worship timer', () => {
+      const villager = new Villager(1, 100, 100);
+      villager.startWorship('temple_1');
+      const initialTimer = villager.worshipTimer;
+      villager.update(1000);
+      expect(villager.worshipTimer).toBe(initialTimer - 1000);
+      expect(villager.state).toBe('worshipping');
+    });
+
+    test('should auto-end worship when timer expires', () => {
+      const villager = new Villager(1, 100, 100);
+      villager.startWorship('temple_1');
+      villager.update(villager.worshipDuration + 100);
+      expect(villager.state).toBe('idle');
+    });
+
+    test('should start worship when reaching temple via goingToWorship', () => {
+      const villager = new Villager(1, 0, 0);
+      villager.goingToWorship = true;
+      villager.worshipTempleId = 'temple_1';
+      villager.setPath([{ x: 0, y: 0 }, { x: 1, y: 0 }]);
+      villager.speed = 100;
+
+      for (let i = 0; i < 100; i++) {
+        villager.update(16);
+        if (villager.state === 'worshipping') break;
+      }
+
+      expect(villager.state).toBe('worshipping');
+      expect(villager.worshipTempleId).toBe('temple_1');
     });
   });
 

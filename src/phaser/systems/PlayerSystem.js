@@ -156,7 +156,6 @@ export default class PlayerSystem {
     const player = this.getPlayer(playerId);
     if (player) {
       player.beliefPoints += amount;
-      console.log(`[PlayerSystem] Player ${playerId} gained ${amount} BP (total: ${player.beliefPoints})`);
     }
   }
 

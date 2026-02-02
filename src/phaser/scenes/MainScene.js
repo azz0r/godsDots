@@ -133,6 +133,13 @@ export default class MainScene extends Phaser.Scene {
 
       // Start the game (spawn players, temples, villagers)
       this.startGame();
+
+      // Wire up cross-system references for worship/belief
+      this.villagerSystem.templeSystem = this.templeSystem;
+      this.villagerSystem.playerSystem = this.playerSystem;
+
+      // Create in-game HUD
+      this.createHUD();
     }
 
     // Story 3: ESC key handler for pause menu
@@ -225,6 +232,44 @@ export default class MainScene extends Phaser.Scene {
     if (this.playerSystem && this.gameStarted && !this.gameEnded) {
       this.playerSystem.update(time, delta);
     }
+
+    // Update HUD
+    this.updateHUD();
+  }
+
+  /**
+   * Create in-game HUD showing belief, population, worship count
+   */
+  createHUD() {
+    const style = {
+      fontSize: '20px',
+      fontFamily: 'monospace',
+      color: '#FFFFFF',
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      padding: { x: 12, y: 8 },
+    };
+
+    this.hudText = this.add.text(10, 10, '', style);
+    this.hudText.setScrollFactor(0);
+    this.hudText.setDepth(5000);
+  }
+
+  /**
+   * Update HUD text each frame
+   */
+  updateHUD() {
+    if (!this.hudText || !this.playerSystem) return;
+
+    const human = this.playerSystem.getHumanPlayer();
+    if (!human) return;
+
+    const belief = Math.floor(human.beliefPoints);
+    const pop = human.population;
+    const worshipping = this.villagerSystem ? this.villagerSystem.getWorshippingCount() : 0;
+
+    this.hudText.setText(
+      `Belief: ${belief}  |  Population: ${pop}  |  Worshipping: ${worshipping}`
+    );
   }
 
   /**
