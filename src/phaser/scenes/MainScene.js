@@ -283,11 +283,14 @@ export default class MainScene extends Phaser.Scene {
     const belief = Math.floor(human.beliefPoints);
     const pop = human.population;
     const worshipping = this.villagerSystem ? this.villagerSystem.getWorshippingCount() : 0;
+    const sleeping = this.villagerSystem ? this.villagerSystem.getSleepingCount() : 0;
     const timeStr = this.gameClock ? this.gameClock.getTimeString() : '';
 
-    this.hudText.setText(
-      `${timeStr}  |  Belief: ${belief}  |  Pop: ${pop}  |  Worshipping: ${worshipping}`
-    );
+    let statusParts = [`${timeStr}`, `Belief: ${belief}`, `Pop: ${pop}`];
+    if (worshipping > 0) statusParts.push(`Worshipping: ${worshipping}`);
+    if (sleeping > 0) statusParts.push(`Sleeping: ${sleeping}`);
+
+    this.hudText.setText(statusParts.join('  |  '));
   }
 
   /**

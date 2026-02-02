@@ -2,7 +2,7 @@
  * Layer 4: Villager Entity
  *
  * Represents a single villager with pathfinding and state management.
- * States: idle, moving, worshipping
+ * States: idle, moving, worshipping, sleeping
  */
 
 export default class Villager {
@@ -16,14 +16,19 @@ export default class Villager {
     this.currentPath = null;
     this.pathIndex = 0;
 
-    // State management: idle | moving | worshipping
+    // State management: idle | moving | worshipping | sleeping
     this.state = 'idle';
     this.isPaused = false;
+
+    // Player ownership
+    this.playerId = null;
+    this.playerColor = null;
 
     // Return journey
     this.origin = { x, y };
     this.destination = null;
     this.returningHome = false;
+    this.goingHome = false; // Going to temple area (nighttime)
     this.pauseTimer = 0;
     this.pauseDuration = 2000; // 2s pause at destination
 
@@ -72,6 +77,25 @@ export default class Villager {
     this.pauseTimer = this.pauseDuration;
   }
 
+  /**
+   * Enter sleep state (nighttime)
+   */
+  startSleep() {
+    this.state = 'sleeping';
+    this.currentPath = null;
+    this.pathIndex = 0;
+    this.goingToWorship = false;
+    this.goingHome = false;
+  }
+
+  /**
+   * Wake up from sleep
+   */
+  wakeUp() {
+    this.state = 'idle';
+    this.pauseTimer = 1000; // Brief pause after waking
+  }
+
   pause() {
     this.isPaused = true;
   }
@@ -82,6 +106,9 @@ export default class Villager {
 
   update(delta) {
     if (this.isPaused) return;
+
+    // Sleeping - do nothing (woken by VillagerSystem when day comes)
+    if (this.state === 'sleeping') return;
 
     // Handle worship timer
     if (this.state === 'worshipping') {
@@ -125,9 +152,11 @@ export default class Villager {
 
         if (this.pathIndex >= this.currentPath.length) {
           this.clearPath();
-          // If going to worship, start worshipping instead of pausing
+          // If going to worship, start worshipping
           if (this.goingToWorship && this.worshipTempleId) {
             this.startWorship(this.worshipTempleId);
+          } else if (this.goingHome) {
+            this.startSleep();
           } else {
             this.pauseTimer = this.pauseDuration;
           }

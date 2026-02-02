@@ -29,6 +29,9 @@ export default class VillagerSystem {
     this.autoAssignDestinations = true;
     this.biomeMap = null;
 
+    // Night state tracking
+    this.isNight = false;
+
     // References set by MainScene after initialization
     this.templeSystem = null;
     this.playerSystem = null;
@@ -188,6 +191,20 @@ export default class VillagerSystem {
   update(delta) {
     if (this.isPaused) return;
 
+    // Check night state from game clock
+    const gameClock = this.scene && this.scene.gameClock;
+    const wasNight = this.isNight;
+    this.isNight = gameClock ? gameClock.isNight() : false;
+
+    // Night->Day transition: wake everyone up
+    if (wasNight && !this.isNight) {
+      for (const villager of this.villagers) {
+        if (villager.state === 'sleeping') {
+          villager.wakeUp();
+        }
+      }
+    }
+
     const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
 
     for (const villager of this.villagers) {
@@ -204,10 +221,12 @@ export default class VillagerSystem {
           villager._colorSet = true;
         }
 
-        // Visual feedback for worship state - pulsing alpha
+        // Visual feedback by state
         if (villager.state === 'worshipping') {
           const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 300);
           villager._circle.setAlpha(pulse);
+        } else if (villager.state === 'sleeping') {
+          villager._circle.setAlpha(0.4); // Dim when sleeping
         } else if (villager._circle.alpha !== 1) {
           villager._circle.setAlpha(1);
         }
@@ -223,6 +242,12 @@ export default class VillagerSystem {
       if (this.autoAssignDestinations &&
           villager.state === 'idle' &&
           villager.pauseTimer === 0) {
+
+        // Nighttime: send villagers home to sleep
+        if (this.isNight) {
+          this.sendVillagerHome(villager);
+          continue;
+        }
 
         // Check if near temple and should worship
         const temple = this.findNearestTemple(villager);
@@ -247,6 +272,47 @@ export default class VillagerSystem {
           this.assignRandomDestination(villager);
         }
       }
+    }
+  }
+
+  /**
+   * Send a villager back to their temple area to sleep
+   */
+  sendVillagerHome(villager) {
+    if (!this.pathfindingSystem) {
+      villager.startSleep();
+      return;
+    }
+
+    const temple = this.findNearestTemple(villager);
+    if (!temple) {
+      villager.startSleep();
+      return;
+    }
+
+    const dx = temple.position.x - villager.x;
+    const dy = temple.position.y - villager.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Already near temple, just sleep
+    if (dist <= 8) {
+      villager.startSleep();
+      return;
+    }
+
+    // Pathfind to near temple
+    const startX = Math.floor(villager.x);
+    const startY = Math.floor(villager.y);
+    const path = this.pathfindingSystem.findPath(
+      startX, startY,
+      temple.position.x, temple.position.y
+    );
+
+    if (path) {
+      villager.setPath(path);
+      villager.goingHome = true;
+    } else {
+      villager.startSleep(); // Can't path, just sleep in place
     }
   }
 
@@ -277,5 +343,12 @@ export default class VillagerSystem {
    */
   getWorshippingCount() {
     return this.villagers.filter(v => v.state === 'worshipping').length;
+  }
+
+  /**
+   * Get count of sleeping villagers
+   */
+  getSleepingCount() {
+    return this.villagers.filter(v => v.state === 'sleeping').length;
   }
 }

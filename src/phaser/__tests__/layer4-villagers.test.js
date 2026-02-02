@@ -189,6 +189,43 @@ describe('Layer 4: Villager System', () => {
       expect(villager.state).toBe('worshipping');
       expect(villager.worshipTempleId).toBe('temple_1');
     });
+
+    test('should enter sleep state', () => {
+      const villager = new Villager(1, 100, 100);
+      villager.startSleep();
+      expect(villager.state).toBe('sleeping');
+    });
+
+    test('should not move while sleeping', () => {
+      const villager = new Villager(1, 5, 5);
+      villager.startSleep();
+      const startX = villager.x;
+      villager.update(1000);
+      expect(villager.x).toBe(startX);
+      expect(villager.state).toBe('sleeping');
+    });
+
+    test('should wake up from sleep', () => {
+      const villager = new Villager(1, 100, 100);
+      villager.startSleep();
+      villager.wakeUp();
+      expect(villager.state).toBe('idle');
+      expect(villager.pauseTimer).toBeGreaterThan(0);
+    });
+
+    test('should sleep when reaching home via goingHome', () => {
+      const villager = new Villager(1, 0, 0);
+      villager.goingHome = true;
+      villager.setPath([{ x: 0, y: 0 }, { x: 1, y: 0 }]);
+      villager.speed = 100;
+
+      for (let i = 0; i < 100; i++) {
+        villager.update(16);
+        if (villager.state === 'sleeping') break;
+      }
+
+      expect(villager.state).toBe('sleeping');
+    });
   });
 
   describe('Pathfinding Integration', () => {
