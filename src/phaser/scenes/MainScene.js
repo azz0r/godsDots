@@ -18,6 +18,7 @@ import CameraControlSystem from '../systems/CameraControlSystem';
 import PlayerSystem from '../systems/PlayerSystem';
 import GameInitializer from '../systems/GameInitializer';
 import GameClock from '../systems/GameClock';
+import DivinePowerSystem from '../systems/DivinePowerSystem';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -66,6 +67,9 @@ export default class MainScene extends Phaser.Scene {
     // Game state (Layer 6)
     this.gameStarted = false;
     this.gameEnded = false;
+
+    // Divine power system
+    this.divinePowerSystem = null;
 
     // Game speed multiplier (1 = normal, 2 = double, etc.)
     this.gameSpeed = 1;
@@ -144,11 +148,33 @@ export default class MainScene extends Phaser.Scene {
       this.templeSystem.villagerSystem = this.villagerSystem;
       this.templeSystem.playerSystem = this.playerSystem;
 
+      // Initialize divine power system
+      this.divinePowerSystem = new DivinePowerSystem(this);
+      this.divinePowerSystem.playerSystem = this.playerSystem;
+      this.divinePowerSystem.villagerSystem = this.villagerSystem;
+
       // Create in-game HUD
       this.createHUD();
 
       // Initialize game clock (day/night cycle)
       this.gameClock = new GameClock(this);
+
+      // Register click handlers for divine power targeting
+      this.input.on('pointerdown', (pointer) => {
+        // Right-click cancels power
+        if (pointer.rightButtonDown() && this.divinePowerSystem?.selectedPower) {
+          this.divinePowerSystem.cancelPower();
+          return;
+        }
+
+        // Left-click casts power if one is selected (and not dragging)
+        if (pointer.leftButtonDown() && this.divinePowerSystem?.selectedPower) {
+          const camera = this.cameras.main;
+          const worldX = pointer.x / camera.zoom + camera.scrollX;
+          const worldY = pointer.y / camera.zoom + camera.scrollY;
+          this.divinePowerSystem.castAtWorld(worldX, worldY);
+        }
+      });
     }
 
     // Story 3: ESC key handler for pause menu
@@ -248,6 +274,11 @@ export default class MainScene extends Phaser.Scene {
     // Update game clock
     if (this.gameClock) {
       this.gameClock.update(scaledDelta);
+    }
+
+    // Update divine power system (cooldowns tick at real time, targeting follows cursor)
+    if (this.divinePowerSystem) {
+      this.divinePowerSystem.update(delta);
     }
 
     // Update HUD

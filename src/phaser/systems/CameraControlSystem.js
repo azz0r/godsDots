@@ -79,6 +79,11 @@ export default class CameraControlSystem {
       return;
     }
 
+    // Don't start drag if a divine power is being targeted
+    if (this.scene.divinePowerSystem && this.scene.divinePowerSystem.selectedPower) {
+      return;
+    }
+
     // Check for double-click
     const currentTime = pointer.downTime;
     const timeSinceLastClick = currentTime - this.lastClickTime;

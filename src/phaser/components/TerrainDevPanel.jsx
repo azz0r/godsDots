@@ -36,6 +36,8 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [worshipping, setWorshipping] = useState(0);
   const [dayTime, setDayTime] = useState('');
   const [gameExpanded, setGameExpanded] = useState(true);
+  const [selectedPower, setSelectedPower] = useState(null);
+  const [powersExpanded, setPowersExpanded] = useState(true);
 
   /**
    * Track FPS and villager count from Phaser game loop
@@ -65,6 +67,9 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
           }
           if (scene.gameClock) {
             setDayTime(scene.gameClock.getTimeString());
+          }
+          if (scene.divinePowerSystem) {
+            setSelectedPower(scene.divinePowerSystem.selectedPower);
           }
         }
       }
@@ -547,6 +552,33 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   };
 
   /**
+   * Select a divine power for targeting
+   */
+  const handleSelectPower = (powerId) => {
+    if (!gameRef.current) return;
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.divinePowerSystem) return;
+
+    if (scene.divinePowerSystem.selectedPower === powerId) {
+      scene.divinePowerSystem.cancelPower();
+      setSelectedPower(null);
+    } else {
+      const success = scene.divinePowerSystem.selectPower(powerId);
+      setSelectedPower(success ? powerId : null);
+    }
+  };
+
+  /**
+   * Get divine power info for display
+   */
+  const getPowerInfos = () => {
+    if (!gameRef.current) return [];
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.divinePowerSystem) return [];
+    return scene.divinePowerSystem.getAllPowerInfo();
+  };
+
+  /**
    * Get list of all villagers for dropdown
    */
   const getVillagerList = () => {
@@ -639,6 +671,49 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
 
               <div className="villager-buttons" style={{ marginTop: '4px' }}>
                 <button onClick={handleSkipDay} className="random-passable-btn">Skip Day</button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Divine Powers */}
+        <section className="control-section">
+          <h4 onClick={() => setPowersExpanded(!powersExpanded)} style={{ cursor: 'pointer' }}>
+            Divine Powers {powersExpanded ? '▼' : '▶'}
+          </h4>
+
+          {powersExpanded && (
+            <div className="controls">
+              {selectedPower && (
+                <div style={{
+                  padding: '6px 8px',
+                  backgroundColor: '#1a3a1a',
+                  border: '1px solid #4ade80',
+                  borderRadius: '4px',
+                  marginBottom: '8px',
+                  color: '#4ade80',
+                  fontSize: '12px'
+                }}>
+                  Targeting: Click on map to cast, right-click to cancel
+                </div>
+              )}
+              <div className="villager-buttons">
+                {getPowerInfos().map(power => (
+                  <button
+                    key={power.id}
+                    onClick={() => handleSelectPower(power.id)}
+                    className={selectedPower === power.id ? "find-path-btn" : "spawn-villager-btn"}
+                    style={{
+                      opacity: power.isOnCooldown ? 0.4 : 1,
+                      fontWeight: selectedPower === power.id ? 'bold' : 'normal',
+                    }}
+                    disabled={power.isOnCooldown}
+                    title={`Cost: ${power.cost} | CD: ${power.cooldown/1000}s | Range: ${power.radius} tiles`}
+                  >
+                    {power.name} ({power.cost})
+                    {power.isOnCooldown && ` [${Math.ceil(power.cooldownRemaining/1000)}s]`}
+                  </button>
+                ))}
               </div>
             </div>
           )}
