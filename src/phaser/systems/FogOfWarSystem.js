@@ -20,7 +20,7 @@ const INFLUENCE_RADIUS = 60; // Must match TempleSystem
 export default class FogOfWarSystem {
   constructor(scene) {
     this.scene = scene;
-    this.enabled = true;
+    this.enabled = false; // Disabled by default - enable via settings or dev panel
 
     // Map dimensions in tiles
     this.mapWidth = scene.mapWidth;
@@ -63,9 +63,10 @@ export default class FogOfWarSystem {
     this.fogRT.setScale(TILE_SIZE * FOG_RESOLUTION); // Scale up to world coords
     this.fogRT.setDepth(500); // Above terrain/buildings, below HUD
     this.fogRT.setAlpha(1);
+    this.fogRT.setVisible(this.enabled);
 
-    // Initial full fog
-    this.renderFog();
+    // Initial fog render (only if enabled)
+    if (this.enabled) this.renderFog();
   }
 
   /**
