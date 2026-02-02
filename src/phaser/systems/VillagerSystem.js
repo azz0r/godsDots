@@ -231,6 +231,13 @@ export default class VillagerSystem {
 
     const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
 
+    // Compute camera viewport for culling
+    const camera = this.scene?.cameras?.main;
+    const camLeft = camera ? camera.scrollX : 0;
+    const camTop = camera ? camera.scrollY : 0;
+    const camRight = camera ? camLeft + camera.width / camera.zoom : Infinity;
+    const camBottom = camera ? camTop + camera.height / camera.zoom : Infinity;
+
     for (const villager of this.villagers) {
       // Apply speed penalty when starving
       if (this.playerSystem && villager.playerId) {
@@ -240,10 +247,20 @@ export default class VillagerSystem {
 
       villager.update(delta);
 
-      // Update circle position
+      // Update circle position and viewport culling
       if (villager._circle) {
-        villager._circle.x = villager.x * TILE_SIZE + TILE_SIZE / 2;
-        villager._circle.y = villager.y * TILE_SIZE + TILE_SIZE / 2;
+        const px = villager.x * TILE_SIZE + TILE_SIZE / 2;
+        const py = villager.y * TILE_SIZE + TILE_SIZE / 2;
+        villager._circle.x = px;
+        villager._circle.y = py;
+
+        // Viewport culling: hide villagers outside camera view
+        if (camera) {
+          const margin = 100;
+          const inView = px >= camLeft - margin && px <= camRight + margin &&
+                         py >= camTop - margin && py <= camBottom + margin;
+          villager._circle.setVisible(inView);
+        }
 
         // Set player color once
         if (villager.playerColor && !villager._colorSet) {
