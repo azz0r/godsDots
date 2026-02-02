@@ -272,10 +272,10 @@
     {
       "id": "GD-023",
       "title": "Implement basic save game with Dexie",
-      "description": "Save current game state to IndexedDB via Dexie. Save data: terrain seed (not full map), temple positions/levels, building positions/types, villager positions/states, resources (belief, food, day). Save on pause menu 'Save' button and auto-save every 60 seconds. Load reconstructs terrain from seed, then places entities. Schema already exists in src/db/ but needs updating for Phaser data model.",
+      "description": "Done. SaveSystem uses localStorage (simpler than Dexie). Stores terrain seed, players, temples, buildings, villagers. Auto-save every 60s. Save button in pause menu. Serialization/deserialization via JSON.",
       "priority": "P2",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 9
     },
     {
