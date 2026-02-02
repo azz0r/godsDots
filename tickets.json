@@ -245,28 +245,28 @@
     {
       "id": "GD-020",
       "title": "Implement land influence and territory system",
-      "description": "Each temple projects influence in a radius (level * 15 tiles). Influence is visualized as a subtle colored overlay on the terrain (player's color at 10% opacity). Buildings can only be placed within your influence. Influence areas of different players don't overlap - first to claim wins. Display influence boundaries as dashed circles. This creates the territorial expansion core loop.",
+      "description": "Done. Buildings restricted to within temple influence radius (60 tiles * level). Influence visualized as colored aura circle around temples. Pop cap includes temple base + house bonus. Territory check in BuildingSystem.isWithinInfluence().",
       "priority": "P1",
       "category": "System",
-      "status": "backlog",
+      "status": "done",
       "epic": 8
     },
     {
       "id": "GD-021",
       "title": "Temple upgrade system",
-      "description": "Temples can be upgraded from level 1 to 5. Each level costs increasing belief: L2=100, L3=250, L4=500, L5=1000. Benefits per level: +5 pop cap, +15 tile influence radius, +1 belief/sec passive, temple sprite grows larger. Player clicks temple and sees upgrade button in InfoPanel. Upgrade takes 30 seconds (progress bar on temple).",
+      "description": "Done. Temples upgrade L1-L5 (costs: 100/250/500/1000 belief). Higher levels increase temple size, influence radius, and pop cap. Select temple + press U to upgrade. Cost shown in info panel.",
       "priority": "P2",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 4
     },
     {
       "id": "GD-022",
       "title": "InfoPanel shows entity details on click",
-      "description": "InfoPanel.jsx exists but is disconnected. When player clicks a villager: show name, state, health. When player clicks a temple: show level, belief generated, villager count, upgrade button. When player clicks a building: show type, health, worker assigned. Click empty terrain: show biome type, tile coords. Phaser scene emits 'entitySelected' event with entity data.",
+      "description": "Done. Phaser-native info panel in bottom-right. Click villager: state, position, speed. Click temple: level, pop, upgrade cost. Click building: type, food/pop bonus. Click terrain: biome, passability. Selection ring follows entities.",
       "priority": "P1",
       "category": "UI",
-      "status": "backlog",
+      "status": "done",
       "epic": 2
     },
     {
@@ -389,10 +389,10 @@
     {
       "id": "GD-036",
       "title": "Villager visual improvements: sprites or shapes by state",
-      "description": "Currently all villagers render as identical colored circles via batched Graphics. Differentiate by state: wandering (circle), worshipping (triangle pointing up), working (square), fighting (diamond), fleeing (circle moving fast with trail). Each player's villagers use their god color. Idle villagers are slightly transparent. This makes the game readable at a glance.",
+      "description": "Done. Villagers show distinct visuals per state: moving (cyan stroke, full opacity), worshipping (gold stroke, pulsing, larger), sleeping (blue stroke, dim, smaller), idle (white stroke, faded). Each player's villagers use their god color.",
       "priority": "P2",
       "category": "Visual",
-      "status": "backlog",
+      "status": "done",
       "epic": 11
     }
   ]
