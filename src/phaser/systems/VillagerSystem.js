@@ -16,6 +16,9 @@ const WORSHIP_RANGE = 15; // Tiles - how close to temple to trigger worship
 const BELIEF_PER_SECOND = 1; // Belief points generated per worshipping villager per second
 const FOOD_PER_VILLAGER_PER_DAY = 0.5; // Food consumed per villager per game day (60s)
 const STARVING_SPEED_MULTIPLIER = 0.6; // Speed penalty when out of food
+const COMBAT_RANGE = 3; // Tiles - distance to trigger combat
+const COMBAT_DAMAGE_PER_SEC = 5; // Damage dealt per second in combat
+const FLEE_HP_THRESHOLD = 0.2; // Flee when below 20% HP
 
 export default class VillagerSystem {
   constructor(scene, pathfindingSystem) {
@@ -342,6 +345,81 @@ export default class VillagerSystem {
           this.assignRandomDestination(villager);
         }
       }
+    }
+
+    // Combat: check for enemy villagers in range
+    this.processCombat(delta);
+
+    // Remove dead villagers
+    this.removeDeadVillagers();
+  }
+
+  /**
+   * Process combat between enemy villagers
+   */
+  processCombat(delta) {
+    const combatRangeSq = COMBAT_RANGE * COMBAT_RANGE;
+    const damageThisFrame = (COMBAT_DAMAGE_PER_SEC * delta) / 1000;
+
+    for (const villager of this.villagers) {
+      if (villager.state === 'sleeping' || !villager.playerId) continue;
+
+      // Find nearest enemy
+      let nearestEnemy = null;
+      let nearestDistSq = combatRangeSq;
+
+      for (const other of this.villagers) {
+        if (other.playerId === villager.playerId || !other.playerId) continue;
+        if (other.state === 'sleeping') continue;
+
+        const dx = other.x - villager.x;
+        const dy = other.y - villager.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < nearestDistSq) {
+          nearestDistSq = distSq;
+          nearestEnemy = other;
+        }
+      }
+
+      if (nearestEnemy) {
+        // Deal damage
+        nearestEnemy.takeDamage(damageThisFrame);
+
+        // Flash red on hit (throttled)
+        if (nearestEnemy._circle && !nearestEnemy._combatFlash) {
+          nearestEnemy._circle.setFillStyle(0xFF0000);
+          nearestEnemy._combatFlash = true;
+          if (this.scene?.time) {
+            this.scene.time.delayedCall(200, () => {
+              if (nearestEnemy._circle && nearestEnemy.playerColor) {
+                nearestEnemy._circle.setFillStyle(nearestEnemy.playerColor);
+              }
+              nearestEnemy._combatFlash = false;
+            });
+          }
+        }
+
+        // Low HP: flee toward temple
+        if (villager.health < villager.maxHealth * FLEE_HP_THRESHOLD) {
+          if (villager.state !== 'moving' || !villager.goingHome) {
+            this.sendVillagerHome(villager);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Remove dead villagers (health <= 0)
+   */
+  removeDeadVillagers() {
+    const dead = this.villagers.filter(v => v.isDead());
+    for (const villager of dead) {
+      if (villager.playerId && this.playerSystem) {
+        this.playerSystem.removeVillager(villager.playerId, villager.id);
+      }
+      this.removeVillager(villager.id);
     }
   }
 
