@@ -17,6 +17,7 @@ import TempleSystem from '../systems/TempleSystem';
 import CameraControlSystem from '../systems/CameraControlSystem';
 import PlayerSystem from '../systems/PlayerSystem';
 import GameInitializer from '../systems/GameInitializer';
+import GameClock from '../systems/GameClock';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -142,6 +143,9 @@ export default class MainScene extends Phaser.Scene {
 
       // Create in-game HUD
       this.createHUD();
+
+      // Initialize game clock (day/night cycle)
+      this.gameClock = new GameClock(this);
     }
 
     // Story 3: ESC key handler for pause menu
@@ -235,6 +239,11 @@ export default class MainScene extends Phaser.Scene {
       this.playerSystem.update(time, delta);
     }
 
+    // Update game clock
+    if (this.gameClock) {
+      this.gameClock.update(delta);
+    }
+
     // Update HUD
     this.updateHUD();
   }
@@ -268,9 +277,10 @@ export default class MainScene extends Phaser.Scene {
     const belief = Math.floor(human.beliefPoints);
     const pop = human.population;
     const worshipping = this.villagerSystem ? this.villagerSystem.getWorshippingCount() : 0;
+    const timeStr = this.gameClock ? this.gameClock.getTimeString() : '';
 
     this.hudText.setText(
-      `Belief: ${belief}  |  Population: ${pop}  |  Worshipping: ${worshipping}`
+      `${timeStr}  |  Belief: ${belief}  |  Pop: ${pop}  |  Worshipping: ${worshipping}`
     );
   }
 
