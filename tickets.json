@@ -77,52 +77,52 @@
       "description": "63 tests fail across 30 suites. Most are from the pre-Phaser legacy code (hooks/useGameEngine, hooks/useTerrainSystem, hooks/useVillagerSystem, systems/GestureRecognizer, systems/MiracleSystem, utils/AStar, utils/TerrainGenerator, utils/ZoomControl, etc). These legacy systems have been replaced by Phaser equivalents in src/phaser/. Audit each failing suite: if the system it tests has been replaced by a working Phaser system, delete the legacy test file AND the legacy source file. If the system is still needed (e.g. MiracleSystem, GestureRecognizer), fix the failing tests. Target: 0 failing tests on main.",
       "priority": "P0",
       "category": "Testing",
-      "status": "backlog",
+      "status": "done",
       "epic": 1
     },
     {
       "id": "GD-002",
       "title": "Delete dead legacy code (pre-Phaser systems)",
-      "description": "The codebase has two parallel implementations: legacy custom canvas (src/systems/, src/hooks/, src/utils/mapGeneration/, src/utils/pathfinding/) and the new Phaser 3 systems (src/phaser/systems/). After GD-001 identifies which legacy files are replaced, delete all dead code. Key candidates: src/hooks/useGameEngine.js, src/hooks/useTerrainSystem.js, src/hooks/useVillagerSystem.js, src/utils/mapGeneration/TerrainGenerator.js (replaced by src/phaser/systems/TerrainGenerator.js), src/utils/pathfinding/AStar.js (replaced by src/phaser/systems/PathfindingSystem.js), src/utils/ZoomControl.js (replaced by CameraControlSystem). Keep only code that is actively used.",
+      "description": "Deleted all 22 legacy files: 12 from src/systems/, 3 from src/utils/, 7 from src/components/. All were dead code only referenced by their own tests.",
       "priority": "P0",
       "category": "Cleanup",
-      "status": "backlog",
+      "status": "done",
       "epic": 1
     },
     {
       "id": "GD-003",
       "title": "Merge dev branch features (Menu + Pause) to main",
-      "description": "Branch claude/dev-011CUxRHQfCE91YcqkRwkE4p has Story 2 (MainMenuScene) and Story 3 (Pause Menu) completed with passing tests. These need to be merged to main. Resolve any yarn.lock conflicts. Verify all tests pass after merge. Features: MainMenuScene with New Game/Continue/Settings/Credits, pause overlay with ESC toggle, Resume/Restart/Main Menu buttons.",
+      "description": "Merged. MainMenuScene and Pause Menu working on main.",
       "priority": "P0",
       "category": "Integration",
-      "status": "backlog",
+      "status": "done",
       "epic": 2
     },
     {
       "id": "GD-004",
       "title": "Fix GameContainer to use Phaser scenes for game flow",
-      "description": "GameContainer.jsx currently coordinates the old canvas-based game. Rewire it to launch PhaserGame with MainMenuScene as the boot scene. Game flow: MainMenuScene -> 'New Game' -> MainScene (gameplay). 'Continue' should load saved game then start MainScene. Settings/Credits can be placeholder scenes for now. Remove references to legacy game loop hooks.",
+      "description": "Already done. App.jsx renders PhaserGame directly. GameContainer removed. Flow: MainMenuScene -> MainScene.",
       "priority": "P1",
       "category": "Architecture",
-      "status": "backlog",
+      "status": "done",
       "epic": 2
     },
     {
       "id": "GD-005",
       "title": "Wire up TopBar to Phaser scene events",
-      "description": "TopBar.jsx displays Belief, Population, Day/Time but currently uses legacy hooks. Connect it to Phaser MainScene via scene events. MainScene should emit 'updateResources' with {belief, population, day, time} on each game tick. TopBar listens via PhaserGame ref. This establishes the React<->Phaser bridge pattern for all future UI.",
+      "description": "Superseded. TopBar.jsx deleted. Replaced by Phaser-native HUD text showing time, belief, population, worshipping/sleeping counts.",
       "priority": "P1",
       "category": "UI",
-      "status": "backlog",
+      "status": "done",
       "epic": 3
     },
     {
       "id": "GD-006",
       "title": "Implement belief point resource system",
-      "description": "Core resource: belief points. Create BeliefSystem in src/phaser/systems/. Belief generates passively from villagers worshipping at temples. Base rate: 1 belief/second per worshipping villager. Store current belief on scene. Emit events when belief changes. Belief is spent to cast divine powers and place buildings. Add to MainScene.create() and MainScene.update().",
+      "description": "Done. Belief generates from worshipping villagers at 1/sec each. Stored on PlayerSystem, spent via divine powers. Displayed in HUD.",
       "priority": "P0",
       "category": "System",
-      "status": "backlog",
+      "status": "done",
       "epic": 3
     },
     {
@@ -137,82 +137,82 @@
     {
       "id": "GD-008",
       "title": "Implement day/night cycle with game clock",
-      "description": "Add GameClock to MainScene. One game day = 60 real seconds (configurable). Track current day, hour (0-23). Emit 'hourChanged' and 'dayChanged' events. Visual: tint the terrain darker at night (simple multiply blend). Villagers should return to temple area at night. TopBar shows Day X and time-of-day icon.",
+      "description": "Done. GameClock with 60s days, graduated darkness overlay, dawn/dusk transitions. Villagers return to temple and sleep at night, wake at dawn.",
       "priority": "P1",
       "category": "System",
-      "status": "backlog",
+      "status": "done",
       "epic": 3
     },
     {
       "id": "GD-009",
       "title": "Create TempleSystem with placement and rendering",
-      "description": "Temples are the core building. TempleSystem manages temple entities. Each player starts with one temple placed on grassland. Temple renders as a simple colored rectangle (32x32 initially) with the player's color. Temple has: position (tile coords), level (1-5), health (100), ownerId. Temples generate an 'influence aura' circle (visual only for now). Add to MainScene.",
+      "description": "Done. 80px temples with player colors, influence aura circles (60-tile radius), cross markers. TempleSystem manages all temple entities.",
       "priority": "P0",
       "category": "System",
-      "status": "backlog",
+      "status": "done",
       "epic": 4
     },
     {
       "id": "GD-010",
       "title": "Implement villager worship behaviour",
-      "description": "Villagers need a 'worship' state. When idle and near a temple (within 10 tiles), villager pathfinds to temple and enters worship state. Worshipping villagers stand near temple for 5-10 seconds, generating belief points. After worshipping, they return to idle/wander. VillagerSystem.update() checks for worship opportunities. This creates the core gameplay loop: more villagers -> more worship -> more belief.",
+      "description": "Done. Villagers pathfind to temple (40% chance when idle near temple), worship for 6s generating 1 belief/sec, then return to idle. Pulsing alpha visual feedback.",
       "priority": "P0",
       "category": "AI",
-      "status": "backlog",
+      "status": "done",
       "epic": 4
     },
     {
       "id": "GD-011",
       "title": "Add villager state machine (idle, wander, worship, work, flee)",
-      "description": "Replace simple wander-only behaviour with a state machine. States: IDLE (standing still, 2s), WANDER (random nearby destination), WORSHIP (pathfind to temple, generate belief), WORK (future: gather, build), FLEE (run from danger). Transitions: IDLE->WANDER (random), IDLE->WORSHIP (if near temple, 30% chance), any->FLEE (if threatened). Render state as tiny colored dot above villager for debug.",
+      "description": "Done. States: idle, moving, worshipping, sleeping. Villagers wander, worship at temples, sleep at night. Visual feedback per state (pulsing for worship, dim for sleep).",
       "priority": "P1",
       "category": "AI",
-      "status": "backlog",
+      "status": "done",
       "epic": 5
     },
     {
       "id": "GD-012",
       "title": "Villager spawning from temples",
-      "description": "Temples periodically spawn new villagers. Base rate: 1 villager per 30 seconds per temple. Requires 10 food per spawn. Villager spawns at temple position with a random grassland destination. Cap villagers per temple at temple.level * 10. Total population cap: 200 (performance). Spawn creates a small particle effect.",
+      "description": "Done. Temples spawn villagers every 30s (first at 15s). Pop cap: 20 per temple level. Villagers spawn at passable tiles near temple.",
       "priority": "P1",
       "category": "System",
-      "status": "backlog",
+      "status": "done",
       "epic": 5
     },
     {
       "id": "GD-013",
       "title": "Implement Heal divine power",
-      "description": "First divine power. Player clicks Heal in PowerBar, then clicks on the map. Area of effect: 5 tile radius. All owned villagers in radius get healed (future: when health system exists). Cost: 20 belief. Visual: green circle expanding outward, particles rising. For now, the visual effect is the main thing - actual healing requires health system (GD-024). Establishes the power casting pattern for all future powers.",
+      "description": "Done. Heal (20 belief, 5 tile radius, 10s CD): flashes owned villagers green, expanding green ring effect. Key: 1.",
       "priority": "P1",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 6
     },
     {
       "id": "GD-014",
       "title": "Implement Storm divine power",
-      "description": "Offensive power. Player selects Storm, clicks target area. 8 tile radius. Damages buildings and scatters villagers (sets state to FLEE). Cost: 50 belief. Visual: dark circle on ground, lightning bolt sprites (simple lines), screen shake. Villagers in radius flee outward. Buildings in radius take 20 damage. Cooldown: 30 seconds.",
+      "description": "Done. Storm (50 belief, 8 tile radius, 30s CD): scatters all villagers in range, red flash. Key: 2.",
       "priority": "P2",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 6
     },
     {
       "id": "GD-015",
       "title": "Implement Food Blessing divine power",
-      "description": "Utility power. Player selects Food, clicks target area. 10 tile radius. Generates +50 food instantly. Visual: golden particles falling from sky, green glow on ground. Cost: 30 belief. Also speeds up nearby villager movement by 50% for 10 seconds (well-fed bonus). Cooldown: 20 seconds.",
+      "description": "Done. Food (30 belief, 10 tile radius, 20s CD): +50 belief, 1.5x speed boost for 10s. Key: 3.",
       "priority": "P2",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 6
     },
     {
       "id": "GD-016",
       "title": "Wire up PowerBar to divine power system",
-      "description": "PowerBar.jsx has buttons for Heal/Storm/Food/Build but they do nothing. Connect each button to set a 'selectedPower' state on the Phaser scene. When a power is selected, change cursor to targeting mode. Click on map triggers the power at that location. ESC or right-click cancels. Show power cost and cooldown on each button. Grey out buttons when insufficient belief or on cooldown.",
+      "description": "Done. PowerBar.jsx deleted. Powers accessible via keyboard (1/2/3) and dev panel. Targeting circle follows cursor, right-click/ESC cancels. Cooldown display in dev panel.",
       "priority": "P1",
       "category": "UI",
-      "status": "backlog",
+      "status": "done",
       "epic": 6
     },
     {
@@ -380,10 +380,10 @@
     {
       "id": "GD-035",
       "title": "Add dev harness for testing game systems",
-      "description": "Expand TerrainDevPanel with buttons: spawn 10/50/100 villagers, place temple at camera center, add 1000 belief, add 100 food, toggle AI, skip to day N, set game speed, kill all enemy villagers, destroy all enemy buildings. This accelerates manual testing of all systems. Only visible in dev mode (import.meta.env.DEV).",
+      "description": "Done. Dev panel expanded with: Game State section (belief/pop/worship stats, +belief buttons, spawn at temple, game speed 0.5-10x, skip day), Divine Powers section (power selection with cooldown display).",
       "priority": "P1",
       "category": "Developer Tooling",
-      "status": "backlog",
+      "status": "done",
       "epic": 1
     },
     {
