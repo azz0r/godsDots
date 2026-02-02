@@ -79,8 +79,11 @@ export default class CameraControlSystem {
       return;
     }
 
-    // Don't start drag if a divine power is being targeted
+    // Don't start drag if targeting a power or placing a building
     if (this.scene.divinePowerSystem && this.scene.divinePowerSystem.selectedPower) {
+      return;
+    }
+    if (this.scene.buildingSystem && this.scene.buildingSystem.placementMode) {
       return;
     }
 

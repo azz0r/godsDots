@@ -38,6 +38,8 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [gameExpanded, setGameExpanded] = useState(true);
   const [selectedPower, setSelectedPower] = useState(null);
   const [powersExpanded, setPowersExpanded] = useState(true);
+  const [buildingMode, setBuildingMode] = useState(null);
+  const [buildingCount, setBuildingCount] = useState(0);
 
   /**
    * Track FPS and villager count from Phaser game loop
@@ -70,6 +72,10 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
           }
           if (scene.divinePowerSystem) {
             setSelectedPower(scene.divinePowerSystem.selectedPower);
+          }
+          if (scene.buildingSystem) {
+            setBuildingMode(scene.buildingSystem.selectedType);
+            setBuildingCount(scene.buildingSystem.getCount());
           }
         }
       }
@@ -552,6 +558,23 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   };
 
   /**
+   * Start building placement
+   */
+  const handleStartBuilding = (typeId) => {
+    if (!gameRef.current) return;
+    const scene = gameRef.current.scene.getScene('MainScene');
+    if (!scene || !scene.buildingSystem) return;
+
+    if (scene.buildingSystem.selectedType === typeId) {
+      scene.buildingSystem.cancelPlacement();
+      setBuildingMode(null);
+    } else {
+      const success = scene.buildingSystem.startPlacement(typeId);
+      setBuildingMode(success ? typeId : null);
+    }
+  };
+
+  /**
    * Select a divine power for targeting
    */
   const handleSelectPower = (powerId) => {
@@ -717,6 +740,43 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
               </div>
             </div>
           )}
+        </section>
+
+        {/* Buildings */}
+        <section className="control-section">
+          <h4>Buildings ({buildingCount})</h4>
+          <div className="controls">
+            {buildingMode && (
+              <div style={{
+                padding: '6px 8px',
+                backgroundColor: '#1a3a1a',
+                border: '1px solid #4ade80',
+                borderRadius: '4px',
+                marginBottom: '8px',
+                color: '#4ade80',
+                fontSize: '12px'
+              }}>
+                Click to place, right-click/ESC to cancel
+              </div>
+            )}
+            <div className="villager-buttons">
+              {[
+                { id: 'farm', label: 'Farm (30)', key: 'F' },
+                { id: 'house', label: 'House (20)', key: 'H' },
+                { id: 'wall', label: 'Wall (5)', key: 'W' },
+              ].map(b => (
+                <button
+                  key={b.id}
+                  onClick={() => handleStartBuilding(b.id)}
+                  className={buildingMode === b.id ? "find-path-btn" : "spawn-villager-btn"}
+                  style={{ fontWeight: buildingMode === b.id ? 'bold' : 'normal' }}
+                  title={`Press ${b.key} or click`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </section>
 
         {/* Terrain Controls */}

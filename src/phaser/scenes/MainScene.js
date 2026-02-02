@@ -19,6 +19,7 @@ import PlayerSystem from '../systems/PlayerSystem';
 import GameInitializer from '../systems/GameInitializer';
 import GameClock from '../systems/GameClock';
 import DivinePowerSystem from '../systems/DivinePowerSystem';
+import BuildingSystem from '../systems/BuildingSystem';
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -70,6 +71,9 @@ export default class MainScene extends Phaser.Scene {
 
     // Divine power system
     this.divinePowerSystem = null;
+
+    // Building system
+    this.buildingSystem = null;
 
     // Game speed multiplier (1 = normal, 2 = double, etc.)
     this.gameSpeed = 1;
@@ -153,36 +157,49 @@ export default class MainScene extends Phaser.Scene {
       this.divinePowerSystem.playerSystem = this.playerSystem;
       this.divinePowerSystem.villagerSystem = this.villagerSystem;
 
+      // Initialize building system
+      this.buildingSystem = new BuildingSystem(this);
+      this.buildingSystem.playerSystem = this.playerSystem;
+      this.buildingSystem.pathfindingSystem = this.pathfindingSystem;
+
       // Create in-game HUD
       this.createHUD();
 
       // Initialize game clock (day/night cycle)
       this.gameClock = new GameClock(this);
 
-      // Register click handlers for divine power targeting
+      // Register click handlers for divine power targeting and building placement
       this.input.on('pointerdown', (pointer) => {
-        // Right-click cancels power
-        if (pointer.rightButtonDown() && this.divinePowerSystem?.selectedPower) {
-          this.divinePowerSystem.cancelPower();
+        // Right-click cancels any targeting
+        if (pointer.rightButtonDown()) {
+          if (this.divinePowerSystem?.selectedPower) this.divinePowerSystem.cancelPower();
+          if (this.buildingSystem?.placementMode) this.buildingSystem.cancelPlacement();
           return;
         }
 
-        // Left-click casts power if one is selected (and not dragging)
-        if (pointer.leftButtonDown() && this.divinePowerSystem?.selectedPower) {
+        // Left-click: cast power or place building
+        if (pointer.leftButtonDown()) {
           const camera = this.cameras.main;
           const worldX = pointer.x / camera.zoom + camera.scrollX;
           const worldY = pointer.y / camera.zoom + camera.scrollY;
-          this.divinePowerSystem.castAtWorld(worldX, worldY);
+
+          if (this.divinePowerSystem?.selectedPower) {
+            this.divinePowerSystem.castAtWorld(worldX, worldY);
+          } else if (this.buildingSystem?.placementMode) {
+            this.buildingSystem.placeAtWorld(worldX, worldY);
+          }
         }
       });
     }
 
     // Keyboard handlers
     if (this.input && this.input.keyboard) {
-      // ESC: cancel power targeting or toggle pause
+      // ESC: cancel targeting or toggle pause
       this.input.keyboard.on('keydown-ESC', () => {
         if (this.divinePowerSystem && this.divinePowerSystem.selectedPower) {
           this.divinePowerSystem.cancelPower();
+        } else if (this.buildingSystem && this.buildingSystem.placementMode) {
+          this.buildingSystem.cancelPlacement();
         } else {
           this.togglePause();
         }
@@ -197,6 +214,17 @@ export default class MainScene extends Phaser.Scene {
       });
       this.input.keyboard.on('keydown-THREE', () => {
         if (this.divinePowerSystem) this.divinePowerSystem.selectPower('food');
+      });
+
+      // Building shortcuts
+      this.input.keyboard.on('keydown-F', () => {
+        if (this.buildingSystem) this.buildingSystem.startPlacement('farm');
+      });
+      this.input.keyboard.on('keydown-H', () => {
+        if (this.buildingSystem) this.buildingSystem.startPlacement('house');
+      });
+      this.input.keyboard.on('keydown-W', () => {
+        if (this.buildingSystem) this.buildingSystem.startPlacement('wall');
       });
 
       console.log('[MainScene] Keyboard handlers registered');
@@ -298,6 +326,11 @@ export default class MainScene extends Phaser.Scene {
       this.divinePowerSystem.update(delta);
     }
 
+    // Update building system (ghost preview)
+    if (this.buildingSystem) {
+      this.buildingSystem.update(delta);
+    }
+
     // Update HUD
     this.updateHUD();
   }
@@ -328,7 +361,7 @@ export default class MainScene extends Phaser.Scene {
     };
 
     this.powerHintText = this.add.text(10, this.cameras.main.height - 40,
-      '[1] Heal  [2] Storm  [3] Food  [ESC] Pause', hintStyle);
+      '[1] Heal  [2] Storm  [3] Food  |  [F] Farm  [H] House  [W] Wall  |  [ESC] Pause', hintStyle);
     this.powerHintText.setScrollFactor(0);
     this.powerHintText.setDepth(5000);
   }
@@ -352,10 +385,12 @@ export default class MainScene extends Phaser.Scene {
     if (worshipping > 0) statusParts.push(`Worshipping: ${worshipping}`);
     if (sleeping > 0) statusParts.push(`Sleeping: ${sleeping}`);
 
-    // Show targeting mode
+    // Show targeting/placement mode
     if (this.divinePowerSystem && this.divinePowerSystem.selectedPower) {
       const info = this.divinePowerSystem.getPowerInfo(this.divinePowerSystem.selectedPower);
       if (info) statusParts.push(`CASTING: ${info.name}`);
+    } else if (this.buildingSystem && this.buildingSystem.placementMode) {
+      statusParts.push(`BUILDING: ${this.buildingSystem.selectedType}`);
     }
 
     this.hudText.setText(statusParts.join('  |  '));
