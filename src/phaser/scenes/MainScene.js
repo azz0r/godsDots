@@ -134,9 +134,11 @@ export default class MainScene extends Phaser.Scene {
       // Start the game (spawn players, temples, villagers)
       this.startGame();
 
-      // Wire up cross-system references for worship/belief
+      // Wire up cross-system references for worship/belief/spawning
       this.villagerSystem.templeSystem = this.templeSystem;
       this.villagerSystem.playerSystem = this.playerSystem;
+      this.templeSystem.villagerSystem = this.villagerSystem;
+      this.templeSystem.playerSystem = this.playerSystem;
 
       // Create in-game HUD
       this.createHUD();
