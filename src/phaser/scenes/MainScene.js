@@ -231,6 +231,17 @@ export default class MainScene extends Phaser.Scene {
         if (this.buildingSystem) this.buildingSystem.startPlacement('wall');
       });
 
+      // U: upgrade selected temple
+      this.input.keyboard.on('keydown-U', () => {
+        if (this.selectedEntity && this.selectedEntityType === 'temple') {
+          const temple = this.selectedEntity;
+          if (temple.playerId === this.playerSystem?.getHumanPlayer()?.id) {
+            this.templeSystem.upgradeTemple(temple.id);
+            this.updateInfoPanel();
+          }
+        }
+      });
+
       console.log('[MainScene] Keyboard handlers registered');
     }
   }
@@ -365,7 +376,7 @@ export default class MainScene extends Phaser.Scene {
     };
 
     this.powerHintText = this.add.text(10, this.cameras.main.height - 40,
-      '[1] Heal  [2] Storm  [3] Food  |  [F] Farm  [H] House  [W] Wall  |  [ESC] Pause', hintStyle);
+      '[1] Heal  [2] Storm  [3] Food  |  [F] Farm  [H] House  [W] Wall  |  [U] Upgrade  [ESC] Pause', hintStyle);
     this.powerHintText.setScrollFactor(0);
     this.powerHintText.setDepth(5000);
   }
@@ -583,6 +594,12 @@ export default class MainScene extends Phaser.Scene {
       lines.push(`Position: (${e.position.x}, ${e.position.y})`);
       const pop = this.templeSystem.getPlayerVillagerCount(e.playerId);
       lines.push(`Villagers: ${pop}`);
+      const upgradeCost = this.templeSystem.getUpgradeCost(e);
+      if (upgradeCost !== null) {
+        lines.push(`Upgrade: ${upgradeCost} belief [U]`);
+      } else {
+        lines.push('MAX LEVEL');
+      }
     } else if (type === 'building') {
       const bType = BUILDING_TYPES[e.type];
       lines.push(`${bType.name}`);

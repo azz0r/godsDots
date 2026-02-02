@@ -10,6 +10,8 @@ const TEMPLE_SIZE = 80;
 const SPAWN_INTERVAL = 30000; // 30 seconds between spawns
 const MAX_VILLAGERS_PER_TEMPLE = 20;
 const INFLUENCE_RADIUS = 60; // Tiles - visual influence range
+const MAX_LEVEL = 5;
+const UPGRADE_COSTS = { 2: 100, 3: 250, 4: 500, 5: 1000 };
 
 export default class TempleSystem {
   constructor(scene) {
@@ -76,6 +78,60 @@ export default class TempleSystem {
 
   getPlayerTemples(playerId) {
     return this.temples.filter(t => t.playerId === playerId);
+  }
+
+  /**
+   * Get upgrade cost for a temple's next level
+   */
+  getUpgradeCost(temple) {
+    const nextLevel = (temple.level || 1) + 1;
+    if (nextLevel > MAX_LEVEL) return null;
+    return UPGRADE_COSTS[nextLevel] || null;
+  }
+
+  /**
+   * Upgrade a temple to the next level
+   */
+  upgradeTemple(templeId) {
+    const temple = this.getTemple(templeId);
+    if (!temple) return false;
+
+    const currentLevel = temple.level || 1;
+    if (currentLevel >= MAX_LEVEL) return false;
+
+    const cost = UPGRADE_COSTS[currentLevel + 1];
+    if (!cost) return false;
+
+    if (!this.playerSystem?.spendBeliefPoints(temple.playerId, cost)) {
+      return false;
+    }
+
+    temple.level = currentLevel + 1;
+
+    // Update visuals - make temple larger and update aura
+    if (temple._gameObjects && temple._gameObjects.length >= 4) {
+      const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
+      const newSize = TEMPLE_SIZE + (temple.level - 1) * 16;
+      const newAuraRadius = INFLUENCE_RADIUS * temple.level * TILE_SIZE;
+
+      // Update aura (index 0)
+      const aura = temple._gameObjects[0];
+      aura.setRadius(newAuraRadius);
+
+      // Update temple body (index 1)
+      const body = temple._gameObjects[1];
+      body.setSize(newSize, newSize);
+
+      // Update cross markers
+      const crossH = temple._gameObjects[2];
+      crossH.setSize(newSize / 2, 3);
+
+      const crossV = temple._gameObjects[3];
+      crossV.setSize(3, newSize / 2);
+    }
+
+    console.log(`[TempleSystem] Temple ${templeId} upgraded to level ${temple.level}`);
+    return true;
   }
 
   /**
