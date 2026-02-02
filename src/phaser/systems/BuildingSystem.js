@@ -120,16 +120,18 @@ export default class BuildingSystem {
   }
 
   /**
-   * Check if a tile is within the player's temple influence radius
+   * Check if a tile is within any player's temple influence radius
+   * If playerId is given, checks only that player's temples
    */
-  isWithinInfluence(tileX, tileY) {
-    if (!this.templeSystem || !this.playerSystem) return true; // No check if no systems
+  isWithinInfluence(tileX, tileY, playerId) {
+    if (!this.templeSystem) return true;
 
-    const human = this.playerSystem.getHumanPlayer();
-    if (!human) return true;
+    // If no specific player, check human player (for placement mode)
+    const pid = playerId || (this.playerSystem?.getHumanPlayer()?.id);
+    if (!pid) return true;
 
-    const playerTemples = this.templeSystem.getPlayerTemples(human.id);
-    const influenceRadius = 60; // Matches INFLUENCE_RADIUS in TempleSystem
+    const playerTemples = this.templeSystem.getPlayerTemples(pid);
+    const influenceRadius = 60;
 
     for (const temple of playerTemples) {
       const dx = tileX - temple.position.x;
@@ -144,14 +146,14 @@ export default class BuildingSystem {
   /**
    * Check if a building can be placed at tile coordinates
    */
-  canPlace(tileX, tileY, size) {
+  canPlace(tileX, tileY, size, playerId) {
     const biomeMap = this.scene.biomeMap;
     if (!biomeMap) return false;
 
     // Must be within temple influence
     const centerX = tileX + Math.floor(size / 2);
     const centerY = tileY + Math.floor(size / 2);
-    if (!this.isWithinInfluence(centerX, centerY)) {
+    if (!this.isWithinInfluence(centerX, centerY, playerId)) {
       return false;
     }
 

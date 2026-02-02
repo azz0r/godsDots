@@ -20,6 +20,7 @@ import GameInitializer from '../systems/GameInitializer';
 import GameClock from '../systems/GameClock';
 import DivinePowerSystem from '../systems/DivinePowerSystem';
 import BuildingSystem, { BUILDING_TYPES } from '../systems/BuildingSystem';
+import AIGodSystem from '../systems/AIGodSystem';
 import { loadSettings } from './SettingsScene';
 
 export default class MainScene extends Phaser.Scene {
@@ -75,6 +76,9 @@ export default class MainScene extends Phaser.Scene {
 
     // Building system
     this.buildingSystem = null;
+
+    // AI system
+    this.aiGodSystem = null;
 
     // Game speed multiplier (1 = normal, 2 = double, etc.)
     this.gameSpeed = 1;
@@ -170,6 +174,12 @@ export default class MainScene extends Phaser.Scene {
       this.buildingSystem.playerSystem = this.playerSystem;
       this.buildingSystem.pathfindingSystem = this.pathfindingSystem;
       this.buildingSystem.templeSystem = this.templeSystem;
+
+      // Initialize AI system
+      this.aiGodSystem = new AIGodSystem(this);
+      this.aiGodSystem.playerSystem = this.playerSystem;
+      this.aiGodSystem.buildingSystem = this.buildingSystem;
+      this.aiGodSystem.templeSystem = this.templeSystem;
 
       // Create in-game HUD, info panel, and minimap
       this.createHUD();
@@ -365,6 +375,11 @@ export default class MainScene extends Phaser.Scene {
     // Update building system (food production uses game speed, ghost preview uses real time)
     if (this.buildingSystem) {
       this.buildingSystem.update(delta, scaledDelta);
+    }
+
+    // Update AI system
+    if (this.aiGodSystem) {
+      this.aiGodSystem.update(scaledDelta);
     }
 
     // Update HUD and minimap
