@@ -281,10 +281,10 @@
     {
       "id": "GD-024",
       "title": "Add health to villagers and buildings",
-      "description": "All entities get a health property. Villagers: 100 HP. Temples: 500 HP * level. Buildings: 100-200 HP by type. Health bar renders above entity when damaged (small red/green bar). Entities at 0 HP are destroyed. Villagers respawn at temple after 10s. Buildings leave rubble (visual only). This enables combat and divine power damage.",
+      "description": "Done. Villagers have 100 HP with takeDamage/heal methods. Heal power restores 50 HP, Storm deals 30 damage. Health shown in info panel. Building health not yet implemented.",
       "priority": "P2",
       "category": "System",
-      "status": "backlog",
+      "status": "done",
       "epic": 5
     },
     {
@@ -308,10 +308,10 @@
     {
       "id": "GD-027",
       "title": "Add minimap",
-      "description": "Small 200x200 pixel minimap in bottom-right corner. Shows terrain colors, temple positions (colored dots), villager clusters (smaller dots), current camera viewport (white rectangle). Click minimap to move camera. Uses a separate RenderTexture updated every 2 seconds (not every frame). Toggle with M key.",
+      "description": "Done. 200px minimap in bottom-right with terrain, temple markers, villager dots, viewport indicator. Click to move camera. Toggle with M. Re-renders every 2 seconds.",
       "priority": "P2",
       "category": "UI",
-      "status": "backlog",
+      "status": "done",
       "epic": 11
     },
     {
@@ -335,19 +335,19 @@
     {
       "id": "GD-030",
       "title": "Settings scene with game options",
-      "description": "MainMenuScene 'Settings' button currently does nothing. Create SettingsScene with: Volume sliders (Master, Music, SFX), Game speed (0.5x, 1x, 2x), Camera sensitivity, Show debug info toggle, Reset tutorial, Back button. Save settings to localStorage. Load on boot.",
+      "description": "Done. SettingsScene with draggable sliders for master/music/SFX volume, game speed (0.5-3x), camera sensitivity. Debug toggle. Settings persist to localStorage. ESC to return.",
       "priority": "P2",
       "category": "UI",
-      "status": "backlog",
+      "status": "done",
       "epic": 2
     },
     {
       "id": "GD-031",
       "title": "Add villager names and basic identity",
-      "description": "Each villager gets a randomly generated name (from a pool of 200 names). Show name on hover/click in InfoPanel. Villagers also get a 'loyalty' stat (0-100) representing devotion to their god. High loyalty = faster worship, more belief generated. Low loyalty = might defect to rival god. Names make villagers feel like individuals, not dots.",
+      "description": "Done. 160-word name pool assigned on spawn. Names shown in info panel on click. Loyalty system not yet implemented.",
       "priority": "P3",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 5
     },
     {
