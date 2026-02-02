@@ -23,6 +23,7 @@ import BuildingSystem, { BUILDING_TYPES } from '../systems/BuildingSystem';
 import AIGodSystem from '../systems/AIGodSystem';
 import SaveSystem from '../systems/SaveSystem';
 import FogOfWarSystem from '../systems/FogOfWarSystem';
+import ParticleSystem from '../systems/ParticleSystem';
 import { loadSettings } from './SettingsScene';
 
 export default class MainScene extends Phaser.Scene {
@@ -84,6 +85,9 @@ export default class MainScene extends Phaser.Scene {
 
     // Fog of war
     this.fogOfWarSystem = null;
+
+    // Particle effects
+    this.particleSystem = null;
 
     // Game speed multiplier (1 = normal, 2 = double, etc.)
     this.gameSpeed = 1;
@@ -188,6 +192,9 @@ export default class MainScene extends Phaser.Scene {
       this.aiGodSystem.playerSystem = this.playerSystem;
       this.aiGodSystem.buildingSystem = this.buildingSystem;
       this.aiGodSystem.templeSystem = this.templeSystem;
+
+      // Initialize particle system
+      this.particleSystem = new ParticleSystem(this);
 
       // Initialize fog of war system
       this.fogOfWarSystem = new FogOfWarSystem(this);

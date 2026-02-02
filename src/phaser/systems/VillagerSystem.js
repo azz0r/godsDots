@@ -415,7 +415,15 @@ export default class VillagerSystem {
    */
   removeDeadVillagers() {
     const dead = this.villagers.filter(v => v.isDead());
+    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
     for (const villager of dead) {
+      // Death particle effect
+      if (this.scene?.particleSystem) {
+        this.scene.particleSystem.emitDeath(
+          villager.x * TILE_SIZE + TILE_SIZE / 2,
+          villager.y * TILE_SIZE + TILE_SIZE / 2
+        );
+      }
       if (villager.playerId && this.playerSystem) {
         this.playerSystem.removeVillager(villager.playerId, villager.id);
       }

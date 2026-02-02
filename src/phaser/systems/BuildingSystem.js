@@ -243,6 +243,14 @@ export default class BuildingSystem {
     }
 
     this.buildings.push(building);
+
+    // Dust cloud particle effect
+    if (this.scene.particleSystem) {
+      const pixelX = tileX * TILE_SIZE + (type.size * TILE_SIZE) / 2;
+      const pixelY = tileY * TILE_SIZE + (type.size * TILE_SIZE) / 2;
+      this.scene.particleSystem.emitBuildingPlaced(pixelX, pixelY);
+    }
+
     console.log(`[BuildingSystem] Placed ${type.name} at (${tileX}, ${tileY})`);
 
     return building;
