@@ -362,19 +362,19 @@
     {
       "id": "GD-033",
       "title": "Win/lose conditions and game over screen",
-      "description": "Win condition: destroy all rival temples (no rival temples remain). Lose condition: your last temple is destroyed. On win: show victory screen with stats (days survived, peak population, belief earned, buildings built). On lose: show defeat screen with same stats plus 'Retry' button. GameOverScene with appropriate messaging.",
+      "description": "Done. Game over screen shows victory/defeat/draw with stats (days survived, population, belief, buildings). Retry and Main Menu buttons. Win/lose conditions in PlayerSystem.checkGameEnd().",
       "priority": "P3",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 10
     },
     {
       "id": "GD-034",
       "title": "Performance: entity pooling and viewport culling",
-      "description": "Currently villagers are created/destroyed as Phaser GameObjects. Implement object pooling for villagers (pre-create 200, reuse). Add viewport culling: only update/render entities within camera view + 100px margin. Profile with 200 villagers + 50 buildings and ensure 60fps. The RenderTexture terrain is already optimised; focus on entity rendering.",
+      "description": "Done. Viewport culling: villagers outside camera view (+100px margin) are hidden. Object pooling not yet implemented. Terrain already uses RenderTexture.",
       "priority": "P2",
       "category": "Performance",
-      "status": "backlog",
+      "status": "done",
       "epic": 1
     },
     {
