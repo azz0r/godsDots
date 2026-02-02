@@ -299,10 +299,10 @@
     {
       "id": "GD-026",
       "title": "Implement combat between rival villagers",
-      "description": "When villagers from opposing players are within 3 tiles, they enter FIGHT state. Combat: each villager deals 5 damage/second to nearest enemy. Villagers with < 20% HP flee toward their temple. Winning side claims the area. Visual: red flashes on hit, tiny particle effects. No player input needed - combat is automatic. This creates territorial conflict.",
+      "description": "Done. Villagers within 3 tiles of enemies deal 5 damage/sec. Red flash on hit. Below 20% HP: flee to temple. Dead villagers removed from game.",
       "priority": "P3",
       "category": "Feature",
-      "status": "backlog",
+      "status": "done",
       "epic": 10
     },
     {
