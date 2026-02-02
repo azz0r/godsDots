@@ -82,6 +82,13 @@ export default class MainScene extends Phaser.Scene {
     // Pause state (Story 3)
     this.isPaused = false;
     this.pauseOverlay = null;
+
+    // Minimap
+    this.minimapVisible = true;
+    this.minimapTexture = null;
+    this.minimapBorder = null;
+    this.minimapViewport = null;
+    this.minimapUpdateTimer = 0;
   }
 
   /**
@@ -164,9 +171,10 @@ export default class MainScene extends Phaser.Scene {
       this.buildingSystem.pathfindingSystem = this.pathfindingSystem;
       this.buildingSystem.templeSystem = this.templeSystem;
 
-      // Create in-game HUD and info panel
+      // Create in-game HUD, info panel, and minimap
       this.createHUD();
       this.createInfoPanel();
+      this.createMinimap();
 
       // Initialize game clock (day/night cycle)
       this.gameClock = new GameClock(this);
@@ -234,6 +242,14 @@ export default class MainScene extends Phaser.Scene {
       });
       this.input.keyboard.on('keydown-W', () => {
         if (this.buildingSystem) this.buildingSystem.startPlacement('wall');
+      });
+
+      // M: toggle minimap
+      this.input.keyboard.on('keydown-M', () => {
+        this.minimapVisible = !this.minimapVisible;
+        if (this.minimapTexture) this.minimapTexture.setVisible(this.minimapVisible);
+        if (this.minimapBorder) this.minimapBorder.setVisible(this.minimapVisible);
+        if (this.minimapViewport) this.minimapViewport.setVisible(this.minimapVisible);
       });
 
       // U: upgrade selected temple
@@ -351,8 +367,9 @@ export default class MainScene extends Phaser.Scene {
       this.buildingSystem.update(delta, scaledDelta);
     }
 
-    // Update HUD
+    // Update HUD and minimap
     this.updateHUD();
+    this.updateMinimap();
   }
 
   /**
@@ -430,6 +447,132 @@ export default class MainScene extends Phaser.Scene {
   }
 
   /**
+   * Create minimap in bottom-right corner
+   */
+  createMinimap() {
+    const MINIMAP_SIZE = 200;
+    const camera = this.cameras.main;
+    const mx = camera.width - MINIMAP_SIZE - 10;
+    const my = camera.height - MINIMAP_SIZE - 10;
+
+    // Create a render texture for the minimap
+    this.minimapRT = this.add.renderTexture(mx, my, MINIMAP_SIZE, MINIMAP_SIZE);
+    this.minimapRT.setScrollFactor(0);
+    this.minimapRT.setDepth(5010);
+    this.minimapRT.setOrigin(0, 0);
+    this.minimapTexture = this.minimapRT;
+
+    // Border
+    this.minimapBorder = this.add.graphics();
+    this.minimapBorder.lineStyle(2, 0xFFFFFF, 0.8);
+    this.minimapBorder.strokeRect(mx, my, MINIMAP_SIZE, MINIMAP_SIZE);
+    this.minimapBorder.setScrollFactor(0);
+    this.minimapBorder.setDepth(5011);
+
+    // Viewport indicator
+    this.minimapViewport = this.add.graphics();
+    this.minimapViewport.setScrollFactor(0);
+    this.minimapViewport.setDepth(5012);
+
+    // Store minimap config
+    this.minimapConfig = { x: mx, y: my, size: MINIMAP_SIZE };
+
+    // Make minimap clickable to move camera
+    this.minimapRT.setInteractive();
+    this.minimapRT.on('pointerdown', (pointer) => {
+      const localX = pointer.x - mx;
+      const localY = pointer.y - my;
+      const worldX = (localX / MINIMAP_SIZE) * this.worldWidth;
+      const worldY = (localY / MINIMAP_SIZE) * this.worldHeight;
+      this.cameras.main.centerOn(worldX, worldY);
+    });
+
+    // Initial render
+    this.renderMinimap();
+  }
+
+  /**
+   * Render minimap content (called every 2 seconds)
+   */
+  renderMinimap() {
+    if (!this.minimapRT || !this.biomeMap) return;
+
+    const MINIMAP_SIZE = this.minimapConfig.size;
+    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
+    const scale = MINIMAP_SIZE / this.worldWidth;
+
+    // Use a temp graphics to draw
+    const g = this.make.graphics({ add: false });
+
+    // Draw terrain at minimap scale (sample every Nth tile for performance)
+    const step = Math.max(1, Math.floor(this.mapWidth / 100));
+    for (let y = 0; y < this.mapHeight; y += step) {
+      for (let x = 0; x < this.mapWidth; x += step) {
+        const biome = this.biomeMap[y][x];
+        g.fillStyle(biome.color, 1);
+        const px = x * TILE_SIZE * scale;
+        const py = y * TILE_SIZE * scale;
+        const size = Math.max(1, step * TILE_SIZE * scale);
+        g.fillRect(px, py, size, size);
+      }
+    }
+
+    // Draw temple positions
+    if (this.templeSystem) {
+      for (const temple of this.templeSystem.temples) {
+        const tx = temple.position.x * TILE_SIZE * scale;
+        const ty = temple.position.y * TILE_SIZE * scale;
+        const color = temple.playerColor || 0xFFD700;
+        g.fillStyle(color, 1);
+        g.fillRect(tx - 3, ty - 3, 6, 6);
+      }
+    }
+
+    // Draw villager clusters (sample)
+    if (this.villagerSystem) {
+      for (let i = 0; i < this.villagerSystem.villagers.length; i += 3) {
+        const v = this.villagerSystem.villagers[i];
+        const vx = v.x * TILE_SIZE * scale;
+        const vy = v.y * TILE_SIZE * scale;
+        g.fillStyle(v.playerColor || 0xFF0000, 0.8);
+        g.fillCircle(vx, vy, 1.5);
+      }
+    }
+
+    this.minimapRT.clear();
+    this.minimapRT.draw(g);
+    g.destroy();
+  }
+
+  /**
+   * Update minimap viewport indicator
+   */
+  updateMinimap() {
+    if (!this.minimapViewport || !this.minimapConfig || !this.minimapVisible) return;
+
+    const camera = this.cameras.main;
+    const cfg = this.minimapConfig;
+    const scale = cfg.size / this.worldWidth;
+
+    // Viewport rectangle on minimap
+    const vpX = cfg.x + camera.scrollX * scale;
+    const vpY = cfg.y + camera.scrollY * scale;
+    const vpW = (camera.width / camera.zoom) * scale;
+    const vpH = (camera.height / camera.zoom) * scale;
+
+    this.minimapViewport.clear();
+    this.minimapViewport.lineStyle(1, 0xFFFFFF, 0.9);
+    this.minimapViewport.strokeRect(vpX, vpY, vpW, vpH);
+
+    // Periodic full minimap re-render (every 2 seconds)
+    this.minimapUpdateTimer -= 16; // approximate
+    if (this.minimapUpdateTimer <= 0) {
+      this.minimapUpdateTimer = 2000;
+      this.renderMinimap();
+    }
+  }
+
+  /**
    * Create the info panel for entity details (bottom-right)
    */
   createInfoPanel() {
@@ -444,7 +587,7 @@ export default class MainScene extends Phaser.Scene {
 
     this.infoPanelText = this.add.text(
       this.cameras.main.width - 300,
-      this.cameras.main.height - 200,
+      60,
       '', panelStyle
     );
     this.infoPanelText.setScrollFactor(0);
