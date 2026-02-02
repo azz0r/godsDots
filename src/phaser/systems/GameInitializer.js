@@ -81,11 +81,13 @@ export default class GameInitializer {
       const humanTemplePixelX = humanTemple.position.x * TILE_SIZE;
       const humanTemplePixelY = humanTemple.position.y * TILE_SIZE;
 
-      camera.centerOn(humanTemplePixelX, humanTemplePixelY);
-      camera.setZoom(2); // Zoom in so temple is clearly visible
+      // Set zoom first, then position camera so temple is truly centered
+      const zoom = 2;
+      camera.setZoom(zoom);
+      camera.scrollX = humanTemplePixelX - camera.width / (2 * zoom);
+      camera.scrollY = humanTemplePixelY - camera.height / (2 * zoom);
 
-      console.log(`[GameInitializer] ✓ Camera centered on human temple at pixel (${humanTemplePixelX}, ${humanTemplePixelY}), zoom: 2x`);
-      console.log(`[GameInitializer] AI temple at pixel (${aiTemple.position.x * TILE_SIZE}, ${aiTemple.position.y * TILE_SIZE})`);
+      console.log(`[GameInitializer] Camera centered on human temple at pixel (${humanTemplePixelX}, ${humanTemplePixelY}), zoom: ${zoom}x`);
     }
 
     // Spawn initial villagers for each player

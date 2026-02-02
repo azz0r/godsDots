@@ -15,7 +15,7 @@ import MainScene from '../scenes/MainScene';
  */
 export function createGameConfig() {
   return {
-    type: Phaser.CANVAS, // Force Canvas renderer (fixes Playwright WebGL crashes)
+    type: Phaser.AUTO, // Use WebGL if available, fallback to Canvas
     width: 1920,
     height: 1080,
     parent: 'game-container',

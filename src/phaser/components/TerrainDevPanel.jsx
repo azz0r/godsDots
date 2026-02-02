@@ -30,18 +30,24 @@ export default function TerrainDevPanel({ gameRef, isVisible, onToggle }) {
   const [currentTempleIndex, setCurrentTempleIndex] = useState(0);
 
   /**
-   * Track FPS from Phaser game loop
+   * Track FPS and villager count from Phaser game loop
    */
   useEffect(() => {
     if (!gameRef.current) return;
 
     const interval = setInterval(() => {
       if (gameRef.current && gameRef.current.loop) {
-        // Phaser exposes actualFps (actual measured FPS)
         const currentFps = Math.round(gameRef.current.loop.actualFps || 0);
         setFps(currentFps);
       }
-    }, 100); // Update every 100ms for smooth readings
+      // Sync villager count from scene
+      if (gameRef.current) {
+        const scene = gameRef.current.scene.getScene('MainScene');
+        if (scene && scene.villagerSystem) {
+          setVillagerCount(scene.villagerSystem.getCount());
+        }
+      }
+    }, 250);
 
     return () => clearInterval(interval);
   }, [gameRef]);

@@ -5,7 +5,7 @@
  */
 
 export const PLAYER_COLORS = {
-  HUMAN: 0x4169E1,      // Royal Blue
+  HUMAN: 0xFFD700,      // Gold - high contrast on all terrain
   AI_1: 0xFF4500,       // Orange Red
   AI_2: 0x32CD32,       // Lime Green
   AI_3: 0x9370DB,       // Medium Purple

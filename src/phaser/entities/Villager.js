@@ -37,7 +37,6 @@ export default class Villager {
     this.pauseTimer = 0;
     this.pauseDuration = 2000; // 2 seconds pause at destination
 
-    console.log(`[Villager ${this.id}] Created at (${x},${y})`);
   }
 
   /**
@@ -54,7 +53,6 @@ export default class Villager {
     this.pathIndex = 0;
     this.state = 'moving';
 
-    console.log(`[Villager ${this.id}] Path set with ${path.length} waypoints`);
   }
 
   /**
@@ -132,7 +130,6 @@ export default class Villager {
         if (this.pathIndex >= this.currentPath.length) {
           this.clearPath();
           this.pauseTimer = this.pauseDuration;
-          console.log(`[Villager ${this.id}] Reached destination, pausing...`);
           break;
         }
       } else {
@@ -169,6 +166,5 @@ export default class Villager {
       this.graphics = null;
     }
 
-    console.log(`[Villager ${this.id}] Destroyed`);
   }
 }

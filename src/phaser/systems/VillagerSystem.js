@@ -2,14 +2,14 @@
  * Layer 4: Villager Management System
  *
  * Manages all villagers, spawning, updating, and pathfinding integration.
- * Handles pause/resume and automatic destination assignment.
+ * Uses individual Phaser circle game objects for reliable rendering.
  */
 
 import Villager from '../entities/Villager';
 import { TERRAIN_CONFIG } from '../config/terrainConfig';
 
-// Maximum number of villagers that can be spawned
 const MAX_VILLAGERS = 1400;
+const VILLAGER_RADIUS = 10;
 
 export default class VillagerSystem {
   /**
@@ -32,21 +32,12 @@ export default class VillagerSystem {
     // Behavior settings
     this.autoAssignDestinations = true;
 
-    // Performance optimization: Single graphics object for all villagers
-    if (scene && scene.add && scene.add.graphics) {
-      this.villagersGraphics = scene.add.graphics();
-      this.villagersGraphics.setDepth(100); // Above terrain
-      console.log('[VillagerSystem] Initialized with batched rendering');
-    } else {
-      this.villagersGraphics = null;
-      console.log('[VillagerSystem] Initialized (test mode - no graphics)');
-    }
+    // Biome data for passability checks
+    this.biomeMap = null;
   }
 
   /**
    * Set map bounds for random destination selection
-   * @param {number} width - Map width in tiles
-   * @param {number} height - Map height in tiles
    */
   setMapBounds(width, height) {
     this.mapWidth = width;
@@ -55,7 +46,6 @@ export default class VillagerSystem {
 
   /**
    * Set terrain reference for passability checks
-   * @param {Array<Array>} biomeMap - 2D biome map
    */
   setTerrainData(biomeMap) {
     this.biomeMap = biomeMap;
@@ -69,39 +59,45 @@ export default class VillagerSystem {
    */
   spawnVillager(x, y) {
     if (!this.scene) {
-      console.error('[VillagerSystem] Cannot spawn villager without scene');
       return null;
     }
 
-    // Check if we've reached the maximum villager limit
     if (this.villagers.length >= MAX_VILLAGERS) {
-      console.warn(`[VillagerSystem] Maximum villager limit (${MAX_VILLAGERS}) reached. Cannot spawn more villagers.`);
+      console.warn(`[VillagerSystem] Max villager limit (${MAX_VILLAGERS}) reached`);
       return null;
     }
 
-    // Create villager entity without individual graphics (batched rendering)
     const villager = new Villager(this.nextId++, x, y);
     villager.origin = { x, y };
 
+    // Create a visual circle game object
+    if (this.scene.add) {
+      const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
+      const pixelX = x * TILE_SIZE + TILE_SIZE / 2;
+      const pixelY = y * TILE_SIZE + TILE_SIZE / 2;
+
+      const circle = this.scene.add.circle(pixelX, pixelY, VILLAGER_RADIUS, 0xff0000);
+      circle.setDepth(100);
+      circle.setStrokeStyle(1, 0xFFFFFF, 0.7);
+      villager._circle = circle;
+    }
+
     this.villagers.push(villager);
-
-    console.log(`[VillagerSystem] Spawned villager ${villager.id} at (${x},${y})`);
-
     return villager;
   }
 
   /**
    * Remove a villager by ID
-   * @param {number} id - Villager ID
    */
   removeVillager(id) {
     const index = this.villagers.findIndex(v => v.id === id);
     if (index !== -1) {
       const villager = this.villagers[index];
+      if (villager._circle) {
+        villager._circle.destroy();
+      }
       villager.destroy();
       this.villagers.splice(index, 1);
-
-      console.log(`[VillagerSystem] Removed villager ${id}`);
     }
   }
 
@@ -109,21 +105,20 @@ export default class VillagerSystem {
    * Clear all villagers
    */
   clearAll() {
-    this.villagers.forEach(villager => villager.destroy());
+    this.villagers.forEach(villager => {
+      if (villager._circle) {
+        villager._circle.destroy();
+      }
+      villager.destroy();
+    });
     this.villagers = [];
-
-    console.log('[VillagerSystem] Cleared all villagers');
   }
 
   /**
    * Assign a random passable destination to a villager
-   * @param {Villager} villager - The villager
-   * @param {number} destX - Optional specific X destination
-   * @param {number} destY - Optional specific Y destination
    */
   assignRandomDestination(villager, destX, destY) {
     if (!this.pathfindingSystem) {
-      console.warn('[VillagerSystem] No pathfinding system available');
       return;
     }
 
@@ -138,17 +133,33 @@ export default class VillagerSystem {
       targetX = villager.origin.x;
       targetY = villager.origin.y;
     } else {
-      // Pick random destination in center area
-      const centerX = Math.floor(this.mapWidth / 2);
-      const centerY = Math.floor(this.mapHeight / 2);
-      const radius = 75;
+      // Pick random passable destination near villager's origin (their temple area)
+      const wanderRadius = 30;
+      let found = false;
 
-      targetX = centerX + Math.floor(Math.random() * radius * 2) - radius;
-      targetY = centerY + Math.floor(Math.random() * radius * 2) - radius;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const tx = Math.floor(villager.origin.x + (Math.random() - 0.5) * wanderRadius * 2);
+        const ty = Math.floor(villager.origin.y + (Math.random() - 0.5) * wanderRadius * 2);
 
-      // Clamp to map bounds
-      targetX = Math.max(0, Math.min(this.mapWidth - 1, targetX));
-      targetY = Math.max(0, Math.min(this.mapHeight - 1, targetY));
+        // Clamp to map bounds
+        const cx = Math.max(0, Math.min(this.mapWidth - 1, tx));
+        const cy = Math.max(0, Math.min(this.mapHeight - 1, ty));
+
+        // Check passability before trying pathfinding
+        if (this.biomeMap && this.biomeMap[cy] && this.biomeMap[cy][cx] &&
+            this.biomeMap[cy][cx].passable) {
+          targetX = cx;
+          targetY = cy;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        // No passable destination found after attempts, stay idle
+        villager.clearPath();
+        return;
+      }
     }
 
     // Find path to destination
@@ -160,9 +171,7 @@ export default class VillagerSystem {
     if (path) {
       villager.setPath(path);
       villager.destination = { x: targetX, y: targetY };
-      console.log(`[VillagerSystem] Assigned destination (${targetX},${targetY}) to villager ${villager.id}`);
     } else {
-      console.warn(`[VillagerSystem] No path found for villager ${villager.id} to (${targetX},${targetY})`);
       villager.clearPath();
     }
   }
@@ -172,14 +181,26 @@ export default class VillagerSystem {
    * @param {number} delta - Time since last frame in milliseconds
    */
   update(delta) {
-    // Don't update if system is paused
     if (this.isPaused) {
       return;
     }
 
-    // Update each villager
+    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
+
     for (const villager of this.villagers) {
       villager.update(delta);
+
+      // Update circle position to match villager tile position
+      if (villager._circle) {
+        villager._circle.x = villager.x * TILE_SIZE + TILE_SIZE / 2;
+        villager._circle.y = villager.y * TILE_SIZE + TILE_SIZE / 2;
+
+        // Update color if playerColor is set
+        if (villager.playerColor && !villager._colorSet) {
+          villager._circle.setFillStyle(villager.playerColor);
+          villager._colorSet = true;
+        }
+      }
 
       // Auto-assign new destination when idle and pause timer expired
       if (this.autoAssignDestinations &&
@@ -187,65 +208,14 @@ export default class VillagerSystem {
           villager.pauseTimer === 0) {
 
         if (villager.returningHome) {
-          // Just returned home, now go back to destination
           villager.returningHome = false;
           this.assignRandomDestination(villager);
         } else if (villager.destination) {
-          // Just reached destination, now return home
           villager.returningHome = true;
           this.assignRandomDestination(villager);
         } else {
-          // First time, pick random destination
           this.assignRandomDestination(villager);
         }
-      }
-    }
-
-    // Performance optimization: Batch render all villagers in one draw call
-    this.renderVillagers();
-  }
-
-  /**
-   * Batch render all villagers to a single graphics object
-   * Performance optimization: Single draw call per player color instead of N draw calls
-   */
-  renderVillagers() {
-    // Skip rendering in test mode or if no graphics available
-    if (!this.villagersGraphics) {
-      return;
-    }
-
-    // Clear previous frame
-    this.villagersGraphics.clear();
-
-    if (this.villagers.length === 0) {
-      return;
-    }
-
-    const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
-
-    // Group villagers by color for batch rendering
-    const colorGroups = new Map();
-
-    for (const villager of this.villagers) {
-      // Use player color if assigned, otherwise default red
-      const color = villager.playerColor || 0xff0000;
-
-      if (!colorGroups.has(color)) {
-        colorGroups.set(color, []);
-      }
-
-      colorGroups.get(color).push(villager);
-    }
-
-    // Draw each color group
-    for (const [color, villagers] of colorGroups) {
-      this.villagersGraphics.fillStyle(color, 1.0);
-
-      for (const villager of villagers) {
-        const pixelX = villager.x * TILE_SIZE + TILE_SIZE / 2;
-        const pixelY = villager.y * TILE_SIZE + TILE_SIZE / 2;
-        this.villagersGraphics.fillCircle(pixelX, pixelY, 2);
       }
     }
   }
@@ -256,8 +226,6 @@ export default class VillagerSystem {
   pauseAll() {
     this.isPaused = true;
     this.villagers.forEach(villager => villager.pause());
-
-    console.log('[VillagerSystem] Paused all villagers');
   }
 
   /**
@@ -266,13 +234,10 @@ export default class VillagerSystem {
   resumeAll() {
     this.isPaused = false;
     this.villagers.forEach(villager => villager.resume());
-
-    console.log('[VillagerSystem] Resumed all villagers');
   }
 
   /**
    * Get count of active villagers
-   * @returns {number} Villager count
    */
   getCount() {
     return this.villagers.length;
@@ -280,7 +245,6 @@ export default class VillagerSystem {
 
   /**
    * Get maximum villager limit
-   * @returns {number} Maximum number of villagers allowed
    */
   getMaxVillagers() {
     return MAX_VILLAGERS;
@@ -288,8 +252,6 @@ export default class VillagerSystem {
 
   /**
    * Get villager by ID
-   * @param {number} id - Villager ID
-   * @returns {Villager|null} The villager or null
    */
   getVillager(id) {
     return this.villagers.find(v => v.id === id) || null;

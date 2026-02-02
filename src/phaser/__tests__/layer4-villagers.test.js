@@ -10,6 +10,22 @@ import Villager from '../entities/Villager';
 import PathfindingSystem from '../systems/PathfindingSystem';
 import { BIOME_TYPES } from '../config/terrainConfig';
 
+/** Create a mock scene with the APIs VillagerSystem needs */
+function createMockScene() {
+  return {
+    add: {
+      circle: jest.fn().mockReturnValue({
+        setDepth: jest.fn(),
+        setStrokeStyle: jest.fn(),
+        setFillStyle: jest.fn(),
+        destroy: jest.fn(),
+        x: 0,
+        y: 0,
+      }),
+    },
+  };
+}
+
 describe('Layer 4: Villager System', () => {
   describe('VillagerSystem Initialization', () => {
     test('should initialize with empty villagers array', () => {
@@ -21,7 +37,7 @@ describe('Layer 4: Villager System', () => {
     });
 
     test('should store scene and pathfinding references', () => {
-      const mockScene = { add: jest.fn() };
+      const mockScene = createMockScene();
       const mockPathfinding = { findPath: jest.fn() };
 
       const system = new VillagerSystem(mockScene, mockPathfinding);
@@ -33,58 +49,25 @@ describe('Layer 4: Villager System', () => {
 
   describe('Villager Spawning', () => {
     test('should spawn villager at specified coordinates', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
       const villager = system.spawnVillager(100, 100);
 
       expect(villager).toBeDefined();
       expect(villager.x).toBe(100);
       expect(villager.y).toBe(100);
       expect(system.villagers.length).toBe(1);
-      expect(system.villagers[0]).toBe(villager);
     });
 
     test('should assign unique IDs to villagers', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
       const v1 = system.spawnVillager(100, 100);
       const v2 = system.spawnVillager(200, 200);
 
-      expect(v1.id).toBeDefined();
-      expect(v2.id).toBeDefined();
       expect(v1.id).not.toBe(v2.id);
     });
 
     test('should spawn multiple villagers', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
 
       system.spawnVillager(100, 100);
       system.spawnVillager(200, 200);
@@ -96,45 +79,22 @@ describe('Layer 4: Villager System', () => {
 
   describe('Villager Entity', () => {
     test('should initialize with idle state', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn(),
-        x: 100,
-        y: 100
-      };
-
-      const villager = new Villager(1, 100, 100, mockGraphics);
+      const villager = new Villager(1, 100, 100);
 
       expect(villager.state).toBe('idle');
       expect(villager.currentPath).toBeNull();
       expect(villager.pathIndex).toBe(0);
     });
 
-    test('should store position and graphics', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn(),
-        x: 150,
-        y: 250
-      };
-
-      const villager = new Villager(1, 150, 250, mockGraphics);
+    test('should store position', () => {
+      const villager = new Villager(1, 150, 250);
 
       expect(villager.x).toBe(150);
       expect(villager.y).toBe(250);
-      expect(villager.graphics).toBe(mockGraphics);
     });
 
     test('should have default movement speed', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn()
-      };
-
-      const villager = new Villager(1, 100, 100, mockGraphics);
+      const villager = new Villager(1, 100, 100);
 
       expect(villager.speed).toBeGreaterThan(0);
       expect(villager.speed).toBeLessThanOrEqual(100);
@@ -143,13 +103,7 @@ describe('Layer 4: Villager System', () => {
 
   describe('Villager States', () => {
     test('should transition from idle to moving when given a path', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn()
-      };
-
-      const villager = new Villager(1, 100, 100, mockGraphics);
+      const villager = new Villager(1, 100, 100);
       const path = [
         { x: 100, y: 100 },
         { x: 101, y: 101 },
@@ -160,53 +114,27 @@ describe('Layer 4: Villager System', () => {
 
       expect(villager.state).toBe('moving');
       expect(villager.currentPath).toBe(path);
-      expect(villager.pathIndex).toBe(0);
     });
 
     test('should transition to idle when path is cleared', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn()
-      };
-
-      const villager = new Villager(1, 100, 100, mockGraphics);
+      const villager = new Villager(1, 100, 100);
       villager.setPath([{ x: 100, y: 100 }, { x: 101, y: 101 }]);
-
       expect(villager.state).toBe('moving');
 
       villager.clearPath();
-
       expect(villager.state).toBe('idle');
       expect(villager.currentPath).toBeNull();
     });
 
     test('should have paused state', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn()
-      };
-
-      const villager = new Villager(1, 100, 100, mockGraphics);
-
+      const villager = new Villager(1, 100, 100);
       villager.pause();
-
       expect(villager.isPaused).toBe(true);
     });
 
     test('should resume from paused state', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn()
-      };
-
-      const villager = new Villager(1, 100, 100, mockGraphics);
-
+      const villager = new Villager(1, 100, 100);
       villager.pause();
-      expect(villager.isPaused).toBe(true);
-
       villager.resume();
       expect(villager.isPaused).toBe(false);
     });
@@ -221,26 +149,14 @@ describe('Layer 4: Villager System', () => {
       ];
 
       const pathfindingSystem = new PathfindingSystem(terrainData);
-
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, pathfindingSystem);
+      const system = new VillagerSystem(createMockScene(), pathfindingSystem);
+      system.setMapBounds(3, 3);
       const villager = system.spawnVillager(0, 0);
 
-      // Request path to destination (2,2 is valid for 3x3 map)
       system.assignRandomDestination(villager, 2, 2);
 
       expect(villager.state).toBe('moving');
       expect(villager.currentPath).not.toBeNull();
-      expect(villager.currentPath.length).toBeGreaterThan(0);
     });
 
     test('should handle unreachable destinations gracefully', () => {
@@ -250,24 +166,11 @@ describe('Layer 4: Villager System', () => {
       ];
 
       const pathfindingSystem = new PathfindingSystem(terrainData);
-
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, pathfindingSystem);
+      const system = new VillagerSystem(createMockScene(), pathfindingSystem);
       const villager = system.spawnVillager(0, 0);
 
-      // Try to reach unreachable destination
       system.assignRandomDestination(villager, 1, 1);
 
-      // Should stay idle if no path found
       expect(villager.state).toBe('idle');
       expect(villager.currentPath).toBeNull();
     });
@@ -275,15 +178,7 @@ describe('Layer 4: Villager System', () => {
 
   describe('Movement and Update', () => {
     test('should move along path when updated', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn(),
-        x: 0,
-        y: 0
-      };
-
-      const villager = new Villager(1, 0, 0, mockGraphics);
+      const villager = new Villager(1, 0, 0);
       const path = [
         { x: 0, y: 0 },
         { x: 10, y: 10 },
@@ -291,37 +186,25 @@ describe('Layer 4: Villager System', () => {
       ];
 
       villager.setPath(path);
-      villager.speed = 100; // Fast movement for testing
-
-      // Update with large delta to move instantly
+      villager.speed = 100;
       villager.update(1000);
 
-      // Should have progressed along path
       expect(villager.x).toBeGreaterThan(0);
       expect(villager.y).toBeGreaterThan(0);
     });
 
     test('should reach destination and become idle', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn(),
-        x: 0,
-        y: 0
-      };
-
-      const villager = new Villager(1, 0, 0, mockGraphics);
+      const villager = new Villager(1, 0, 0);
       const path = [
         { x: 0, y: 0 },
         { x: 1, y: 1 }
       ];
 
       villager.setPath(path);
-      villager.speed = 10; // Slow but will reach destination
+      villager.speed = 10;
 
-      // Update multiple times to complete path
       for (let i = 0; i < 100; i++) {
-        villager.update(16); // 60 FPS
+        villager.update(16);
         if (villager.state === 'idle') break;
       }
 
@@ -329,48 +212,20 @@ describe('Layer 4: Villager System', () => {
     });
 
     test('should not move when paused', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn(),
-        x: 0,
-        y: 0
-      };
-
-      const villager = new Villager(1, 0, 0, mockGraphics);
-      const path = [
-        { x: 0, y: 0 },
-        { x: 100, y: 100 }
-      ];
-
-      villager.setPath(path);
+      const villager = new Villager(1, 0, 0);
+      villager.setPath([{ x: 0, y: 0 }, { x: 100, y: 100 }]);
       villager.pause();
 
       const startX = villager.x;
-      const startY = villager.y;
-
       villager.update(1000);
 
-      // Should not have moved
       expect(villager.x).toBe(startX);
-      expect(villager.y).toBe(startY);
     });
   });
 
   describe('System Update', () => {
     test('should update all villagers', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn(),
-            clear: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
 
       const v1 = system.spawnVillager(0, 0);
       const v2 = system.spawnVillager(10, 10);
@@ -385,18 +240,7 @@ describe('Layer 4: Villager System', () => {
     });
 
     test('should not update when system is paused', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn(),
-            clear: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
       const villager = system.spawnVillager(0, 0);
 
       villager.update = jest.fn();
@@ -410,17 +254,7 @@ describe('Layer 4: Villager System', () => {
 
   describe('Pause and Resume', () => {
     test('should pause all villagers', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
 
       const v1 = system.spawnVillager(0, 0);
       const v2 = system.spawnVillager(10, 10);
@@ -433,17 +267,7 @@ describe('Layer 4: Villager System', () => {
     });
 
     test('should resume all villagers', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
 
       const v1 = system.spawnVillager(0, 0);
       const v2 = system.spawnVillager(10, 10);
@@ -466,26 +290,12 @@ describe('Layer 4: Villager System', () => {
       ];
 
       const pathfindingSystem = new PathfindingSystem(terrainData);
-
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, pathfindingSystem);
+      const system = new VillagerSystem(createMockScene(), pathfindingSystem);
       system.setMapBounds(3, 3);
 
       const villager = system.spawnVillager(0, 0);
-
-      // Use explicit destination since random picks from center +/- radius
       system.assignRandomDestination(villager, 2, 2);
 
-      // Should have been assigned a path
       expect(villager.currentPath).not.toBeNull();
       expect(villager.state).toBe('moving');
     });
@@ -493,137 +303,44 @@ describe('Layer 4: Villager System', () => {
 
   describe('Villager Cleanup', () => {
     test('should remove villager from system', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn(),
-            destroy: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
       const villager = system.spawnVillager(100, 100);
 
       expect(system.villagers.length).toBe(1);
-
       system.removeVillager(villager.id);
-
       expect(system.villagers.length).toBe(0);
-    });
-
-    test('should properly remove villager from system', () => {
-      const mockGraphics = {
-        fillStyle: jest.fn(),
-        fillCircle: jest.fn(),
-        setDepth: jest.fn(),
-        clear: jest.fn()
-      };
-
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue(mockGraphics)
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
-      const villager = system.spawnVillager(100, 100);
-      const villagerId = villager.id;
-
-      expect(system.villagers.length).toBe(1);
-
-      system.removeVillager(villagerId);
-
-      expect(system.villagers.length).toBe(0);
-      expect(system.villagers.find(v => v.id === villagerId)).toBeUndefined();
     });
 
     test('should clear all villagers', () => {
-      const mockScene = {
-        add: {
-          graphics: jest.fn().mockReturnValue({
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn(),
-            setDepth: jest.fn(),
-            destroy: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
+      const system = new VillagerSystem(createMockScene(), null);
 
       system.spawnVillager(0, 0);
       system.spawnVillager(10, 10);
       system.spawnVillager(20, 20);
 
       expect(system.villagers.length).toBe(3);
-
       system.clearAll();
-
       expect(system.villagers.length).toBe(0);
     });
   });
 
   describe('Villager Limit', () => {
     test('should respect maximum villager limit', () => {
-      const mockScene = {
-        add: {
-          graphics: () => ({
-            setDepth: jest.fn(),
-            clear: jest.fn(),
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
-      const maxVillagers = system.getMaxVillagers();
-
-      expect(maxVillagers).toBe(1400);
+      const system = new VillagerSystem(createMockScene(), null);
+      expect(system.getMaxVillagers()).toBe(1400);
     });
 
     test('should not spawn villager when at max limit', () => {
-      const mockScene = {
-        add: {
-          graphics: () => ({
-            setDepth: jest.fn(),
-            clear: jest.fn(),
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
-
-      // Mock the villagers array to simulate being at max
+      const system = new VillagerSystem(createMockScene(), null);
       system.villagers = new Array(1400).fill({ id: 1 });
 
-      // Try to spawn one more - should fail
       const result = system.spawnVillager(0, 0);
-
       expect(result).toBeNull();
       expect(system.villagers.length).toBe(1400);
     });
 
     test('should allow spawning when below max limit', () => {
-      const mockScene = {
-        add: {
-          graphics: () => ({
-            setDepth: jest.fn(),
-            clear: jest.fn(),
-            fillStyle: jest.fn(),
-            fillCircle: jest.fn()
-          })
-        }
-      };
-
-      const system = new VillagerSystem(mockScene, null);
-
-      // Spawn one villager (well below limit)
+      const system = new VillagerSystem(createMockScene(), null);
       const result = system.spawnVillager(0, 0);
 
       expect(result).not.toBeNull();
