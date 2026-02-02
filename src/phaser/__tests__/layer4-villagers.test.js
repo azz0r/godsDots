@@ -213,6 +213,16 @@ describe('Layer 4: Villager System', () => {
       expect(villager.pauseTimer).toBeGreaterThan(0);
     });
 
+    test('should apply speed multiplier to movement', () => {
+      const villager = new Villager(1, 0, 0);
+      villager.setPath([{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+      villager.speed = 10;
+      villager.speedMultiplier = 0.5;
+      villager.update(1000);
+      // At speed 10 * 0.5 = 5 tiles/sec, after 1s should move 5 tiles
+      expect(villager.x).toBeCloseTo(5, 0);
+    });
+
     test('should sleep when reaching home via goingHome', () => {
       const villager = new Villager(1, 0, 0);
       villager.goingHome = true;

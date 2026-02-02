@@ -13,6 +13,8 @@ const VILLAGER_RADIUS = 10;
 const WORSHIP_CHANCE = 0.4; // 40% chance to worship when idle near temple
 const WORSHIP_RANGE = 15; // Tiles - how close to temple to trigger worship
 const BELIEF_PER_SECOND = 1; // Belief points generated per worshipping villager per second
+const FOOD_PER_VILLAGER_PER_DAY = 0.5; // Food consumed per villager per game day (60s)
+const STARVING_SPEED_MULTIPLIER = 0.6; // Speed penalty when out of food
 
 export default class VillagerSystem {
   constructor(scene, pathfindingSystem) {
@@ -205,9 +207,35 @@ export default class VillagerSystem {
       }
     }
 
+    // Food consumption: each villager consumes food over the day
+    // 0.5 food per villager per 60s day = 0.5/60000 per ms
+    if (this.playerSystem) {
+      const foodPerMs = FOOD_PER_VILLAGER_PER_DAY / 60000;
+      const playerFoodCounts = new Map();
+
+      for (const villager of this.villagers) {
+        if (!villager.playerId) continue;
+        const consumed = foodPerMs * delta;
+        if (!playerFoodCounts.has(villager.playerId)) {
+          playerFoodCounts.set(villager.playerId, 0);
+        }
+        playerFoodCounts.set(villager.playerId, playerFoodCounts.get(villager.playerId) + consumed);
+      }
+
+      for (const [playerId, totalConsumed] of playerFoodCounts) {
+        this.playerSystem.addFood(playerId, -totalConsumed);
+      }
+    }
+
     const TILE_SIZE = TERRAIN_CONFIG.TILE_SIZE;
 
     for (const villager of this.villagers) {
+      // Apply speed penalty when starving
+      if (this.playerSystem && villager.playerId) {
+        const hasFood = this.playerSystem.hasFood(villager.playerId);
+        villager.speedMultiplier = hasFood ? 1.0 : STARVING_SPEED_MULTIPLIER;
+      }
+
       villager.update(delta);
 
       // Update circle position

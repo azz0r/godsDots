@@ -138,6 +138,17 @@ describe('BuildingSystem', () => {
     expect(system.getPopulationBonus('player_1')).toBe(5);
   });
 
+  test('should calculate food production from farms', () => {
+    const system = new BuildingSystem(createMockScene());
+    system.playerSystem = createMockPlayerSystem();
+
+    system.createBuilding('farm', 0, 0);
+    system.createBuilding('farm', 2, 0);
+    system.createBuilding('house', 0, 2);
+
+    expect(system.getFoodProduction('player_1')).toBe(4); // 2 farms * 2 food/sec
+  });
+
   test('should prevent overlapping buildings', () => {
     const system = new BuildingSystem(createMockScene());
     system.playerSystem = createMockPlayerSystem();

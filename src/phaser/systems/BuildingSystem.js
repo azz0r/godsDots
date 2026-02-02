@@ -16,7 +16,8 @@ export const BUILDING_TYPES = {
     cost: 30,
     color: 0x8B4513, // Brown
     accentColor: 0x228B22, // Green crops
-    description: 'Generates food when worked',
+    foodPerSecond: 2,
+    description: 'Generates 2 food per second',
   },
   house: {
     name: 'House',
@@ -280,9 +281,32 @@ export default class BuildingSystem {
   }
 
   /**
-   * Update ghost preview position and check validity
+   * Get total food production per second for a player
    */
-  update(delta) {
+  getFoodProduction(playerId) {
+    return this.buildings
+      .filter(b => b.playerId === playerId && b.type === 'farm')
+      .reduce((sum) => sum + BUILDING_TYPES.farm.foodPerSecond, 0);
+  }
+
+  /**
+   * Update: generate food from farms and handle ghost preview
+   * @param {number} delta - Real time delta for UI
+   * @param {number} gameDelta - Game-speed-scaled delta for simulation
+   */
+  update(delta, gameDelta) {
+    const simDelta = gameDelta || delta;
+
+    // Farm food generation (uses game-speed-scaled time)
+    if (this.playerSystem) {
+      for (const building of this.buildings) {
+        if (building.type === 'farm') {
+          const foodThisFrame = (BUILDING_TYPES.farm.foodPerSecond * simDelta) / 1000;
+          this.playerSystem.addFood(building.playerId, foodThisFrame);
+        }
+      }
+    }
+
     if (!this.placementMode || !this.ghostPreview || !this.selectedType) return;
 
     const pointer = this.scene.input.mousePointer;

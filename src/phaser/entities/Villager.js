@@ -13,6 +13,7 @@ export default class Villager {
 
     // Movement
     this.speed = 10; // Tiles per second
+    this.speedMultiplier = 1.0; // Modified by VillagerSystem (e.g. starvation penalty)
     this.currentPath = null;
     this.pathIndex = 0;
 
@@ -131,7 +132,7 @@ export default class Villager {
     // Only move if in moving state
     if (this.state !== 'moving' || !this.currentPath) return;
 
-    let remainingMovement = (this.speed * delta) / 1000;
+    let remainingMovement = (this.speed * this.speedMultiplier * delta) / 1000;
 
     while (remainingMovement > 0 && this.pathIndex < this.currentPath.length) {
       const target = this.currentPath[this.pathIndex];

@@ -45,6 +45,7 @@ export default class PlayerSystem {
 
       // Stats
       beliefPoints: config.beliefPoints || 100,
+      food: config.food || 50,
       population: 0,
       devotedVillagers: [],
       influencedVillagers: [],
@@ -171,6 +172,24 @@ export default class PlayerSystem {
   }
 
   /**
+   * Add food to player
+   */
+  addFood(playerId, amount) {
+    const player = this.getPlayer(playerId);
+    if (player) {
+      player.food = Math.max(0, player.food + amount);
+    }
+  }
+
+  /**
+   * Check if player has food (not starving)
+   */
+  hasFood(playerId) {
+    const player = this.getPlayer(playerId);
+    return player && player.food > 0;
+  }
+
+  /**
    * Spend belief points
    * @param {string} playerId - Player ID
    * @param {number} cost - Cost to spend
@@ -252,6 +271,7 @@ export default class PlayerSystem {
       humanPlayer: this.humanPlayer ? {
         id: this.humanPlayer.id,
         beliefPoints: this.humanPlayer.beliefPoints,
+        food: this.humanPlayer.food,
         population: this.humanPlayer.population
       } : null
     };

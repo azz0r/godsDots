@@ -326,9 +326,9 @@ export default class MainScene extends Phaser.Scene {
       this.divinePowerSystem.update(delta);
     }
 
-    // Update building system (ghost preview)
+    // Update building system (food production uses game speed, ghost preview uses real time)
     if (this.buildingSystem) {
-      this.buildingSystem.update(delta);
+      this.buildingSystem.update(delta, scaledDelta);
     }
 
     // Update HUD
@@ -376,14 +376,16 @@ export default class MainScene extends Phaser.Scene {
     if (!human) return;
 
     const belief = Math.floor(human.beliefPoints);
+    const food = Math.floor(human.food);
     const pop = human.population;
     const worshipping = this.villagerSystem ? this.villagerSystem.getWorshippingCount() : 0;
     const sleeping = this.villagerSystem ? this.villagerSystem.getSleepingCount() : 0;
     const timeStr = this.gameClock ? this.gameClock.getTimeString() : '';
 
-    let statusParts = [`${timeStr}`, `Belief: ${belief}`, `Pop: ${pop}`];
+    let statusParts = [`${timeStr}`, `Belief: ${belief}`, `Food: ${food}`, `Pop: ${pop}`];
     if (worshipping > 0) statusParts.push(`Worshipping: ${worshipping}`);
     if (sleeping > 0) statusParts.push(`Sleeping: ${sleeping}`);
+    if (food === 0) statusParts.push('STARVING');
 
     // Show targeting/placement mode
     if (this.divinePowerSystem && this.divinePowerSystem.selectedPower) {
